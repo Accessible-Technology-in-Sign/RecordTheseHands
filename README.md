@@ -1,3 +1,5 @@
+![app-icon](https://github.com/Accessible-Technology-in-Sign/RecordTheseHands/assets/1849924/17655a38-e20a-4949-966e-e376cc19f9f5)
+
 # Record These Hands!
 © 2021&ndash;2023 Georgia Institute of Technology / 
 Center for Accessible Technology in Sign (GT-CATS)<br>
