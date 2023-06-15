@@ -1,4 +1,4 @@
-![app-icon](https://github.com/Accessible-Technology-in-Sign/RecordTheseHands/assets/1849924/17655a38-e20a-4949-966e-e376cc19f9f5)
+![app-icon-updated](https://github.com/Accessible-Technology-in-Sign/RecordTheseHands/assets/1849924/80c0241b-4d86-4710-8012-1c17032e6538)
 
 # Record These Hands!
 © 2021&ndash;2023 Georgia Institute of Technology / 
