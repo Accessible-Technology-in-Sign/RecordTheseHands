@@ -29,6 +29,14 @@
 package edu.gatech.ccg.recordthesehands
 
 object Constants {
+
+    /**
+     * This constant is used when sending confirmation emails, in case we need to debug
+     * something.
+     */
+    const val APP_VERSION = "1.3"
+
+
     /**
      * The number of words to randomly select for each recording session.
      */
@@ -40,7 +48,20 @@ object Constants {
      * are 250 words to choose from, and this value is set to 20, the user will
      * have to record a total of 5,000 clips (across 500 sessions) to be finished.
      */
-    const val RECORDINGS_PER_WORD = 20
+    const val RECORDINGS_PER_WORD = 10
+
+    /**
+     * The size, in inches, at which we should consider the user's device a tablet
+     * and render the layout in activity_record_tablet.xml instead of activity_record.xml.
+     */
+    const val TABLET_SIZE_THRESHOLD_INCHES = 7.0f
+
+    /**
+     * This function determines whether or not the button to load a custom phrase file is
+     * enabled when the app is first installed. Once a file is loaded, the button will always
+     * disappear.
+     */
+    const val PERMIT_CUSTOM_PHRASE_LOADING = true
 
     /**
      * The maximum number of recording sessions (set of 10 words) the user can

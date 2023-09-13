@@ -41,6 +41,7 @@ import javax.mail.internet.MimeMessage
 import javax.mail.internet.MimeMultipart
 import kotlin.collections.ArrayList
 import kotlin.random.Random
+import org.json.JSONObject
 
 /**
  * Selects `count` elements from `list` at random, using the designated seed if given,
@@ -100,33 +101,16 @@ fun padZeroes(number: Int, digits: Int = 5): String {
  * user recordings).
  */
 fun generateClipExif(sessionVideoFiles: HashMap<String, ArrayList<ClipDetails>>): String {
-    if (sessionVideoFiles.isEmpty()) {
-        return "{}"
-    }
-
-    var conversion: StringBuilder = StringBuilder()
-
-    conversion.append("{")
-
-    for ((key, value) in sessionVideoFiles) {
-        conversion.append("\'$key\': [")
-        for (entry in value) {
-            conversion.append("${entry}, ")
+    JSONObject().apply {
+        put("__version", Constants.APP_VERSION)
+        for ((key, value) in sessionVideoFiles) {
+            put(key, value.mapIndexed { index: Int, clip: ClipDetails ->
+                clip.toString(index + 1)
+            })
         }
 
-        if (value.isNotEmpty()) {
-            conversion.delete(conversion.length - 2, conversion.length)
-        }
-
-        conversion.append("], ")
+        return toString()
     }
-
-    if (sessionVideoFiles.isNotEmpty()) {
-        conversion.delete(conversion.length - 2, conversion.length)
-    }
-
-    conversion.append("}")
-    return conversion.toString()
 }
 
 /**
@@ -244,5 +228,13 @@ fun File.md5(): String {
             }
         }.forEach { bytesRead -> md.update(buffer, 0, bytesRead) }
         md.digest().joinToString("") { "%02x".format(it) }
+    }
+}
+
+fun clipText(text: String, len: Int = 20): String {
+    return if (text.length > len - 3) {
+        text.substring(0, len - 3) + "..."
+    } else {
+        text
     }
 }
