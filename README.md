@@ -132,5 +132,37 @@ adding too many emails to this list can cause you to hit
 If you want to use another email service or your own SMTP server, you can
 tweak the `sendEmail()` function in `Utilities.kt`.
 
+## Using RecordTheseHands with tablets
+As of v1.3, the app supports being used on tablets in landscape mode. As of right now, the
+app is configured to use tablet mode on any display larger than 7 inches in size, as determined
+by the built-in methods for screen resolution and pixel density in the Android SDK.
+
+In the tablet mode, rather than the user holding down the "Record" button, they press the button
+once to start a recording, then press it again to stop the recording and automatically swipe to the
+next phrase. The video orientation has been determined experimentally for the Google Pixel Tablet
+(2023) &mdash; [shown here](https://www.theverge.com/23765921/google-pixel-tablet-review) &mdash;
+which is designed to be used in one specific orientation (USB-C charging port to the left) while
+attached to the included stand. Other tablets may run into issues, as the app has not been set up
+to handle any other orientations. However, if you wish to use other tablets or other orientations,
+all of the code for handling tablet-specific logic is located in 
+`app/src/main/java/edu/gatech/ccg/recordthesehands/recording/RecordingActivity.kt`, with the layout
+code in `app/src/main/res/layout/activity_record_tablet.xml`. (In `RecordingActivity.kt`, search
+for `isTablet` &mdash; all of the logic specific to tablets is gated under that value.) 
+
+## Using per-user custom phrases
+The app includes, as of v1.3, an option to load a custom phrase file for each user. The strings
+located in the `"all"` string array inside the `app/src/main/res/values/strings.xml` file are 
+common to all users, but you can additionally generate plaintext files that can be loaded into the
+app. A "Load Phrases" button is present in the app until a file has been selected; once selected,
+the button will disappear until the app is deleted and reinstalled.
+
+Your file should be a simple `.txt` file with each phrase on its own line. Internally, the app uses
+a `StringSet` to store the phrases, so any duplicate phrases will be ignored. Avoid using blank
+lines in your text file.
+
+To disable this functionality, build the app with `PERMIT_CUSTOM_PHRASE_LOADING = false` in 
+`app/src/main/java/edu/gatech/ccg/recordthesehands/Constants.kt`.
+
 ## Feedback
-If you have some feedback or would like to contribute to the app, please feel free to reach out to us, or to submit issues or pull requests! We'll do our best to respond promptly.
+If you have some feedback or would like to contribute to the app, please feel free to reach out to 
+us, or to submit issues or pull requests! We'll do our best to respond promptly.

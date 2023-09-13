@@ -33,6 +33,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.View
 import android.widget.TextView
@@ -87,6 +88,13 @@ class VideoPreviewFragment(@LayoutRes layout: Int): DialogFragment(layout),
     private var landscape = false
 
     /**
+     * True if the playback is on a tablet. Note that this is used for the replays at the end
+     * of the recording sessions, which are in either 3:4 (smartphone) or 4:3 (tablet), so
+     * so this setting and `landscape` (above) should be mutually exclusive.
+     */
+    private var isTablet = false
+
+    /**
      * A timer and associated task to loop the video.
      */
     private lateinit var timer: Timer
@@ -126,6 +134,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int): DialogFragment(layout),
         startTime = arguments?.getLong("startTime") ?: 0
         endTime = arguments?.getLong("endTime") ?: 0
         landscape = arguments?.getBoolean("landscape") ?: false
+        isTablet = arguments?.getBoolean("isTablet") ?: false
 
         timer = Timer()
     }
@@ -141,8 +150,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int): DialogFragment(layout),
         val videoView = view.findViewById<VideoView>(R.id.videoPreview)
         videoView.holder.addCallback(this)
 
+        val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
         if (landscape) {
-            (videoView.layoutParams as ConstraintLayout.LayoutParams).dimensionRatio = "16:9"
+            layoutParams.dimensionRatio = "16:9"
+        } else if (isTablet) {
+            layoutParams.dimensionRatio = "4:3"
         }
 
         // Sets the title text for the video
@@ -205,13 +217,14 @@ class VideoPreviewFragment(@LayoutRes layout: Int): DialogFragment(layout),
 
         // If the startTime and endTime properties are set, set up a looper for the video.
         if (endTime > startTime) {
-            var mTimerHandler = Handler()
+            val mTimerHandler = Handler()
 
             // Task to set playback to the beginning of the looped segment
             timerTask = object : TimerTask() {
                 override fun run() {
                     mTimerHandler.post {
                         if (mediaPlayer.isPlaying) {
+                            Log.i("VideoPreviewFragment", "Looping!")
                             mediaPlayer.seekTo(startTime.toInt())
                         }
                     }

@@ -29,10 +29,12 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.util.Log
+import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
+import java.io.IOException
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -48,7 +50,16 @@ class WordPagerAdapter(
         Log.d("WordPagerAdapter", "Page changed to {$position}, {$wordList.size}")
         return if (position < wordList.size) {
             val word = this.wordList[position]
-            WordPromptFragment(word, R.layout.word_prompt)
+
+            val videoAvailable: Boolean = try {
+                recordingActivity.applicationContext.resources?.
+                        assets?.openFd("videos/$word.mp4")
+                true
+            } catch (exc: IOException) {
+                false
+            }
+
+            WordPromptFragment(word, R.layout.word_prompt, videoAvailable)
         } else if (position == wordList.size) {
             SaveRecordingFragment(R.layout.save_record)
         } else {

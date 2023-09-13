@@ -36,6 +36,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.clipText
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.VideoPreviewFragment
@@ -65,7 +66,7 @@ class RecordingListAdapter(
         fun setData(word: String, activity: RecordingActivity,
                     listAdapter: RecordingListAdapter) {
             val label = itemView.findViewById<TextView>(R.id.recordingTitle)
-            label.text = word
+            label.text = clipText(word, 40)
 
             val deleteButton = itemView.findViewById<ImageButton>(R.id.deleteRecording)
             val entry = listAdapter.recordings[word]
@@ -93,6 +94,7 @@ class RecordingListAdapter(
                     val bundle = Bundle()
                     bundle.putString("word", word)
                     bundle.putString("filename", clip.file.absolutePath)
+                    bundle.putBoolean("isTablet", activity.isTablet())
 
                     bundle.putLong("startTime", Duration.between(
                         clip.videoStart.toInstant(), clip.signStart.toInstant()

@@ -37,8 +37,11 @@ import android.content.pm.PackageManager
 import android.content.res.AssetFileDescriptor
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
+import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.ImageFormat
+import android.graphics.LightingColorFilter
 import android.graphics.PorterDuff
 import android.hardware.camera2.*
 import android.media.ExifInterface
@@ -53,6 +56,7 @@ import android.util.Log
 import android.util.Range
 import android.util.Size
 import android.view.*
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -62,15 +66,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
+import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import edu.gatech.ccg.recordthesehands.*
+import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.RECORDINGS_PER_WORD
 import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
+import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
+import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordTabletBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -86,6 +94,7 @@ import kotlin.concurrent.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import kotlin.math.sqrt
 
 /**
  * Contains the data for a clip within the greater recording.
@@ -110,7 +119,18 @@ data class ClipDetails(val file: File, val videoStart: Date, val signStart: Date
         val isValidPython = if (isValid) "True" else "False"
         return "(file=${file.absolutePath}, videoStart=${sdf.format(videoStart)}, " +
                 "signStart=${sdf.format(signStart)}, signEnd=${sdf.format(signEnd)}, " +
-                "isValid=${isValidPython})"
+                "isValid=$isValidPython)"
+    }
+
+    /**
+     * Creates a string representation for this recording with an attached attempt number.
+     */
+    fun toString(attempt: Int = 1): String {
+        val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss.SSS", Locale.US)
+        val isValidPython = if (isValid) "True" else "False"
+        return "(file=${file.absolutePath}, videoStart=${sdf.format(videoStart)}, " +
+                "signStart=${sdf.format(signStart)}, signEnd=${sdf.format(signEnd)}, " +
+                "isValid=$isValidPython, attempt=$attempt)"
     }
 
 }
@@ -141,6 +161,8 @@ class RecordingActivity : AppCompatActivity() {
         private const val RECORDING_WIDTH = 1944
         private const val RECORDING_FRAMERATE = 30
 
+        private const val MAXIMUM_RESOLUTION = 6_000_000
+
         /**
          * Whether or not an instructional video should be shown to the user.
          */
@@ -152,11 +174,6 @@ class RecordingActivity : AppCompatActivity() {
          */
         private const val COUNTDOWN_DURATION = 15 * 60 * 1000L
 
-        /**
-         * This constant is used when sending confirmation emails, in case we need to debug
-         * something.
-         */
-        private const val APP_VERSION = "1.2"
     }
 
 
@@ -165,8 +182,11 @@ class RecordingActivity : AppCompatActivity() {
     /**
      * Big red button used to start/stop a clip. (Note that we are continuously recording;
      * the button only marks when the user started or stopped signing to the camera.)
+     *
+     * Note that this button can be either a FloatingActionButton or a Button, depending on
+     * whether we are on a smartphone or a tablet, respectively.
      */
-    lateinit var recordButton: FloatingActionButton
+    lateinit var recordButton: View
 
     /**
      * The UI that allows a user to swipe back and forth and make recordings for 10 different
@@ -199,6 +219,12 @@ class RecordingActivity : AppCompatActivity() {
 
 
     // UI state variables
+    /**
+     * Marks whether the user is using a tablet (diagonal screen size > 7.0 inches (~17.78 cm)).
+     */
+    private var isTablet = false
+
+
     /**
      * Marks whether or not the recording button is enabled. If not, then the button should be
      * invisible, and it should be neither clickable (tappable) nor focusable.
@@ -421,7 +447,7 @@ class RecordingActivity : AppCompatActivity() {
      * Generates a new [Surface] for storing recording data, which will promptly be assigned to
      * the [recordingSurface] field above.
      */
-    private fun createRecordingSurface(): Surface {
+    private fun createRecordingSurface(recordingSize: Size): Surface {
         val surface = MediaCodec.createPersistentInputSurface()
         recorder = MediaRecorder(this)
 
@@ -434,7 +460,7 @@ class RecordingActivity : AppCompatActivity() {
         val outputDir = getExternalFilesDir(Environment.DIRECTORY_MOVIES)!!.absolutePath
         outputFile = File(outputDir, "$filename.mp4")
 
-        setRecordingParameters(recorder, surface).prepare()
+        setRecordingParameters(recorder, surface, recordingSize).prepare()
 
         return surface
     }
@@ -442,7 +468,7 @@ class RecordingActivity : AppCompatActivity() {
     /**
      * Prepares a [MediaRecorder] using the given surface.
      */
-    private fun setRecordingParameters(rec: MediaRecorder, surface: Surface)
+    private fun setRecordingParameters(rec: MediaRecorder, surface: Surface, recordingSize: Size)
             = rec.apply {
         // Set the video settings from our predefined constants.
         setVideoSource(MediaRecorder.VideoSource.SURFACE)
@@ -451,7 +477,7 @@ class RecordingActivity : AppCompatActivity() {
         setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
 
         setVideoFrameRate(RECORDING_FRAMERATE)
-        setVideoSize(RECORDING_HEIGHT, RECORDING_WIDTH)
+        setVideoSize(recordingSize.width, recordingSize.height)
 
         setVideoEncoder(MediaRecorder.VideoEncoder.HEVC)
         setInputSurface(surface)
@@ -460,16 +486,15 @@ class RecordingActivity : AppCompatActivity() {
          * The orientation of 270 degrees (-90 degrees) was determined through
          * experimentation. For now, we do not need to support other
          * orientations than the default portrait orientation.
+         *
+         * The tablet orientation of 0 degrees is designed primarily to support the use of
+         * a Pixel Tablet (2023) with its included stand (although any tablet with a stand
+         * may suffice).
          */
-        setOrientationHint(270)
+        setOrientationHint(if (isTablet) 0 else 270)
     }
 
-    /**
-     * This code initializes the camera-related portion of the code, adding listeners to enable
-     * video recording as long as we hold down the Record button.
-     */
-    @SuppressLint("ClickableViewAccessibility")
-    private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
+    private fun checkCameraPermission(): Boolean {
         /**
          * First, check camera permissions. If the user has not granted permission to use the
          * camera, give a prompt asking them to grant that permission in the Settings app, then
@@ -477,7 +502,7 @@ class RecordingActivity : AppCompatActivity() {
          */
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
             || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-               PackageManager.PERMISSION_GRANTED) {
+            PackageManager.PERMISSION_GRANTED) {
 
             val errorRoot = findViewById<ConstraintLayout>(R.id.main_root)
             val errorMessage = layoutInflater.inflate(R.layout.permission_error, errorRoot,
@@ -489,6 +514,31 @@ class RecordingActivity : AppCompatActivity() {
             recordButton.backgroundTintList = ColorStateList.valueOf(0xFFFA9389.toInt())
 
             // Since the user hasn't granted camera permissions, we need to stop here.
+            return false
+        }
+
+        return true
+    }
+
+    private fun getFrontCamera(): String {
+        for (id in cameraManager.cameraIdList) {
+            val face = cameraManager.getCameraCharacteristics(id)
+                .get(CameraCharacteristics.LENS_FACING)
+            if (face == CameraSelector.LENS_FACING_FRONT) {
+                return id
+            }
+        }
+
+        throw IllegalStateException("No front camera available")
+    }
+
+    /**
+     * This code initializes the camera-related portion of the code, adding listeners to enable
+     * video recording as long as we hold down the Record button.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
+        if (!checkCameraPermission()) {
             return@launch
         }
 
@@ -497,20 +547,7 @@ class RecordingActivity : AppCompatActivity() {
          * front-facing camera is available, crash. (This shouldn't fail on any modern
          * smartphone.)
          */
-        var cameraId = ""
-
-        for (id in cameraManager.cameraIdList) {
-            val face = cameraManager.getCameraCharacteristics(id)
-                .get(CameraCharacteristics.LENS_FACING)
-            if (face == CameraSelector.LENS_FACING_FRONT) {
-                cameraId = id
-                break
-            }
-        }
-
-        if (cameraId == "") {
-            throw IllegalStateException("No front camera available")
-        }
+        val cameraId = getFrontCamera()
 
         /**
          * Open the front-facing camera.
@@ -529,43 +566,141 @@ class RecordingActivity : AppCompatActivity() {
         /**
          * Set a listener for when the user presses the record button.
          */
-        recordButton.setOnTouchListener { _, event ->
+        if (!isTablet) {
+            recordButton.setOnTouchListener { view, event ->
+                return@setOnTouchListener smartphoneOnTouchListener(view, event)
+            }
+        } else {
+            recordButton.setOnTouchListener { view, event ->
+                return@setOnTouchListener tabletOnTouchListener(view, event)
+            }
+        }
+
+    }
+
+    private fun smartphoneOnTouchListener(view: View, event: MotionEvent): Boolean {
+        /**
+         * Do nothing if the record button is disabled.
+         */
+        if (!recordButtonEnabled) {
+            return false
+        }
+
+        when (event.action) {
             /**
-             * Do nothing if the record button is disabled.
+             * User presses down the record button: mark the start of a recording.
              */
-            if (!recordButtonEnabled) {
-                return@setOnTouchListener false
+            MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
+                Log.d(TAG, "Record button down")
+
+                buttonLock.withLock {
+                    Log.d(TAG, "Recording starting")
+                    segmentStartTime = Calendar.getInstance().time
+                    isSigning = true
+                }
+
+                // Prevent the user from swiping from one word to another while recording
+                // is active.
+                wordPager.isUserInputEnabled = false
+
+                // Add a tint to the record button as feedback.
+                runOnUiThread {
+                    val recFAB = recordButton as FloatingActionButton
+                    recFAB.backgroundTintList = ColorStateList.valueOf(0xFF7C0000.toInt())
+                    recFAB.setColorFilter(0x80ffffff.toInt(), PorterDuff.Mode.MULTIPLY)
+                }
             }
 
-            when (event.action) {
-                /**
-                 * User presses down the record button: mark the start of a recording.
-                 */
-                MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
-                    Log.d(TAG, "Record button down")
+            /**
+             * User releases the record button: mark the end of the recording
+             */
+            MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                Log.d(TAG, "Record button up")
 
-                    buttonLock.withLock {
+                buttonLock.withLock {
+                    /**
+                     * Add this recording to the list of recordings for the currently-selected
+                     * word.
+                     */
+                    // If there isn't a list of recordings for this word, create one first.
+                    if (!sessionClipData.containsKey(currentWord)) {
+                        sessionClipData[currentWord] = ArrayList()
+                    }
+
+                    // If there were previous recordings for this word, then we should mark them
+                    // as invalid. Currently, we only assume the last recording for any given
+                    // word is valid.
+                    val recordingList = sessionClipData[currentWord]!!
+                    if (recordingList.size > 0) {
+                        recordingList[recordingList.size - 1].isValid = false
+                    }
+
+                    // Add the current clip's details to the recording list.
+                    recordingList.add(ClipDetails(
+                        outputFile, sessionStartTime, segmentStartTime,
+                        Calendar.getInstance().time, true
+                    ))
+
+                    // Give the user some haptic feedback to confirm the recording is done.
+                    recordButton.performHapticFeedback(HapticFeedbackConstants.REJECT)
+
+                    runOnUiThread {
+                        // Move to the next word and allow the user to swipe back and forth
+                        // again now that the record button has been released.
+                        wordPager.setCurrentItem(wordPager.currentItem + 1, false)
+                        wordPager.isUserInputEnabled = true
+                        recordButton.backgroundTintList = ColorStateList.valueOf(0xFFF80000.toInt())
+                        (recordButton as FloatingActionButton).clearColorFilter()
+                    }
+
+                    isSigning = false
+
+                    // If the user ran out of time while recording a word, then
+                    // endSessionOnRecordButtonRelease will be true. Once they release the
+                    // button, we should immediately take them to the end of the recording
+                    // session.
+                    if (endSessionOnRecordButtonRelease) {
+                        runOnUiThread {
+                            wordPager.currentItem = wordList.size + 1
+                        }
+                    }
+                }
+            }
+        }
+
+        return true
+    }
+
+    private fun tabletOnTouchListener(view: View, event: MotionEvent): Boolean {
+        /**
+         * Do nothing if the record button is disabled.
+         */
+        if (!recordButtonEnabled) {
+            return false
+        }
+
+        if (event.action == MotionEvent.ACTION_UP) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                buttonLock.withLock {
+                    // User pressed "Start recording" button
+                    if (!isSigning) {
                         Log.d(TAG, "Recording starting")
                         segmentStartTime = Calendar.getInstance().time
                         isSigning = true
+
+                        // Prevent the user from swiping from one word to another while recording
+                        // is active.
+                        wordPager.isUserInputEnabled = false
+
+                        // Add a tint to the record button as feedback.
+                        runOnUiThread {
+                            recordButton.backgroundTintList = ColorStateList.valueOf(0xFF7C0000.toInt())
+                            (recordButton as Button).text = "DONE,\nNEXT PHRASE"
+                        }
                     }
 
-                    // Prevent the user from swiping from one word to another while recording
-                    // is active.
-                    wordPager.isUserInputEnabled = false
-
-                    // Add a tint to the record button as feedback.
-                    recordButton.backgroundTintList = ColorStateList.valueOf(0xFF7C0000.toInt())
-                    recordButton.setColorFilter(0x80ffffff.toInt(), PorterDuff.Mode.MULTIPLY)
-                }
-
-                /**
-                 * User releases the record button: mark the end of the recording
-                 */
-                MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
-                    Log.d(TAG, "Record button up")
-
-                    buttonLock.withLock {
+                    // User pressed "Next phrase" button
+                    else {
                         /**
                          * Add this recording to the list of recordings for the currently-selected
                          * word.
@@ -589,16 +724,13 @@ class RecordingActivity : AppCompatActivity() {
                             Calendar.getInstance().time, true
                         ))
 
-                        // Give the user some haptic feedback to confirm the recording is done.
-                        recordButton.performHapticFeedback(HapticFeedbackConstants.REJECT)
-
                         runOnUiThread {
                             // Move to the next word and allow the user to swipe back and forth
                             // again now that the record button has been released.
                             wordPager.setCurrentItem(wordPager.currentItem + 1, false)
                             wordPager.isUserInputEnabled = true
-                            recordButton.backgroundTintList = ColorStateList.valueOf(0xFFF80000.toInt())
-                            recordButton.clearColorFilter()
+                            recordButton.backgroundTintList = ColorStateList.valueOf(0xFF2BA300.toInt())
+                            (recordButton as Button).text = "START\nRECORDING"
                         }
 
                         isSigning = false
@@ -615,9 +747,9 @@ class RecordingActivity : AppCompatActivity() {
                     }
                 }
             }
-
-            return@setOnTouchListener true
         }
+
+        return true
     }
 
     /**
@@ -897,8 +1029,21 @@ class RecordingActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Set up activity's layout
-        val binding = ActivityRecordBinding.inflate(this.layoutInflater)
+        // Calculate the display size to determine whether to use mobile or tablet layout.
+        val displayMetrics = resources.displayMetrics
+        val heightInches = displayMetrics.heightPixels / displayMetrics.ydpi
+        val widthInches = displayMetrics.widthPixels / displayMetrics.xdpi
+        val diagonal = sqrt((heightInches * heightInches) + (widthInches * widthInches))
+        Log.i(TAG, "Computed screen size: $diagonal inches")
+
+        val binding: ViewBinding
+        if (diagonal > TABLET_SIZE_THRESHOLD_INCHES) {
+            isTablet = true
+            binding = ActivityRecordTabletBinding.inflate(this.layoutInflater)
+        } else {
+            binding = ActivityRecordBinding.inflate(this.layoutInflater)
+        }
+
         val view = binding.root
         setContentView(view)
 
@@ -910,6 +1055,12 @@ class RecordingActivity : AppCompatActivity() {
         val bundle = this.intent.extras ?: Bundle()
 
         completeWordList = ArrayList(listOf(*resources.getStringArray(R.array.all)))
+
+        // Load custom phrases too
+        val customPhrases = getSharedPreferences("app_settings", MODE_PRIVATE)
+            .getStringSet("customPhrases", HashSet())!!
+        completeWordList.addAll(customPhrases.toList())
+
         wordList = if (bundle.containsKey("WORDS")) {
             ArrayList(bundle.getStringArrayList("WORDS")!!)
         } else {
@@ -1072,6 +1223,8 @@ class RecordingActivity : AppCompatActivity() {
                         filterMatrix.setSaturation(0.0f)
                         val filter = ColorMatrixColorFilter(filterMatrix)
                         recordingLightView.colorFilter = filter
+
+                        // tutorialView?.releasePlayer()
                     } // runOnUiThread
                 } // else [i.e., currentPage == wordList.size + 1]
             } // onPageSelected(Int)
@@ -1105,7 +1258,35 @@ class RecordingActivity : AppCompatActivity() {
         cameraThread = generateCameraThread()
         cameraHandler = Handler(cameraThread.looper)
 
-        recordingSurface = createRecordingSurface()
+        val cameraId = getFrontCamera()
+        val props = cameraManager.getCameraCharacteristics(cameraId)
+
+        val sizes = props.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        Log.i(TAG, sizes.toString())
+
+        fun hasAspectRatio(heightRatio: Int, widthRatio: Int, dim: Size): Boolean {
+            val target = heightRatio.toFloat() / widthRatio.toFloat()
+            return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
+        }
+
+        val heightRatio = if (isTablet) 4 else 3
+        val widthRatio = if (isTablet) 3 else 4
+
+        val largestAvailableSize = sizes?.getOutputSizes(ImageFormat.JPEG)?.
+            filter {
+                // Find a resolution smaller than the maximum pixel count (6 MP)
+                // with an aspect ratio of either 4:3 or 3:4, depending on whether we are using
+                // a tablet or not.
+                it.width * it.height < MAXIMUM_RESOLUTION
+                        && (hasAspectRatio(heightRatio, widthRatio, it))
+            }?.
+            maxByOrNull { it.width * it.height }
+
+        val chosenSize = largestAvailableSize ?: Size(RECORDING_HEIGHT, RECORDING_WIDTH)
+
+
+        Log.i(TAG, "Selected video resolution: ${chosenSize.width} x ${chosenSize.height}")
+        recordingSurface = createRecordingSurface(chosenSize)
 
         /**
          * If we already finished the recording activity, no need to restart the camera thread
@@ -1193,6 +1374,15 @@ class RecordingActivity : AppCompatActivity() {
         setResult(RESULT_NO_ERROR)
         finish()
     } // concludeRecordingSession()
+
+    /**
+     * Returns whether the current activity is running in tablet mode. Used by the video previews
+     * on the summary screen to determine whether the video preview needs to be swapped to 4:3
+     * (instead of 3:4).
+     */
+    fun isTablet(): Boolean {
+        return isTablet
+    }
 
 
     /**
@@ -1467,6 +1657,13 @@ class VideoTutorialController(
         // We will set up the data source from the surfaceCreated() function
         ?: run {
             videoView.holder.addCallback(this)
+        }
+    }
+
+    fun releasePlayer() {
+        this.mediaPlayer?.let {
+            it.stop()
+            it.release()
         }
     }
 

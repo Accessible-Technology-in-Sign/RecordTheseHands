@@ -38,6 +38,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -45,10 +46,13 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.GetContent
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import edu.gatech.ccg.recordthesehands.*
+import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
+import edu.gatech.ccg.recordthesehands.Constants.PERMIT_CUSTOM_PHRASE_LOADING
 import edu.gatech.ccg.recordthesehands.Constants.RECORDINGS_PER_WORD
 import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
@@ -56,6 +60,9 @@ import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.nio.charset.StandardCharsets
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
@@ -234,6 +241,11 @@ class HomeScreenActivity: ComponentActivity() {
      * Counts the number of recordings the user has done, and updates the UI accordingly.
      */
     private fun updateCounts() {
+        allWords = ArrayList(listOf(*resources.getStringArray(R.array.all)))
+
+        val customPhrases = localPrefs.getStringSet("customPhrases", HashSet<String>())!!
+        allWords.addAll(customPhrases.toList())
+
         recordingCounts = ArrayList()
         lifetimeRecordingCount = 0
 
@@ -311,7 +323,15 @@ class HomeScreenActivity: ComponentActivity() {
             statsWordCounts.text = ""
         }
 
-        recordingCount.text = "$lifetimeRecordingCount total recordings"
+        val goal = allWords.size * RECORDINGS_PER_WORD
+        recordingCount.text = "$lifetimeRecordingCount recordings completed (out of $goal)"
+
+        val sessionCounter = findViewById<TextView>(R.id.sessionCounter)
+        val count = currentRecordingSessions
+        val pluralize = if (count == 1) "session" else "sessions"
+        sessionCounter.text = "You've completed $count $pluralize in this sitting! Once you " +
+                "finish $MAX_RECORDINGS_IN_SITTING sessions, you can either come back later or " +
+                "restart the app to continue recording."
     } // updateCounts()
 
     /**
@@ -488,11 +508,69 @@ class HomeScreenActivity: ComponentActivity() {
             }
         }
 
+        // The default value for the `phrasesLoaded` internal setting is the opposite of
+        // PERMIT_CUSTOM_PHRASE_LOADING. If PERMIT_CUSTOM_PHRASE_LOADING is false, then we should
+        // not show the "Load Phrases" button. Hence the expression below would evaluate to
+        // !!false (= false). Of course, if the `phrasesLoaded` value has been set, then we should
+        // not show the "Load Phrases" button.
+        if (!localPrefs.getBoolean("phrasesLoaded", !PERMIT_CUSTOM_PHRASE_LOADING)) {
+            val loadPhrasesButton = findViewById<Button>(R.id.loadPhrasesButton)
+            loadPhrasesButton.visibility = View.VISIBLE
+
+            val pickFile = registerForActivityResult(GetContent()) {
+                contentResolver.openInputStream(it)?.use { stream ->
+                    val text = stream.bufferedReader().use { reader -> reader.readText() }
+                    if (text.isEmpty()) {
+                        AlertDialog.Builder(this).apply {
+                            setTitle("Loading phrases failed")
+                            setMessage("File provided was empty")
+                            setPositiveButton("OK") { _, _ -> }
+                            create()
+                            show()
+                        }
+                    }
+
+                    val phrases = text.split("\n")
+                    val phraseSet = phrases.toSet()
+
+                    with (localPrefs.edit()) {
+                        putBoolean("phrasesLoaded", true)
+                        putStringSet("customPhrases", phraseSet)
+                        apply()
+
+                        runOnUiThread {
+                            loadPhrasesButton.visibility = View.INVISIBLE
+                            updateCounts()
+
+                            AlertDialog.Builder(this@HomeScreenActivity).apply {
+                                setTitle("Success!")
+                                setMessage("Loaded ${phraseSet.size} custom phrases")
+                                setPositiveButton("OK") { _, _ -> }
+                                create()
+                                show()
+                            }
+                        }
+                    }
+                } ?: run {
+                    AlertDialog.Builder(this).apply {
+                        setMessage("Could not load the file!")
+                        create()
+                        show()
+                    }
+                }
+            }
+
+            loadPhrasesButton.setOnClickListener {
+                pickFile.launch("text/plain")
+            }
+        }
+
         uidBox = findViewById(R.id.uidBox)
         uidBox.text = this.uid
 
-        // Load all words and set up the UI
-        allWords = ArrayList(listOf(*resources.getStringArray(R.array.all)))
+        val versionText = findViewById<TextView>(R.id.versionText)
+        versionText.text = "v$APP_VERSION"
+
         setupUI()
     } // onCreate()
 
@@ -518,10 +596,14 @@ class HomeScreenActivity: ComponentActivity() {
         selectedWords = lowestCountRandomChoice(wordList, recordingCounts, WORDS_PER_SESSION)
 
         nextSessionWords = findViewById(R.id.recordingListColumn1)
-        nextSessionWords.text = selectedWords.subList(0, 5).joinToString("\n")
+        nextSessionWords.text = selectedWords.subList(0, 5).joinToString("\n") {
+            clipText(it)
+        }
 
         nextSessionWords = findViewById(R.id.recordingListColumn2)
-        nextSessionWords.text = selectedWords.subList(5, 10).joinToString("\n")
+        nextSessionWords.text = selectedWords.subList(5, 10).joinToString("\n") {
+            clipText(it)
+        }
     }
 
 }
