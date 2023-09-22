@@ -585,7 +585,7 @@ class HomeScreenActivity : ComponentActivity() {
   } // onCreate()
 
   /**
-   * onCreate() function from Activity - used when opening the app from multitasking
+   * onResume() function from Activity - used when opening the app from multitasking
    */
   override fun onResume() {
     super.onResume()
