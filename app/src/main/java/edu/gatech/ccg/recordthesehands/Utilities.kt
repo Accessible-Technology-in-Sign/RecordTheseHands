@@ -100,9 +100,12 @@ fun padZeroes(number: Int, digits: Int = 5): String {
  * Generates the formatted EXIF data for the given clip data (list of start/stop times for
  * user recordings).
  */
-fun generateClipExif(sessionVideoFiles: HashMap<String, ArrayList<ClipDetails>>): String {
+fun generateClipExif(sessionVideoFiles: HashMap<String, ArrayList<ClipDetails>>,
+                     duration: Long = 0L, frames: Int = 0): String {
     JSONObject().apply {
         put("__version", Constants.APP_VERSION)
+        put("durationMs", duration)
+        put("expectedFrames", frames)
         for ((key, value) in sessionVideoFiles) {
             put(key, value.mapIndexed { index: Int, clip: ClipDetails ->
                 clip.toString(index + 1)

@@ -37,11 +37,9 @@ import android.content.pm.PackageManager
 import android.content.res.AssetFileDescriptor
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
-import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.ImageFormat
-import android.graphics.LightingColorFilter
 import android.graphics.PorterDuff
 import android.hardware.camera2.*
 import android.media.ExifInterface
@@ -351,6 +349,12 @@ class RecordingActivity : AppCompatActivity() {
      * button).
      */
     private lateinit var segmentStartTime: Date
+
+    /**
+     * The time at which the recording session ended. Combined with `sessionStartTime` to estimate
+     * how many frames should be in the recording (or if there are any dropped frames)
+     */
+    private lateinit var sessionEndTime: Date
 
     /**
      * Because the email and password have been put in a .gitignored file for security
@@ -901,7 +905,7 @@ class RecordingActivity : AppCompatActivity() {
 
             // Lock FPS at 30
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                Range(30, 30)
+                Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE)
             )
 
             // Disable video stabilization. This ensures that we don't get a cropped frame
@@ -1178,6 +1182,7 @@ class RecordingActivity : AppCompatActivity() {
                     // Close out the recording session.
                     if (isRecording) {
                         recorder.stop()
+                        sessionEndTime = Calendar.getInstance().time
                         session.stopRepeating()
                         session.close()
                         recorder.release()
@@ -1458,8 +1463,13 @@ class RecordingActivity : AppCompatActivity() {
         // Include the app version string in the confirmation email for posterity
         body += "\n\nApp version $APP_VERSION\n\n"
 
+        val videoDurationMillis = sessionEndTime.time - sessionStartTime.time
+        val expectedFrames = ((videoDurationMillis.toFloat() / 1000.0) * RECORDING_FRAMERATE).toInt()
+        Log.d(TAG, "$videoDurationMillis ms, $expectedFrames frames")
+
         // Include raw EXIF string in the email
-        body += "EXIF data:\n ${generateClipExif(sessionClipData)}"
+        body += "EXIF data:\n ${
+            generateClipExif(sessionClipData, videoDurationMillis, expectedFrames)}"
 
         val emailTask = Thread {
             kotlin.run {
@@ -1544,12 +1554,16 @@ class RecordingActivity : AppCompatActivity() {
                 outputThumbnail.close()
             }
 
+            val videoDurationMillis = sessionEndTime.time - sessionStartTime.time
+            val expectedFrames = ((videoDurationMillis.toFloat() / 1000.0) * RECORDING_FRAMERATE).toInt()
+
             // Add the EXIF data to the thumbnail image.
             val imageFd = contentResolver.openFileDescriptor(uri, "rw")
             val exif = imageFd?.let { ExifInterface(it.fileDescriptor) }
 
             exif?.apply {
-                setAttribute(TAG_IMAGE_DESCRIPTION, generateClipExif(sessionClipData))
+                setAttribute(TAG_IMAGE_DESCRIPTION,
+                    generateClipExif(sessionClipData, videoDurationMillis, expectedFrames))
                 saveAttributes()
             }
 
