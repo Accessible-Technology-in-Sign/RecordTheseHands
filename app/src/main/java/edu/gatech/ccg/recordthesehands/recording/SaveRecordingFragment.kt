@@ -31,4 +31,4 @@ package edu.gatech.ccg.recordthesehands.recording
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.Fragment
 
-class SaveRecordingFragment(@LayoutRes layout: Int): Fragment(layout)
+class SaveRecordingFragment(@LayoutRes layout: Int) : Fragment(layout)

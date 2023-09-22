@@ -46,35 +46,37 @@ import kotlin.collections.HashMap
 /**
  * Represents the recording summary page that shows up at the end of the user's recording session.
  */
-class RecordingListFragment(private val wordList: ArrayList<String>,
-                            private val sessionFiles: HashMap<String, ArrayList<ClipDetails>>,
-                            private val activity: RecordingActivity,
-                            @LayoutRes layout: Int): Fragment(layout) {
+class RecordingListFragment(
+  private val wordList: ArrayList<String>,
+  private val sessionFiles: HashMap<String, ArrayList<ClipDetails>>,
+  private val activity: RecordingActivity,
+  @LayoutRes layout: Int
+) : Fragment(layout) {
 
-    /**
-     * Overridden method from Fragment - called when the fragment is initialized.
-     */
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val scrollView = view.findViewById<RecyclerView>(R.id.recordingList)
-        scrollView.layoutManager = LinearLayoutManager(this.context)
+  /**
+   * Overridden method from Fragment - called when the fragment is initialized.
+   */
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    val scrollView = view.findViewById<RecyclerView>(R.id.recordingList)
+    scrollView.layoutManager = LinearLayoutManager(this.context)
 
-        // Set up recycler view
-        val recordingListAdapter = RecordingListAdapter(wordList, sessionFiles, activity)
-        scrollView.adapter = recordingListAdapter
+    // Set up recycler view
+    val recordingListAdapter = RecordingListAdapter(wordList, sessionFiles, activity)
+    scrollView.adapter = recordingListAdapter
 
-        // Set the save button to finish the recording activity when pressed.
-        val saveButton = view.findViewById<Button>(R.id.closeSession)
-        saveButton.setOnClickListener {
-            activity.concludeRecordingSession()
-        }
-
-        // Hide the loading spinner and gray-out screen once the view is loaded.
-        // The loading screen exists to clarify to the user that saving is in progress.
-        val loadingScreen = view.findViewById<LinearLayout>(R.id.loadingScreen)
-        loadingScreen.alpha = 0.0f
-
-        val loadingWheel = view.findViewById<RelativeLayout>(R.id.loadingPanel)
-        loadingWheel.visibility = View.INVISIBLE
+    // Set the save button to finish the recording activity when pressed.
+    val saveButton = view.findViewById<Button>(R.id.closeSession)
+    saveButton.setOnClickListener {
+      activity.concludeRecordingSession()
     }
+
+    // Hide the loading spinner and gray-out screen once the view is loaded.
+    // The loading screen exists to clarify to the user that saving is in progress.
+    val loadingScreen = view.findViewById<LinearLayout>(R.id.loadingScreen)
+    loadingScreen.alpha = 0.0f
+
+    val loadingWheel = view.findViewById<RelativeLayout>(R.id.loadingPanel)
+    loadingWheel.visibility = View.INVISIBLE
+  }
 
 }

@@ -41,36 +41,42 @@ import edu.gatech.ccg.recordthesehands.R
  * This is the little rectangle that shows up at the top of the screen showing the user which
  * word they should sign.
  */
-class WordPromptFragment(private var label: String, @LayoutRes layout: Int,
-                         private var hasVideo: Boolean = true): Fragment(layout) {
+class WordPromptFragment(
+  private var label: String, @LayoutRes layout: Int,
+  private var hasVideo: Boolean = true
+) : Fragment(layout) {
 
-    /**
-     * Lay out the UI for this fragment.
-     */
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+  /**
+   * Lay out the UI for this fragment.
+   */
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
 
-        // Set the heading for the UI as the word
-        val textField = view.findViewById<TextView>(R.id.promptText)
-        textField.text = label
+    // Set the heading for the UI as the word
+    val textField = view.findViewById<TextView>(R.id.promptText)
+    textField.text = label
 
-        if (!hasVideo) {
-            val promptView = view.findViewById<ConstraintLayout>(R.id.promptLayout)
+    if (!hasVideo) {
+      val promptView = view.findViewById<ConstraintLayout>(R.id.promptLayout)
 
-            ConstraintSet().apply {
-                clone(promptView)
-                connect(R.id.promptText, ConstraintSet.END, R.id.promptView,
-                    ConstraintSet.END, 8)
-                constrainWidth(R.id.promptText,
-                    ConstraintLayout.LayoutParams.MATCH_CONSTRAINT)
-                applyTo(promptView)
-            }
-        }
-
-        if (label.length > 20) {
-            textField.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
-            textField.textSize = 18.0f
-        }
+      ConstraintSet().apply {
+        clone(promptView)
+        connect(
+          R.id.promptText, ConstraintSet.END, R.id.promptView,
+          ConstraintSet.END, 8
+        )
+        constrainWidth(
+          R.id.promptText,
+          ConstraintLayout.LayoutParams.MATCH_CONSTRAINT
+        )
+        applyTo(promptView)
+      }
     }
+
+    if (label.length > 20) {
+      textField.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+      textField.textSize = 18.0f
+    }
+  }
 
 }

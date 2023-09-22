@@ -39,33 +39,34 @@ import java.util.*
 import kotlin.collections.HashMap
 
 class WordPagerAdapter(
-        private var recordingActivity: RecordingActivity,
-        private var wordList: ArrayList<String>,
-        private var sessionFiles: HashMap<String, ArrayList<ClipDetails>>
-    ): FragmentStateAdapter(recordingActivity) {
+  private var recordingActivity: RecordingActivity,
+  private var wordList: ArrayList<String>,
+  private var sessionFiles: HashMap<String, ArrayList<ClipDetails>>
+) : FragmentStateAdapter(recordingActivity) {
 
-    override fun getItemCount() = wordList.size + 2
+  override fun getItemCount() = wordList.size + 2
 
-    override fun createFragment(position: Int): Fragment {
-        Log.d("WordPagerAdapter", "Page changed to {$position}, {$wordList.size}")
-        return if (position < wordList.size) {
-            val word = this.wordList[position]
+  override fun createFragment(position: Int): Fragment {
+    Log.d("WordPagerAdapter", "Page changed to {$position}, {$wordList.size}")
+    return if (position < wordList.size) {
+      val word = this.wordList[position]
 
-            val videoAvailable: Boolean = try {
-                recordingActivity.applicationContext.resources?.
-                        assets?.openFd("videos/$word.mp4")
-                true
-            } catch (exc: IOException) {
-                false
-            }
+      val videoAvailable: Boolean = try {
+        recordingActivity.applicationContext.resources?.assets?.openFd("videos/$word.mp4")
+        true
+      } catch (exc: IOException) {
+        false
+      }
 
-            WordPromptFragment(word, R.layout.word_prompt, videoAvailable)
-        } else if (position == wordList.size) {
-            SaveRecordingFragment(R.layout.save_record)
-        } else {
-            RecordingListFragment(wordList, sessionFiles,
-                recordingActivity, R.layout.recording_list)
-        }
+      WordPromptFragment(word, R.layout.word_prompt, videoAvailable)
+    } else if (position == wordList.size) {
+      SaveRecordingFragment(R.layout.save_record)
+    } else {
+      RecordingListFragment(
+        wordList, sessionFiles,
+        recordingActivity, R.layout.recording_list
+      )
     }
+  }
 
 }

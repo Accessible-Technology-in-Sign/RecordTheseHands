@@ -49,194 +49,196 @@ import java.util.*
  * Represents a video preview box. We use Android's built-in modals to allow us to easily
  * preview a video on top of the main activity.
  */
-class VideoPreviewFragment(@LayoutRes layout: Int): DialogFragment(layout),
-     SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
+class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
+  SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
 
-    companion object {
-        /**
-         * Since playback cuts out early from testing, adding an extra half second
-         * to the end of a sign's playback could be beneficial to users.
-         */
-        const val ENDING_BUFFER_TIME: Long = 500
+  companion object {
+    /**
+     * Since playback cuts out early from testing, adding an extra half second
+     * to the end of a sign's playback could be beneficial to users.
+     */
+    const val ENDING_BUFFER_TIME: Long = 500
+  }
+
+  /**
+   * The controller for playing back the video.
+   */
+  lateinit var mediaPlayer: MediaPlayer
+
+  /**
+   * If we are showing a replay of a user's performance, this field will be used.
+   */
+  private lateinit var recordingUri: Uri
+
+  /**
+   * If we are showing a tutorial to the user (when the press the "?" button in the prompt),
+   * we will use this field instead of [recordingUri].
+   */
+  private var tutorialDesc: AssetFileDescriptor? = null
+
+  /**
+   * The word for this video.
+   */
+  lateinit var word: String
+
+  /**
+   * True if the video is in landscape. This is used for the tutorial recordings, as they are
+   * all in landscape (relative to the locked portrait orientation for user recordings).
+   */
+  private var landscape = false
+
+  /**
+   * True if the playback is on a tablet. Note that this is used for the replays at the end
+   * of the recording sessions, which are in either 3:4 (smartphone) or 4:3 (tablet), so
+   * so this setting and `landscape` (above) should be mutually exclusive.
+   */
+  private var isTablet = false
+
+  /**
+   * A timer and associated task to loop the video.
+   */
+  private lateinit var timer: Timer
+  private lateinit var timerTask: TimerTask
+
+  /**
+   * Time within the full recording that the clip starts.
+   */
+  var startTime: Long = 0
+
+  /**
+   * Time within the full recording that the clip ends.
+   */
+  private var endTime: Long = 0
+
+  /**
+   * Initialize instance variables for this fragment.
+   */
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    val word = arguments?.getString("word")!!
+    this.word = word
+
+    /**
+     * If the "filename" argument was supplied, use the user's recording; otherwise,
+     * use the "videos/`word`.mp4" internal asset as the file.
+     */
+    arguments?.getString("filename")?.let {
+      this.recordingUri = Uri.fromFile(File(it))
+    } ?: /* else */ run {
+      context?.resources?.assets?.openFd("videos/$word.mp4")?.let {
+        this.tutorialDesc = it
+      }
     }
 
-    /**
-     * The controller for playing back the video.
-     */
-    lateinit var mediaPlayer: MediaPlayer
+    // Set start, end, and landscape properties
+    startTime = arguments?.getLong("startTime") ?: 0
+    endTime = arguments?.getLong("endTime") ?: 0
+    landscape = arguments?.getBoolean("landscape") ?: false
+    isTablet = arguments?.getBoolean("isTablet") ?: false
 
-    /**
-     * If we are showing a replay of a user's performance, this field will be used.
-     */
-    private lateinit var recordingUri: Uri
+    timer = Timer()
+  }
 
-    /**
-     * If we are showing a tutorial to the user (when the press the "?" button in the prompt),
-     * we will use this field instead of [recordingUri].
-     */
-    private var tutorialDesc: AssetFileDescriptor? = null
+  /**
+   * Initialize layout for the dialog box showing the video
+   */
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+    this.setStyle(STYLE_NO_FRAME, 0)
 
-    /**
-     * The word for this video.
-     */
-    lateinit var word: String
+    // Set the video UI
+    val videoView = view.findViewById<VideoView>(R.id.videoPreview)
+    videoView.holder.addCallback(this)
 
-    /**
-     * True if the video is in landscape. This is used for the tutorial recordings, as they are
-     * all in landscape (relative to the locked portrait orientation for user recordings).
-     */
-    private var landscape = false
+    val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
+    if (landscape) {
+      layoutParams.dimensionRatio = "16:9"
+    } else if (isTablet) {
+      layoutParams.dimensionRatio = "4:3"
+    }
 
-    /**
-     * True if the playback is on a tablet. Note that this is used for the replays at the end
-     * of the recording sessions, which are in either 3:4 (smartphone) or 4:3 (tablet), so
-     * so this setting and `landscape` (above) should be mutually exclusive.
-     */
-    private var isTablet = false
+    // Sets the title text for the video
+    val title = view.findViewById<TextView>(R.id.wordBeingSigned)
+    title.text = this.word
+  }
 
-    /**
-     * A timer and associated task to loop the video.
-     */
-    private lateinit var timer: Timer
-    private lateinit var timerTask: TimerTask
+  /**
+   * Set up the video playback once a Surface (frame buffer) has been initialized
+   * for that purpose.
+   */
+  override fun surfaceCreated(holder: SurfaceHolder) {
+    // Set the data source
+    this.mediaPlayer = MediaPlayer().apply {
+      if (this@VideoPreviewFragment::recordingUri.isInitialized) {
+        // Playing back the user's recording
+        setDataSource(requireContext(), recordingUri)
+      } else {
+        // Playing back a tutorial video (if the user presses the help button)
+        setDataSource(tutorialDesc!!)
+      }
 
-    /**
-     * Time within the full recording that the clip starts.
-     */
-    var startTime: Long = 0
+      setSurface(holder.surface)
+      setOnPreparedListener(this@VideoPreviewFragment)
+      prepareAsync()
+    }
+  }
 
-    /**
-     * Time within the full recording that the clip ends.
-     */
-    private var endTime: Long = 0
+  /**
+   * Used if the Surface is changed. Not currently used.
+   */
+  override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+    // TODO("Not currently used")
+  }
 
-    /**
-     * Initialize instance variables for this fragment.
-     */
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val word = arguments?.getString("word")!!
-        this.word = word
+  /**
+   * Stop video playback if the Surface is destroyed.
+   */
+  override fun surfaceDestroyed(holder: SurfaceHolder) {
+    view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
+    timer.cancel()
+    this.mediaPlayer.let {
+      it.stop()
+      it.reset()
+      it.release()
+    }
+    tutorialDesc?.close()
+  }
 
-        /**
-         * If the "filename" argument was supplied, use the user's recording; otherwise,
-         * use the "videos/`word`.mp4" internal asset as the file.
-         */
-        arguments?.getString("filename")?.let {
-            this.recordingUri = Uri.fromFile(File(it))
-        } ?: /* else */ run {
-            context?.resources?.assets?.openFd("videos/$word.mp4")?.let {
-                this.tutorialDesc = it
+  /**
+   * When the MediaPlayer is prepared, start playback.
+   */
+  override fun onPrepared(mp: MediaPlayer?) {
+    // Loop and start the video
+    mp?.let {
+      it.isLooping = true
+      it.seekTo(startTime.toInt())
+      it.start()
+    }
+
+    // If the startTime and endTime properties are set, set up a looper for the video.
+    if (endTime > startTime) {
+      val mTimerHandler = Handler()
+
+      // Task to set playback to the beginning of the looped segment
+      timerTask = object : TimerTask() {
+        override fun run() {
+          mTimerHandler.post {
+            if (mediaPlayer.isPlaying) {
+              Log.i("VideoPreviewFragment", "Looping!")
+              mediaPlayer.seekTo(startTime.toInt())
             }
+          }
         }
+      }
 
-        // Set start, end, and landscape properties
-        startTime = arguments?.getLong("startTime") ?: 0
-        endTime = arguments?.getLong("endTime") ?: 0
-        landscape = arguments?.getBoolean("landscape") ?: false
-        isTablet = arguments?.getBoolean("isTablet") ?: false
-
-        timer = Timer()
+      // Initializes the playback
+      timer.schedule(
+        timerTask,
+        Calendar.getInstance().time,
+        endTime - startTime + ENDING_BUFFER_TIME
+      )
     }
-
-    /**
-     * Initialize layout for the dialog box showing the video
-     */
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        this.setStyle(STYLE_NO_FRAME, 0)
-
-        // Set the video UI
-        val videoView = view.findViewById<VideoView>(R.id.videoPreview)
-        videoView.holder.addCallback(this)
-
-        val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
-        if (landscape) {
-            layoutParams.dimensionRatio = "16:9"
-        } else if (isTablet) {
-            layoutParams.dimensionRatio = "4:3"
-        }
-
-        // Sets the title text for the video
-        val title = view.findViewById<TextView>(R.id.wordBeingSigned)
-        title.text = this.word
-    }
-
-    /**
-     * Set up the video playback once a Surface (frame buffer) has been initialized
-     * for that purpose.
-     */
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        // Set the data source
-        this.mediaPlayer = MediaPlayer().apply {
-            if (this@VideoPreviewFragment::recordingUri.isInitialized) {
-                // Playing back the user's recording
-                setDataSource(requireContext(), recordingUri)
-            } else {
-                // Playing back a tutorial video (if the user presses the help button)
-                setDataSource(tutorialDesc!!)
-            }
-
-            setSurface(holder.surface)
-            setOnPreparedListener(this@VideoPreviewFragment)
-            prepareAsync()
-        }
-    }
-
-    /**
-     * Used if the Surface is changed. Not currently used.
-     */
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        // TODO("Not currently used")
-    }
-
-    /**
-     * Stop video playback if the Surface is destroyed.
-     */
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
-        timer.cancel()
-        this.mediaPlayer.let {
-            it.stop()
-            it.reset()
-            it.release()
-        }
-        tutorialDesc?.close()
-    }
-
-    /**
-     * When the MediaPlayer is prepared, start playback.
-     */
-    override fun onPrepared(mp: MediaPlayer?) {
-        // Loop and start the video
-        mp?.let {
-            it.isLooping = true
-            it.seekTo(startTime.toInt())
-            it.start()
-        }
-
-        // If the startTime and endTime properties are set, set up a looper for the video.
-        if (endTime > startTime) {
-            val mTimerHandler = Handler()
-
-            // Task to set playback to the beginning of the looped segment
-            timerTask = object : TimerTask() {
-                override fun run() {
-                    mTimerHandler.post {
-                        if (mediaPlayer.isPlaying) {
-                            Log.i("VideoPreviewFragment", "Looping!")
-                            mediaPlayer.seekTo(startTime.toInt())
-                        }
-                    }
-                }
-            }
-
-            // Initializes the playback
-            timer.schedule(timerTask,
-                Calendar.getInstance().time,
-                endTime - startTime + ENDING_BUFFER_TIME)
-        }
-    } // onPrepared()
+  } // onPrepared()
 
 
 }
