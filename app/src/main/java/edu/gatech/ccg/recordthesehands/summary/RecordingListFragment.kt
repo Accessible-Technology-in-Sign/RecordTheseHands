@@ -67,6 +67,7 @@ class RecordingListFragment(
     // Set the save button to finish the recording activity when pressed.
     val saveButton = view.findViewById<Button>(R.id.closeSession)
     saveButton.setOnClickListener {
+      saveButton.isEnabled = false
       activity.concludeRecordingSession()
     }
 

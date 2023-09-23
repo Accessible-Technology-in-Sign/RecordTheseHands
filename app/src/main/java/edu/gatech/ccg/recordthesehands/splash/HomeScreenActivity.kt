@@ -259,9 +259,7 @@ class HomeScreenActivity : ComponentActivity() {
 
       // A word should only be shown as recorded on the splash screen if the user
       // has recorded it at least once.
-      if (count > 0) {
-        showableWords.add(Pair(count, word))
-      }
+      showableWords.add(Pair(count, word))
     }
 
     // Sort words by the number of recordings (most to least), then alphabetically.

@@ -34,7 +34,7 @@ object Constants {
    * This constant is used when sending confirmation emails, in case we need to debug
    * something.
    */
-  const val APP_VERSION = "1.3"
+  const val APP_VERSION = "1.3.1"
 
 
   /**
@@ -48,7 +48,7 @@ object Constants {
    * are 250 words to choose from, and this value is set to 20, the user will
    * have to record a total of 5,000 clips (across 500 sessions) to be finished.
    */
-  const val RECORDINGS_PER_WORD = 10
+  const val RECORDINGS_PER_WORD = 1
 
   /**
    * The size, in inches, at which we should consider the user's device a tablet
