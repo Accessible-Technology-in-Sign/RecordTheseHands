@@ -60,9 +60,7 @@ import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.nio.charset.StandardCharsets
+import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
@@ -445,6 +443,9 @@ class HomeScreenActivity : ComponentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    // Start the UploadService (which should already be running anyway).
+    applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
 
     // Load UI from XML
     val binding = ActivitySplashBinding.inflate(layoutInflater)
