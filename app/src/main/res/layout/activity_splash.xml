@@ -41,12 +41,59 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="12dp"
         android:text="Statistics"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
+
+    <TextView
+        android:id="@+id/createAccountHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="48dp"
+        android:text="Create Server Account"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/uidLabel" />
+
+    <EditText
+        android:id="@+id/usernameTextField"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:text="new_username"
+        android:textSize="14sp"
+        android:hint="Input"
+        android:inputType="text"
+        app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
+        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
+
+    <EditText
+        android:id="@+id/adminPasswordTextField"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:text="admin_password"
+        android:textSize="14sp"
+        android:hint="Input"
+        android:inputType="textPassword"
+        app:layout_constraintStart_toStartOf="@+id/usernameTextField"
+        app:layout_constraintTop_toBottomOf="@+id/usernameTextField" />
+
+    <Button
+        android:id="@+id/createAccountButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:text="Create"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
 
     <TextView
         android:id="@+id/recordingCount"

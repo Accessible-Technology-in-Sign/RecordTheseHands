@@ -70,16 +70,15 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.RECORDINGS_PER_WORD
-import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
+import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordTabletBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.UploadService
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -93,6 +92,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.sqrt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Contains the data for a clip within the greater recording.
@@ -173,6 +176,12 @@ class RecordingActivity : AppCompatActivity() {
      * automatically. Currently configured to be 15 minutes.
      */
     private const val COUNTDOWN_DURATION = 15 * 60 * 1000L
+
+    /**
+     * The timeout (in milliseconds) after which uploading should resume after a session ends.
+     */
+    private const val UPLOAD_RESUME_TIMEOUT = 10 * 1000L
+    // private const val UPLOAD_RESUME_TIMEOUT = 60 * 1000L
 
   }
 
@@ -452,14 +461,14 @@ class RecordingActivity : AppCompatActivity() {
     val surface = MediaCodec.createPersistentInputSurface()
     recorder = MediaRecorder(this)
 
-    /**
-     * Save the output video to the system Movies folder, as we can use this as a quick and easy
-     * workaround to upload videos to a user's Google Photos library. It also lets us use
-     * the OS-level implementation of background uploads and file sync, allowing us to
-     * sidestep the work of uploading to our own servers or working with Google Drive APIs.
-     */
-    val outputDir = getExternalFilesDir(Environment.DIRECTORY_MOVIES)!!.absolutePath
-    outputFile = File(outputDir, "$filename.mp4")
+    outputFile = File(
+      applicationContext.filesDir,
+      File.separator + "upload" + File.separator + filename
+    )
+    if (!outputFile.parentFile.exists()) {
+      Log.i(TAG, "creating directory ${outputFile.parentFile}.")
+      outputFile.parentFile.mkdirs()
+    }
 
     setRecordingParameters(recorder, surface, recordingSize).prepare()
 
@@ -929,6 +938,7 @@ class RecordingActivity : AppCompatActivity() {
 
     session.setRepeatingRequest(cameraRequest, null, cameraHandler)
 
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_TIMEOUT)
     recorder.start()
 
     isRecording = true
@@ -1002,6 +1012,7 @@ class RecordingActivity : AppCompatActivity() {
        * on the summary screen when this function is called. If they are on the summary page,
        * the camera has already been closed.
        */
+      // TODO Instead of checking business logic, check the actual recorder state.
       if (wordPager.currentItem <= wordList.size) {
         recorder.stop()
         session.stopRepeating()
@@ -1012,6 +1023,7 @@ class RecordingActivity : AppCompatActivity() {
         recordingSurface.release()
         countdownTimer.cancel()
         cameraHandler.removeCallbacksAndMessages(null)
+        UploadService.pauseUploadTimeout(UPLOAD_RESUME_TIMEOUT)
         Log.d(TAG, "onStop: Stop and release all recording data")
       }
 
@@ -1202,6 +1214,7 @@ class RecordingActivity : AppCompatActivity() {
             recordingSurface.release()
             countdownTimer.cancel()
             cameraHandler.removeCallbacksAndMessages(null)
+            UploadService.pauseUploadTimeout(UPLOAD_RESUME_TIMEOUT)
           }
 
           isRecording = false
@@ -1342,6 +1355,11 @@ class RecordingActivity : AppCompatActivity() {
 
     // Create the complementary image file which contains timestamp data.
     createTimestampFileAllInOne(sessionClipData)
+
+    val dataManager = DataManager(applicationContext)
+    runBlocking {
+      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
+    }
 
     /**
      * Save the video file to the user's downloads folder.

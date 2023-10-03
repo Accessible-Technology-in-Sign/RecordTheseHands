@@ -49,21 +49,25 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.GetContent
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
 import edu.gatech.ccg.recordthesehands.Constants.PERMIT_CUSTOM_PHRASE_LOADING
 import edu.gatech.ccg.recordthesehands.Constants.RECORDINGS_PER_WORD
-import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
+import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
+import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
+import kotlinx.coroutines.launch
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -446,7 +450,6 @@ class HomeScreenActivity : ComponentActivity() {
 
     // Start the UploadService (which should already be running anyway).
     applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
-
     // Load UI from XML
     val binding = ActivitySplashBinding.inflate(layoutInflater)
     val view = binding.root
@@ -570,10 +573,37 @@ class HomeScreenActivity : ComponentActivity() {
           }
         }
       }
-
       loadPhrasesButton.setOnClickListener {
         pickFile.launch("text/plain")
       }
+
+      val createAccountButton = findViewById<Button>(R.id.createAccountButton)
+
+      createAccountButton.setOnClickListener {
+        val username = findViewById<EditText>(R.id.usernameTextField).text.toString()
+        val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
+        lifecycleScope.launch {
+          val dataManager = DataManager(applicationContext)
+          thread {
+            val result = dataManager.createAccount(username, adminPassword)
+            runOnUiThread {
+              AlertDialog.Builder(this@HomeScreenActivity).apply {
+                if (result) {
+                  setTitle("Success")
+                  setMessage("Created account for \"$username\" and stored credentials.")
+                } else {
+                  setTitle("Failed")
+                  setMessage("Failed to Create account for \"$username\".")
+                }
+                setPositiveButton("OK") { _, _ -> }
+                create()
+                show()
+              }
+            }
+          }
+        }
+      }
+
     }
 
     uidBox = findViewById(R.id.uidBox)

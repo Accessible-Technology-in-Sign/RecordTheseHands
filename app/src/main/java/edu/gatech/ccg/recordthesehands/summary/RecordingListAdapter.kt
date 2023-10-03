@@ -37,8 +37,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.clipText
-import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
+import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.VideoPreviewFragment
 import java.time.Duration
 import kotlin.collections.ArrayList

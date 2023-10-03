@@ -31,26 +31,62 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import edu.gatech.ccg.recordthesehands.*
-
-class UploadFileRunnable(var filepath: String) : Runnable {
-
-  companion object {
-    private val TAG = UploadFileRunnable::class.simpleName
-  }
-
-  override fun run() {
-    Log.i(TAG, "Thread to upload $filepath.");
-  }
-}
+import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.upload.DataManager
+import java.util.Calendar
+import java.util.Date
+import kotlin.concurrent.thread
+import kotlin.random.Random
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * The upload service.
  */
 class UploadService : Service() {
 
-  private var NOTIFICATION_ID = 1
-  private var NOTIFICATION_CHANNEL_ID = "upload_service"
+  companion object {
+    private val TAG = UploadService::class.simpleName
+
+    val NOTIFICATION_ID = 1
+    val NOTIFICATION_CHANNEL_ID = "upload_service"
+
+    private var pauseUntil: Date? = null
+
+    private var UPLOAD_RESUME_ON_START_TIMEOUT = 5L * 60L * 1000L
+    // private var UPLOAD_RESUME_ON_START_TIMEOUT = 15L * 1000L  // TODO
+
+    private var UPLOAD_LOOP_TIMEOUT = 60L * 1000L
+    // private var UPLOAD_LOOP_TIMEOUT = 1L * 1000L  // TODO
+
+    fun pauseUploadTimeout(millis: Long) {
+      pauseUploadUntil(Date(Calendar.getInstance().timeInMillis + millis))
+    }
+
+    fun pauseUploadUntil(timestamp: Date?) {
+      pauseUntil = timestamp
+    }
+
+    fun isPaused(): Boolean {
+      //if (Random.nextInt(10) == 0) {  // TODO Used to test resume.
+      //  return true
+      //}
+      if (pauseUntil == null) {
+        return false
+      }
+      if (pauseUntil!!.after(Calendar.getInstance().time)) {
+        return true
+      }
+      return false
+    }
+
+  }
+
+  private var notificationManager: NotificationManager? = null
+
+  private var runningThread: Thread? = null
+  private var notifiedOfCompletion = false
+
 
   /**
    * onCreate.
@@ -60,8 +96,8 @@ class UploadService : Service() {
       NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
     )
     channel.description = "Uploads Sign Language Videos.";
-    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.createNotificationChannel(channel)
+    notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager!!.createNotificationChannel(channel)
   }
 
   /**
@@ -71,23 +107,56 @@ class UploadService : Service() {
     return null
   }
 
+  fun createNotification(title: String, message: String): Notification {
+    return Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+      .setSmallIcon(R.drawable.upload_service_notification_icon)
+      .setContentTitle(title)
+      .setContentText(message)
+      .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+      .setTicker("$title: $message")
+      .build()
+  }
+
   /**
    * onStartCommand starts the service, which keeps a thread running continuously.
    */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    val notification: Notification = Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-      .setSmallIcon(R.drawable.upload_service_notification_icon)
-      .setContentTitle("Data will upload.")
-      .setContentText("TODO, provide a status here.")
-      .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-      .setTicker("ticker text")
-      .build()
-    startForeground(NOTIFICATION_ID, notification)
+    pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
+    if (runningThread != null) {
+      return START_STICKY
+    }
 
-    var thread = Thread(UploadFileRunnable("/fake/file/path"))
-    thread.start()
+    startForeground(NOTIFICATION_ID, createNotification("Upload Service started", ""))
+
+    runningThread = thread {
+      runBlocking {
+        val dataManager = DataManager(applicationContext)
+        while (true) {
+          if (!isPaused()) {
+            Log.i(TAG, "Upload loop is running.")
+            try {
+              if (dataManager.uploadData(notificationManager!!)) {
+                if (!notifiedOfCompletion) {
+                  notificationManager!!.notify(
+                    NOTIFICATION_ID,
+                    createNotification("Uploading complete", "")
+                  )
+                  notifiedOfCompletion = true
+                }
+              } else {
+                notifiedOfCompletion = false
+              }
+            } catch (e: InterruptedUploadException) {
+              Log.w(TAG, "data upload interrupted: ${e.message}")
+            }
+          } else {
+            Log.i(TAG, "Upload loop is paused.");
+          }
+          Thread.sleep(UPLOAD_LOOP_TIMEOUT)
+        }
+      }
+    }
 
     return START_STICKY
   }
-
 }

@@ -38,8 +38,8 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
+import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import java.util.*
 import kotlin.collections.HashMap
 
