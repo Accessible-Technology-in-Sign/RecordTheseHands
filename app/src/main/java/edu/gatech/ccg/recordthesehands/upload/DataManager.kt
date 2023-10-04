@@ -552,7 +552,7 @@ class DataManager(val context: Context) {
     private val LOGIN_TOKEN_RELATIVE_PATH = "config" + File.separator + "loginToken.txt"
 
     //private val SERVER = "https://collector-dot-sign-annotation-dev.uc.r.appspot.com"
-    val SERVER = "https://localhost:8050"
+    val SERVER = "https://localhost:8050"  // TODO use local server for debugging.
     val TRUST_ALL_CERTIFICATES = (SERVER.startsWith("https://localhost"))
 
     fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
