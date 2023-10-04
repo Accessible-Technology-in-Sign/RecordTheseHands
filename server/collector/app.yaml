@@ -1,0 +1,40 @@
+service: default
+runtime: python311
+
+instance_class: F4_1G
+
+liveness_check:
+  check_interval_sec: 60
+  timeout_sec: 120
+  failure_threshold: 6
+  success_threshold: 1
+  initial_delay_sec: 300
+
+handlers:
+- url: /static
+  secure: always
+  redirect_http_response_code: 301
+  static_dir: static
+
+- url: /favicon.ico
+  secure: always
+  redirect_http_response_code: 301
+  static_files: static/favicon.ico
+  upload: static/favicon.ico
+
+- url: /privacy
+  secure: always
+  redirect_http_response_code: 301
+  static_files: static/privacy.html
+  upload: static/privacy.html
+
+- url: /terms_of_service
+  secure: always
+  redirect_http_response_code: 301
+  static_files: static/terms_of_service.html
+  upload: static/terms_of_service.html
+
+- url: /.*
+  secure: always
+  redirect_http_response_code: 301
+  script: auto

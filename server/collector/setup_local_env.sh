@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# Copyright 2023 Google LLC
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Must be sourced directly to activate the python3 environment.
+#
+# Usage:
+#   source setup_local_env.sh
+
+APP_ENV_DIR=~/.asl_app_env
+
+if ! dpkg -s google-cloud-sdk ; then
+  sudo apt install -y google-cloud-sdk
+fi
+if ! dpkg -s python3-venv ; then
+  sudo apt install -y python3-venv
+fi
+# if ! dpkg -s gunicorn ; then
+#   sudo apt install -y gunicorn
+# fi
+
+if ! [[ -d "${APP_ENV_DIR}" ]] ; then
+  python3 -m venv "${APP_ENV_DIR}"
+fi
+
+source "${APP_ENV_DIR}"/bin/activate
+
+pip install -r requirements.txt
+pip install gunicorn
+
+cat << EndOfMessage
+Local environment is setup and sourced.
+
+Use the following command to start the server:
+
+export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
+gunicorn -b :8040 main:app
+
+Setup https server credentials (self-signed, no password on key file):
+openssl req -x509 -newkey rsa:4096 -keyout /home/$USER/.ssh/https/key.pem -out /home/$USER/.ssh/https/cert.pem -sha256 -nodes -days 365
+
+Setup https using gunicorn:
+gunicorn --certfile=/home/$USER/.ssh/https/cert.pem --keyfile=/home/$USER/.ssh/https/key.pem -b :8050 main:app
+
+Setup https using nginx proxying (process exits, but errors print on terminal)
+sudo nginx -c nginx.conf
+# And in a separate terminal run the regular gunicorn command.
+
+nginx.conf:
+
+events {}
+
+http {
+  server {
+    listen  8050 ssl;
+
+    ssl_certificate        /home/$USER/.ssh/https/cert.pem;
+    ssl_certificate_key    /home/$USER/.ssh/https/key.pem;
+
+    location / {
+      proxy_pass http://localhost:8040;
+    }
+  }
+}
+
+Setup port forwarding for Android:
+/home/$USER/Android/Sdk/platform-tools/adb reverse tcp:8050 tcp:8050
+/home/$USER/Android/Sdk/platform-tools/adb reverse tcp:8040 tcp:8040
+
+Check the http server:
+curl http://localhost:8040/
+
+Check the https server:
+openssl s_client -debug -connect localhost:8050
+curl https://localhost:8050/
+EndOfMessage
+
+
