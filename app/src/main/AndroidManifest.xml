@@ -28,6 +28,14 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".upload.DataManagerReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name=".upload.SESSION_API_PACKAGE_INSTALLED"/>
+            </intent-filter>
+        </receiver>
 
         <service
             android:name=".upload.UploadService"
@@ -56,6 +64,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/filepaths" />
         </provider>
+
     </application>
 
 </manifest>

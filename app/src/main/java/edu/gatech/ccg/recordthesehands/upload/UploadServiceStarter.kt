@@ -28,6 +28,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.runBlocking
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 class UploadServiceStarter : BroadcastReceiver() {
 
@@ -41,6 +45,10 @@ class UploadServiceStarter : BroadcastReceiver() {
       Log.d(TAG, "System Boot Completed, starting upload service.")
     } else if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
       Log.d(TAG, "Package Replaced, starting upload service.")
+      val dataManager = DataManager(context)
+      runBlocking {
+        dataManager.updateApkTimestamp()
+      }
     } else {
       Log.e(TAG, "Unknown Intent triggered, starting upload service anyway.")
     }

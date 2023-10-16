@@ -37,6 +37,16 @@
         app:layout_constraintTop_toTopOf="@+id/uidLabel" />
 
     <TextView
+        android:id="@+id/phrasesBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Not set"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@+id/uidLabel"
+        app:layout_constraintTop_toBottomOf="@+id/uidBox" />
+
+    <TextView
         android:id="@+id/statisticsHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -53,12 +63,12 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="12dp"
         android:text="Create Server Account"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/uidLabel" />
+        app:layout_constraintTop_toBottomOf="@+id/phrasesBox" />
 
     <EditText
         android:id="@+id/usernameTextField"
@@ -141,7 +151,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="12dp"
         android:text="Next recording session:"
         android:textSize="24sp"
         android:textStyle="bold"

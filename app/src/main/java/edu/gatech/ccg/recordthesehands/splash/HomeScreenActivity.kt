@@ -49,6 +49,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.GetContent
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -63,11 +64,13 @@ import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -606,14 +609,33 @@ class HomeScreenActivity : ComponentActivity() {
 
     }
 
+    val dataManager = DataManager(applicationContext)
+    val username = dataManager.getUsername()
+    thread {
+      runBlocking {
+        val phrases = dataManager.getPhrases()
+        val phrasesBox: TextView = findViewById(R.id.phrasesBox)
+        if (phrases == null) {
+          phrasesBox.text = "Phrases not loaded!"
+        } else {
+          phrasesBox.text = "Found ${phrases.array.size} phrases."
+        }
+        // TODO Only enable going to recording screen if phrases and loginToken are
+        // available.  Otherwise, go to an adiministration task.
+      }
+    }
     uidBox = findViewById(R.id.uidBox)
-    uidBox.text = this.uid
+    if (username != null) {
+      uidBox.text = username
+    } else {
+      uidBox.text = this.uid
+    }
 
     val versionText = findViewById<TextView>(R.id.versionText)
     versionText.text = "v$APP_VERSION"
 
     setupUI()
-  } // onCreate()
+  }
 
   /**
    * onResume() function from Activity - used when opening the app from multitasking

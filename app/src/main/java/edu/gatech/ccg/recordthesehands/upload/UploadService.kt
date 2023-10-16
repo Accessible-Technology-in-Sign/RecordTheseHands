@@ -53,11 +53,16 @@ class UploadService : Service() {
 
     private var pauseUntil: Date? = null
 
-    private var UPLOAD_RESUME_ON_START_TIMEOUT = 5L * 60L * 1000L
-    // private var UPLOAD_RESUME_ON_START_TIMEOUT = 15L * 1000L  // TODO
+    private var SHORT_TIMEOUTS = true  // TODO
 
-    private var UPLOAD_LOOP_TIMEOUT = 60L * 1000L
-    // private var UPLOAD_LOOP_TIMEOUT = 1L * 1000L  // TODO
+    private var UPLOAD_RESUME_ON_START_TIMEOUT =
+      if (SHORT_TIMEOUTS) 5L * 1000L else 5L * 60L * 1000L
+
+    private var UPLOAD_LOOP_TIMEOUT =
+      if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
+
+    var UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT =
+      if (SHORT_TIMEOUTS) 5L * 1000L else 5 * 60L * 1000L
 
     fun pauseUploadTimeout(millis: Long) {
       pauseUploadUntil(Date(Calendar.getInstance().timeInMillis + millis))
@@ -121,7 +126,6 @@ class UploadService : Service() {
    * onStartCommand starts the service, which keeps a thread running continuously.
    */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
     if (runningThread != null) {
       return START_STICKY
     }
@@ -131,6 +135,12 @@ class UploadService : Service() {
     runningThread = thread {
       runBlocking {
         val dataManager = DataManager(applicationContext)
+        try {
+          dataManager.runDirectives()
+        } catch (e: InterruptedUploadException) {
+          Log.w(TAG, "Paused, skipping directives.")
+        }
+        pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
         while (true) {
           if (!isPaused()) {
             Log.i(TAG, "Upload loop is running.")

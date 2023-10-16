@@ -176,13 +176,6 @@ class RecordingActivity : AppCompatActivity() {
      * automatically. Currently configured to be 15 minutes.
      */
     private const val COUNTDOWN_DURATION = 15 * 60 * 1000L
-
-    /**
-     * The timeout (in milliseconds) after which uploading should resume after a session ends.
-     */
-    private const val UPLOAD_RESUME_TIMEOUT = 10 * 1000L
-    // private const val UPLOAD_RESUME_TIMEOUT = 60 * 1000L
-
   }
 
 
@@ -938,7 +931,7 @@ class RecordingActivity : AppCompatActivity() {
 
     session.setRepeatingRequest(cameraRequest, null, cameraHandler)
 
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_TIMEOUT)
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     recorder.start()
 
     isRecording = true
@@ -1023,7 +1016,7 @@ class RecordingActivity : AppCompatActivity() {
         recordingSurface.release()
         countdownTimer.cancel()
         cameraHandler.removeCallbacksAndMessages(null)
-        UploadService.pauseUploadTimeout(UPLOAD_RESUME_TIMEOUT)
+        UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
         Log.d(TAG, "onStop: Stop and release all recording data")
       }
 
@@ -1214,7 +1207,7 @@ class RecordingActivity : AppCompatActivity() {
             recordingSurface.release()
             countdownTimer.cancel()
             cameraHandler.removeCallbacksAndMessages(null)
-            UploadService.pauseUploadTimeout(UPLOAD_RESUME_TIMEOUT)
+            UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
           }
 
           isRecording = false

@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 
 # Copyright 2023 Google LLC
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -143,7 +143,7 @@ def is_valid_user(login_token):
   if not m:
     return False
   username = m.group(1)
-  
+
   db = firestore.Client()
   doc_ref = db.document(f'collector/users/{username}/login_hash').get()
   if not doc_ref.exists:
@@ -161,7 +161,7 @@ def get_username(login_token):
 
 def get_download_link(object_name):
   """Get a signed url for downloading an object."""
-  gcs_path = str(pathlib.Path('download').joinpath(object_name))
+  gcs_path = str(object_name)
 
   auth_request = google.auth.transport.requests.Request()
   credentials, unused_project = google.auth.default()
@@ -222,6 +222,49 @@ def download_page():
   return flask.jsonify({'downloadLink': download_link})
 
 
+@app.route('/phrases', methods=['POST'])
+def phrases_page():
+  """Download a phrases."""
+  print('download phrases')
+  login_token = flask.request.values.get('login_token', '')
+  if not is_valid_user(login_token):
+    return 'login_token invalid', 400
+
+  username = get_username(login_token)
+  assert username
+
+  db = firestore.Client()
+  doc_ref = db.document(f'collector/users/{username}/data/phrases/active')
+  doc_data = doc_ref.get()
+  if not doc_data.exists:
+    return f'no phrases found for user {username}', 404
+  doc_dict = doc_data.to_dict()
+  path = doc_dict.get('path')
+  if not path:
+    return f'phrase file not found for user {username}', 404
+
+  download_link = get_download_link(path)
+
+  return flask.redirect(download_link, code=303)
+
+
+@app.route('/apk', methods=['GET'])
+def apk_page():
+  """Download the latest apk."""
+  db = firestore.Client()
+  doc_ref = db.document(f'collector/apk')
+  doc_data = doc_ref.get()
+  if not doc_data.exists:
+    return 'apk version info not found.', 404
+  apk_data = doc_data.to_dict()
+  apk_filename = apk_data.get('filename')
+  assert apk_filename
+
+  download_link = get_download_link(f'apk/{apk_filename}')
+
+  return flask.redirect(download_link, code=307)
+
+
 @app.route('/upload', methods=['POST'])
 def upload():
   """Upload an item."""
@@ -250,7 +293,7 @@ def upload():
     return 'file_size was not a non-negative integer', 400
 
   db = firestore.Client()
-  db.document(f'collector/users/{username}/data_manager/file/{filename}').set({
+  db.document(f'collector/users/{username}/data/file/{filename}').set({
       'path': path,
       'md5': md5sum,
       'file_size': int(file_size)
@@ -263,10 +306,11 @@ def upload():
 if IS_LOCAL_ENV:
   # TODO remove this anchor.
   # (used by upload_file.py so it doesn't need login_token)
+
   @app.route('/simple_upload', methods=['POST'])
   def simple_upload():
     """Upload an item."""
-    username = "testing"
+    username = 'testing'
 
     filename = flask.request.values.get('filename', '')
     m = re.match(r'^[a-zA-Z0-9_:.-]*$', filename)
@@ -278,11 +322,11 @@ if IS_LOCAL_ENV:
       return 'md5 was invalid (must be 32 lower case hex characters).', 400
 
     db = firestore.Client()
-    db.document(f'collector/users/{username}/data_manager/file/{filename}'
+    db.document(f'collector/users/{username}/data/file/{filename}'
                ).set({
-        'filename': filename,
-        'md5': md5sum
-    })
+                   'filename': filename,
+                   'md5': md5sum
+               })
 
     upload_link = get_upload_link(f'{username}/{filename}')
     return flask.jsonify({'uploadLink': upload_link})
@@ -317,11 +361,11 @@ def verify():
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data_manager/file/{filename}').get()
+      f'collector/users/{username}/data/file/{filename}').get()
   if not doc_ref.exists:
     return 'no file registered', 400
   doc_dict = doc_ref.to_dict()
-  rogistered_md5 = doc_dict.get('md5')
+  registered_md5 = doc_dict.get('md5')
   if not registered_md5:
     return 'file does not have an md5sum registered.', 400
   assert re.match(r'^[0-9a-f]{32}$', registered_md5)
@@ -335,7 +379,6 @@ def verify():
   if not blob.exists():
     return flask.jsonify({'verified': False, 'fileNotFound': True}), 404
   blob.reload()
-  blob.md5_hash
   file_md5 = base64.b16encode(
       base64.b64decode(blob.md5_hash)).decode('utf-8').lower()
   # print(blob.md5_hash)
@@ -362,10 +405,10 @@ def register_login():
   m = re.match(r'^([a-z][a-z0-9_]{2,}):[0-9a-f]{64}$', login_token)
   if not m:
     return (
-        'login_token is malformed.  '
-        'Note that username must be at least 3 characters, start with '
-        'a lowercase letter and include only lower case letters, '
-        'numbers, and underscores.',
+        ('login_token is malformed.  '
+         'Note that username must be at least 3 characters, start with '
+         'a lowercase letter and include only lower case letters, '
+         'numbers, and underscores.'),
         400)
   username = m.group(1)
   db = firestore.Client()
@@ -390,12 +433,77 @@ def save():
   assert username
 
   db = firestore.Client()
-  db.document(f'collector/users/{username}/data_manager/save/{key}').set(
+  db.document(f'collector/users/{username}/data/save/{key}').set(
       {key: value})
 
   return flask.render_template(
       'success.html',
-      message=f'Key value saved.')
+      message='Key value saved.')
+
+
+@app.route('/directives', methods=['POST'])
+def directives_page():
+  """Save a key value pair."""
+  login_token = flask.request.values.get('login_token', '')
+  if not is_valid_user(login_token):
+    return 'login_token invalid', 400
+
+  username = get_username(login_token)
+  assert username
+
+  db = firestore.Client()
+
+  doc_ref = db.document(f'collector/apk')
+  doc_data = doc_ref.get()
+  if doc_data.exists:
+    apk_data = doc_data.to_dict()
+  else:
+    apk_data = dict()
+
+  c_ref = db.collection(f'collector/users/{username}/data/directive')
+  directives = list()
+  for doc in c_ref.stream():
+    doc_dict = doc.to_dict()
+    if doc_dict.get('completed'):
+      continue
+    if doc_dict.get('cancelled'):
+      continue
+    assert doc_dict.get('id')
+    assert doc_dict.get('op')
+    assert doc_dict.get('value')
+    directives.append(doc_dict)
+  directives.sort(
+      key=lambda x: (x.get('id', ''), x.get('op', ''), x.get('value', '')))
+  return flask.jsonify({'directives': directives, 'apk': apk_data}), 200
+
+
+@app.route('/directive_completed', methods=['POST'])
+def directive_completed():
+  """Save a key value pair."""
+  login_token = flask.request.values.get('login_token', '')
+  directive_id = flask.request.values.get('id', '')
+  timestamp = flask.request.values.get('timestamp', '')
+  if not is_valid_user(login_token):
+    return 'login_token invalid', 400
+  if not directive_id:
+    return 'no directive id provided', 400
+  if not timestamp:
+    return 'timestamp must be provided', 400
+
+  username = get_username(login_token)
+  assert username
+
+  db = firestore.Client()
+  doc_ref = db.document(
+      f'collector/users/{username}/data/directive/{directive_id}')
+  doc_data = doc_ref.get()
+  if not doc_data.exists:
+    return 'directive not found.', 404
+  doc_dict = doc_data.to_dict()
+  doc_dict['completed'] = timestamp
+  doc_ref.update(
+      doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
+  return flask.jsonify({'updated:': True}), 200
 
 
 if not IS_PROD_ENV:

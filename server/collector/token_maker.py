@@ -66,7 +66,16 @@ def get_login_hash(username, login_token):
   return login_hash
 
 
+def make_token(username, password):
+  login_token = f'{username}:{password}'
+  for i in range(1000):
+    login_token = get_login_hash(username, login_token)
+  login_hash = get_login_hash(username, login_token)
+  return (login_token, login_hash)
+
+
 if __name__ == '__main__':
+  username = input('username: ')
   import getpass
 
   username = input('username: ')
@@ -74,10 +83,9 @@ if __name__ == '__main__':
     username = 'admin'
   password = getpass.getpass()
   assert password == password.strip(), 'password has surrounding white space.'
-  login_token = f'{username}:{password}'
-  for i in range(1000):
-    login_token = get_login_hash(username, login_token)
-  login_hash = get_login_hash(username, login_token)
+
+  login_token, login_hash = make_token(username, password)
+
   print(f"""login_token (sent over network):
 {login_token}
 login_hash (saved by server):
@@ -88,6 +96,5 @@ username "admin" and save the "login_hash" value with
 key "admin_token_hash" in the secret manager.
 Make sure to include the "admin:" portion of the login_hash.
 """)
-
 
 

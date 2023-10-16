@@ -25,7 +25,12 @@ package edu.gatech.ccg.recordthesehands.upload
 
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageInstaller
+import android.content.pm.PackageInstaller.SessionParams
 import android.util.Base64
 import android.util.Log
 import androidx.datastore.core.DataStore
@@ -34,6 +39,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import edu.gatech.ccg.recordthesehands.R
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import org.json.JSONException
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -41,28 +51,29 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
-import kotlin.concurrent.thread
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-import org.json.JSONObject
+
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "dataStore")
 private val Context.registerFileStore: DataStore<Preferences> by preferencesDataStore(
   name = "registerFileStore"
+)
+val Context.prefStore: DataStore<Preferences> by preferencesDataStore(
+  name = "prefStore"
 )
 
 class InterruptedUploadException(message: String) : InterruptedIOException(message)
@@ -88,6 +99,49 @@ fun makeToken(username: String, password: String): String {
     token = "$username:" + toHex(digest.digest(token.toByteArray(Charsets.UTF_8)))
   }
   return token
+}
+
+class DataManagerReceiver : BroadcastReceiver() {
+
+  companion object {
+    private val TAG = DataManagerReceiver::class.simpleName
+  }
+
+  override fun onReceive(context: Context, intent: Intent) {
+    Log.i(TAG, "received intent")
+    check(intent.action == ".upload.SESSION_API_PACKAGE_INSTALLED")
+    val extras = intent.extras
+    if (extras != null) {
+      val status = extras.getInt(PackageInstaller.EXTRA_STATUS)
+      val message = extras.getString(PackageInstaller.EXTRA_STATUS_MESSAGE)
+      Log.i(TAG, "Got extras: status = $status message = $message")
+      if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+        Log.i(TAG, "Pending user action.")
+        val confirmIntent = extras.get(Intent.EXTRA_INTENT) as Intent
+        confirmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // TODO This might only work if the activity is in the foreground.
+        context.startActivity(confirmIntent)
+      }
+      if (status == PackageInstaller.STATUS_SUCCESS) {
+        val md5KeyObject = stringPreferencesKey("apkDownloadMd5")
+        val timestampKeyObject = stringPreferencesKey("apkTimestamp")
+        val downloadTimestampKeyObject = stringPreferencesKey("apkDownloadTimestamp")
+        val md5 = extras.getString("apkMd5")!!
+        val apkTimestamp = extras.getString("apkTimestamp")!!
+        val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+        runBlocking {
+          context.prefStore.edit { preferences ->
+            preferences[md5KeyObject] = md5
+            preferences[timestampKeyObject] = apkTimestamp
+            preferences[downloadTimestampKeyObject] = timestamp
+          }
+        }
+      }
+    } else {
+      Log.e(TAG, "No extras in intent.")
+    }
+
+  }
 }
 
 class UploadSession(
@@ -223,7 +277,7 @@ class UploadSession(
       DataManager.serverFormPostRequest(
         url,
         mapOf(
-          "login_token" to loginToken!!,
+          "login_token" to loginToken,
           "path" to relativePath,
           "md5" to md5sum!!,
           "file_size" to fileSize!!.toString(),
@@ -289,7 +343,7 @@ class UploadSession(
     }
     val numSavedBytes: Long
 
-    Log.i(TAG, ": \"${relativePath}\"")
+    Log.i(TAG, "acquireSessionState: \"${relativePath}\"")
     val url = URL(sessionLink)
     val (code, unused, outputFromHeader) =
       DataManager.serverRequest(
@@ -378,10 +432,6 @@ class UploadSession(
         outputStream.close()
       }
 
-      urlConnection.headerFields.forEach {
-        Log.i(TAG, "header ${it.key} -> ${it.value}")
-      }
-
       code = urlConnection.responseCode
       val inputStream = DataManager.getDataStream(urlConnection)
       output = inputStream.readBytes().toString(Charsets.UTF_8)
@@ -417,7 +467,7 @@ class UploadSession(
       DataManager.serverFormPostRequest(
         url,
         mapOf(
-          "login_token" to loginToken!!,
+          "login_token" to loginToken,
           "path" to relativePath,
           "md5" to md5sum!!,
           "file_size" to fileSize!!.toString(),
@@ -542,6 +592,46 @@ class UploadSession(
   }
 }
 
+class DataManagerData() {
+  companion object {
+    private val TAG = DataManager::class.simpleName
+
+    @Volatile
+    private var instance: DataManagerData? = null
+    fun getInstance(login_token_path: String): DataManagerData {
+      val checkInstance = instance
+      if (checkInstance != null) {
+        return checkInstance
+      }
+
+      return synchronized(this) {
+        val checkInstanceAgain = instance
+        if (checkInstanceAgain != null) {
+          checkInstanceAgain
+        } else {
+          val created = DataManagerData()
+          created.initialize(login_token_path)
+          instance = created
+          created
+        }
+      }
+    }
+  }
+
+  var loginToken: String? = null
+  var phrasesData: Phrases? = null
+
+  fun initialize(login_token_path: String) {
+    try {
+      val stream = FileInputStream(login_token_path)
+      loginToken = stream.readBytes().toString(Charsets.UTF_8)
+    } catch (e: FileNotFoundException) {
+      Log.i(TAG, "loginToken not found.")
+    }
+  }
+}
+
+
 /**
  * class to upload files and key value pairs to the server.
  */
@@ -608,6 +698,41 @@ class DataManager(val context: Context) {
       return Pair(code, output)
     }
 
+    fun serverGetToFileRequest(
+      url: URL, headers: Map<String, String>,
+      fileOutputStream: FileOutputStream
+    ): Boolean {
+      val urlConnection = url.openConnection() as HttpsURLConnection
+      if (TRUST_ALL_CERTIFICATES) {
+        setTrustAllCertificates(urlConnection)
+      }
+
+      var code: Int = -1
+      try {
+        urlConnection.setDoOutput(false)
+        urlConnection.setRequestMethod("GET")
+        headers.forEach {
+          urlConnection.setRequestProperty(it.key, it.value)
+        }
+
+        code = urlConnection.responseCode
+        if (code >= 200 && code < 300) {
+          val inputStream = getDataStream(urlConnection)
+          inputStream.copyTo(fileOutputStream)
+          inputStream.close()
+        } else if (urlConnection.responseCode >= 400) {
+          Log.e(TAG, "Failed to get url.  Response code: $code ")
+          return false
+        }
+      } catch (e: IOException) {
+        Log.e(TAG, "Get request failed: $e")
+        return false
+      } finally {
+        urlConnection.disconnect()
+      }
+      return true
+    }
+
     fun serverRequest(
       url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
       outputHeader: String?
@@ -635,9 +760,9 @@ class DataManager(val context: Context) {
         if (outputHeader != null) {
           outputFromHeader = urlConnection.getHeaderField(outputHeader)
         }
-        urlConnection.headerFields.forEach {
-          Log.i(TAG, "header ${it.key} -> ${it.value}")
-        }
+        // urlConnection.headerFields.forEach {
+        //   Log.d(TAG, "header ${it.key} -> ${it.value}")
+        // }
 
         code = urlConnection.responseCode
         val inputStream = getDataStream(urlConnection)
@@ -656,25 +781,25 @@ class DataManager(val context: Context) {
 
   }
 
-  var loginToken: String? = null
   val LOGIN_TOKEN_FULL_PATH =
     context.getFilesDir().getAbsolutePath() + File.separator + LOGIN_TOKEN_RELATIVE_PATH
 
-  init {
-    try {
-      val stream = FileInputStream(LOGIN_TOKEN_FULL_PATH)
-      loginToken = stream.readBytes().toString(Charsets.UTF_8)
-    } catch (e: FileNotFoundException) {
-      Log.i(TAG, "loginToken not found.")
+  val dataManagerData = DataManagerData.getInstance(LOGIN_TOKEN_FULL_PATH)
+
+  fun getUsername(): String? {
+    if (dataManagerData.loginToken == null) {
+      return null
     }
+    return dataManagerData.loginToken!!.split(':', limit = 2)[0]
   }
 
   fun deleteLoginToken() {
     File(LOGIN_TOKEN_FULL_PATH).delete()
+    dataManagerData.loginToken = null
   }
 
   fun hasAccount(): Boolean {
-    return loginToken != null
+    return dataManagerData.loginToken != null
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -691,9 +816,9 @@ class DataManager(val context: Context) {
     val newLoginToken = makeToken(username, password)
     val adminToken = makeToken("admin", adminPassword)
     val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
-    if (!loginTokenPath.parentFile.exists()) {
+    if (!loginTokenPath.parentFile!!.exists()) {
       Log.i(TAG, "creating directory for loginToken.")
-      loginTokenPath.parentFile.mkdirs()
+      loginTokenPath.parentFile!!.mkdirs()
     }
 
     val url = URL(SERVER + "/register_login")
@@ -708,7 +833,7 @@ class DataManager(val context: Context) {
     stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
     stream.close()
 
-    loginToken = newLoginToken
+    dataManagerData.loginToken = newLoginToken
     return true
   }
 
@@ -722,7 +847,7 @@ class DataManager(val context: Context) {
       serverFormPostRequest(
         url,
         mapOf(
-          "login_token" to loginToken!!,
+          "login_token" to dataManagerData.loginToken!!,
           "key" to entry.key.name as String,
           "value" to entry.value as String
         )
@@ -751,11 +876,50 @@ class DataManager(val context: Context) {
       .build()
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager): Boolean {
-    if (loginToken == null) {
-      Log.e(TAG, "No loginToken present, can not upload key, value.")
+  suspend fun updateApkTimestamp(): Boolean {
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val keyObject = stringPreferencesKey("apkInstallTimestamp")
+    context.prefStore.edit { preferences ->
+      preferences[keyObject] = timestamp
+    }
+    logToServer("apk installed at timestamp $timestamp")
+    return true
+  }
+
+  suspend fun updateApp(): Boolean {
+    if (UploadService.isPaused()) {
+      throw InterruptedUploadException("updateApp was interrupted.")
+    }
+    Log.i(TAG, "Check for latest apk.")
+    val url = URL(DataManager.SERVER + "/update_apk")
+    val keyObject = stringPreferencesKey("apkInstallTimestamp")
+    var timestamp = context.prefStore.data
+      .map {
+        it[keyObject]
+      }.firstOrNull()
+    if (timestamp == null) {
+      timestamp = "null"
+    }
+    val (code, data) = DataManager.serverFormPostRequest(
+      url,
+      mapOf("login_token" to dataManagerData.loginToken!!, "timestamp" to timestamp!!)
+    )
+    if (code >= 200 && code < 300) {
+      // Check JSON to see if we have the latest version.
+    } else {
+      Log.e(TAG, "unable download new apk.")
       return false
     }
+    return true
+  }
+
+  suspend fun uploadData(notificationManager: NotificationManager): Boolean {
+    if (dataManagerData.loginToken == null) {
+      Log.e(TAG, "No loginToken present, can not upload data.")
+      return false
+    }
+    // First run directives, to make sure we have all the data we need.
+    runDirectives()
     val entries = context.dataStore.data
       .map {
         it.asMap().entries
@@ -790,7 +954,7 @@ class DataManager(val context: Context) {
         createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
       )
       Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
-      val uploadSession = UploadSession(context, loginToken!!, entry.key.name)
+      val uploadSession = UploadSession(context, dataManagerData.loginToken!!, entry.key.name)
       uploadSession.loadState(entry.value as String)
       if (!uploadSession.tryUploadFile()) {
         return false
@@ -798,6 +962,207 @@ class DataManager(val context: Context) {
       i += 1
     }
     return true
+  }
+
+  private fun directiveCompleted(id: String): Boolean {
+    Log.i(TAG, "Marking directive completed.")
+    val url = URL(DataManager.SERVER + "/directive_completed")
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val (code, data) = DataManager.serverFormPostRequest(
+      url,
+      mapOf("login_token" to dataManagerData.loginToken!!, "id" to id, "timestamp" to timestamp)
+    )
+    if (code >= 200 && code < 300) {
+    } else {
+      Log.e(TAG, "unable to mark directive completed.")
+      return false
+    }
+    return true
+  }
+
+  private suspend fun executeDirective(
+    id: String, op: String, value: String,
+    apkData: JSONObject
+  ): Boolean {
+    if (op == "noop") {
+      Log.i(TAG, "executing noop directive.")
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else if (op == "changeUser") {
+      Log.i(TAG, "Changing username.")
+      val json = JSONObject(value)
+      val newLoginToken = json.getString("loginToken")
+      val stream = FileOutputStream(LOGIN_TOKEN_FULL_PATH)
+      Log.i(TAG, "new loginToken ${dataManagerData.loginToken}")
+      stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+      stream.close()
+      directiveCompleted(id)  // Use the old loginToken.
+      dataManagerData.loginToken = newLoginToken
+      return false  // Ignore further directives, the next round will be done with the new login.
+    } else if (op == "updateApk") {
+      val url = URL(SERVER + "/apk")
+      Log.i(TAG, "updating apk to $url.")
+      val filename = apkData.getString("md5") + ".apk"
+      val relativePath = "apk" + File.separator + filename
+      val filepath = File(context.filesDir, relativePath)
+
+      if (!filepath.parentFile.exists()) {
+        Log.i(TAG, "creating directory ${filepath.parentFile}.")
+        filepath.parentFile.mkdirs()
+      }
+      val fileOutputStream = FileOutputStream(filepath.absolutePath)
+      try {
+        Log.i(TAG, "downloading apk to $filepath")
+        if (!serverGetToFileRequest(url, emptyMap(), fileOutputStream)) {
+          return false
+        }
+      } finally {
+        fileOutputStream.close()
+      }
+      Log.i(TAG, "apk downloaded $filepath with size ${filepath.length()}")
+
+      Log.i(TAG, "installing apk")
+      // The apk used must be a signed one with the same signature as the installed app.
+      // Even so, a bunch of warnings are displayed to the user, some of which might be
+      // able to be suppressed with enough effort.
+      // Changing signing certificate requires a reinstall, which wipes all local data
+      // including any videos which haven't been uploaded.
+      installPackage(relativePath, apkData)
+      Log.i(TAG, "finished installing apk")
+
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else if (op == "downloadPhrases") {
+      val url = URL(SERVER + "/phrases")
+      Log.i(TAG, "downloading phrase data at $url.")
+      val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+      val relativePath = "phrases" + File.separator + timestamp + ".json"
+      val filepath = File(context.filesDir, relativePath)
+
+      if (!filepath.parentFile!!.exists()) {
+        Log.i(TAG, "creating directory ${filepath.parentFile}.")
+        filepath.parentFile!!.mkdirs()
+      }
+      Log.i(TAG, "downloading phrase data to $filepath")
+      val (code, data) = serverFormPostRequest(
+        url,
+        mapOf("login_token" to dataManagerData.loginToken!!)
+      )
+      if (code >= 200 && code < 300) {
+        if (data == null) {
+          Log.e(TAG, "data was null.")
+          return false
+        }
+        val fileOutputStream = FileOutputStream(filepath)
+        try {
+          fileOutputStream.write(data!!.toByteArray(Charsets.UTF_8))
+        } finally {
+          fileOutputStream.close()
+        }
+      } else {
+        Log.e(TAG, "unable to fetch phrases.")
+        return false
+      }
+      Log.i(TAG, "phrase data downloaded with size ${filepath.length()}")
+
+      val keyObject = stringPreferencesKey("phrasesFilename")
+      val key2Object = stringPreferencesKey("phraseIndex")
+      context.prefStore.edit { preferences ->
+        preferences[keyObject] = relativePath
+        preferences[key2Object] = "0"
+      }
+      dataManagerData.phrasesData = null
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else {
+      Log.e(TAG, "Unable to understand directive op \"$op\"")
+      return false
+    }
+    return true
+  }
+
+  fun installPackage(relativePath: String, apkData: JSONObject) {
+    val packageInstaller = context.packageManager.packageInstaller
+    val sessionParams = SessionParams(SessionParams.MODE_FULL_INSTALL)
+    sessionParams.setRequireUserAction(SessionParams.USER_ACTION_NOT_REQUIRED)
+    val sessionId = packageInstaller.createSession(sessionParams)
+    val session = packageInstaller.openSession(sessionId)
+    var out: OutputStream? = null
+    val filepath = File(context.filesDir, relativePath)
+    out = session.openWrite("package", 0, filepath.length())
+    val inputStream = FileInputStream(filepath)
+    inputStream.copyTo(out)
+    session.fsync(out)
+    inputStream.close()
+    out.close()
+
+    val intent = Intent(context, DataManagerReceiver::class.java)
+    intent.setAction(".upload.SESSION_API_PACKAGE_INSTALLED")
+    intent.putExtra("apkMd5", apkData.getString("md5"))
+    intent.putExtra("apkTimestamp", apkData.getString("timestamp"))
+    val pendingIntent = PendingIntent.getBroadcast(
+      context,
+      sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+    )
+    try {
+      session.commit(pendingIntent.intentSender)
+      session.close()
+    } catch (e: Exception) {
+      Log.i(TAG, "" + e.stackTrace)
+    }
+  }
+
+  suspend fun runDirectives(): Boolean {
+    if (dataManagerData.loginToken == null) {
+      Log.e(TAG, "No loginToken present, can not download data.")
+      return false
+    }
+    if (UploadService.isPaused()) {
+      throw InterruptedUploadException("runDirective was interrupted.")
+    }
+    Log.i(TAG, "Download the directives from server.")
+    val url = URL(SERVER + "/directives")
+    val (code, data) = serverFormPostRequest(
+      url,
+      mapOf("login_token" to dataManagerData.loginToken!!)
+    )
+    if (code >= 200 && code < 300) {
+      if (data == null) {
+        Log.e(TAG, "data was null.")
+        return false
+      }
+      val json = JSONObject(data)
+      val array = json.getJSONArray("directives")
+      val apkData = json.getJSONObject("apk")
+      for (i in 0..array.length() - 1) {
+        val directive = array.getJSONObject(i)
+        if (!executeDirective(
+            directive.getString("id"),
+            directive.getString("op"),
+            directive.getString("value"),
+            apkData
+          )
+        ) {
+          return false
+        }
+      }
+    } else {
+      Log.e(TAG, "unable to fetch directives.")
+      return false
+    }
+    return true
+  }
+
+  suspend fun logToServer(message: String) {
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    logToServerAtTimestamp(timestamp, message)
+  }
+
+  suspend fun logToServerAtTimestamp(timestamp: String, message: String) {
+    addKeyValue("log-$timestamp", message)
   }
 
   suspend fun addKeyValue(key: String, value: String) {
@@ -808,12 +1173,65 @@ class DataManager(val context: Context) {
     }
   }
 
-
   suspend fun registerFile(relativePath: String) {
     Log.i(TAG, "Register file for upload: \"$relativePath\"")
     val keyObject = stringPreferencesKey(relativePath)
     context.registerFileStore.edit { preferences ->
       preferences[keyObject] = JSONObject().toString()
     }
+  }
+
+  suspend fun getPhrases(): Phrases? {
+    synchronized(dataManagerData) {
+      if (dataManagerData.phrasesData != null) {
+        return dataManagerData.phrasesData
+      }
+    }
+    val newPhrasesData = Phrases(context)
+    if (!newPhrasesData.initialize()) {
+      return null
+    }
+    synchronized(dataManagerData) {
+      if (dataManagerData.phrasesData != null) {
+        return dataManagerData.phrasesData
+      }
+      dataManagerData.phrasesData = newPhrasesData
+      return dataManagerData.phrasesData
+    }
+  }
+}
+
+class Phrase(public val index: Int, public val key: String, public val prompt: String) {
+}
+
+class Phrases(val context: Context) {
+  companion object {
+    private val TAG = Phrases::class.simpleName
+  }
+
+  var array = ArrayList<Phrase>()
+  var phrasesIndex = -1
+  suspend fun initialize(): Boolean {
+    Log.i(TAG, "Getting phrase data.")
+    val keyObject = stringPreferencesKey("phrasesFilename")
+    val key2Object = stringPreferencesKey("phraseIndex")
+    val phrasesData = context.prefStore.data.map {
+      Pair(it[keyObject], it[key2Object])
+    }.firstOrNull() ?: return false
+    val phrasesRelativePath = phrasesData.first ?: return false
+    phrasesIndex = (phrasesData.second ?: return false).toInt()
+    try {
+      val phrasesJson = JSONObject(File(context.filesDir, phrasesRelativePath).readText())
+      val phrasesJsonArray = phrasesJson.getJSONArray("phrases")
+      array.ensureCapacity(phrasesJsonArray.length())
+      for (i in 0..phrasesJsonArray.length() - 1) {
+        val data = phrasesJsonArray.getJSONObject(i)
+        array.add(Phrase(i, data.getString("key"), data.getString("prompt")))
+      }
+    } catch (e: JSONException) {
+      Log.e(TAG, "failed to load phrases, encountered JSONException $e")
+      return false
+    }
+    return true
   }
 }
