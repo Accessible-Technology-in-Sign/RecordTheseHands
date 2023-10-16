@@ -594,7 +594,7 @@ class UploadSession(
 
 class DataManagerData() {
   companion object {
-    private val TAG = DataManager::class.simpleName
+    private val TAG = DataManagerData::class.simpleName
 
     @Volatile
     private var instance: DataManagerData? = null

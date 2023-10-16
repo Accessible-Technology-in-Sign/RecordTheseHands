@@ -580,33 +580,16 @@ class HomeScreenActivity : ComponentActivity() {
         pickFile.launch("text/plain")
       }
 
-      val createAccountButton = findViewById<Button>(R.id.createAccountButton)
-
-      createAccountButton.setOnClickListener {
-        val username = findViewById<EditText>(R.id.usernameTextField).text.toString()
-        val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
-        lifecycleScope.launch {
-          val dataManager = DataManager(applicationContext)
-          thread {
-            val result = dataManager.createAccount(username, adminPassword)
-            runOnUiThread {
-              AlertDialog.Builder(this@HomeScreenActivity).apply {
-                if (result) {
-                  setTitle("Success")
-                  setMessage("Created account for \"$username\" and stored credentials.")
-                } else {
-                  setTitle("Failed")
-                  setMessage("Failed to Create account for \"$username\".")
-                }
-                setPositiveButton("OK") { _, _ -> }
-                create()
-                show()
-              }
-            }
-          }
+      val titleText = findViewById<TextView>(R.id.header)
+      var numTitleClicks = 0
+      titleText.setOnClickListener {
+        numTitleClicks += 1
+        if (numTitleClicks == 5) {
+          numTitleClicks = 0
+          val intent = Intent(this, LoadDataActivity::class.java)
+          startActivity(intent)
         }
       }
-
     }
 
     val dataManager = DataManager(applicationContext)
@@ -614,14 +597,19 @@ class HomeScreenActivity : ComponentActivity() {
     thread {
       runBlocking {
         val phrases = dataManager.getPhrases()
-        val phrasesBox: TextView = findViewById(R.id.phrasesBox)
-        if (phrases == null) {
-          phrasesBox.text = "Phrases not loaded!"
+        if (username == null) {
+          val intent = Intent(applicationContext, LoadDataActivity::class.java)
+          startActivity(intent)
         } else {
-          phrasesBox.text = "Found ${phrases.array.size} phrases."
+          val phrasesBox: TextView = findViewById(R.id.phrasesBox)
+          if (phrases == null) {
+            phrasesBox.text = "Phrases not loaded!"
+            val intent = Intent(applicationContext, LoadDataActivity::class.java)
+            startActivity(intent)
+          } else {
+            phrasesBox.text = "Found ${phrases.array.size} phrases."
+          }
         }
-        // TODO Only enable going to recording screen if phrases and loginToken are
-        // available.  Otherwise, go to an adiministration task.
       }
     }
     uidBox = findViewById(R.id.uidBox)
