@@ -34,36 +34,31 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
+import edu.gatech.ccg.recordthesehands.upload.Prompt
+import edu.gatech.ccg.recordthesehands.upload.Prompts
 import java.io.IOException
 import java.util.*
 import kotlin.collections.HashMap
 
 class WordPagerAdapter(
   private var recordingActivity: RecordingActivity,
-  private var wordList: ArrayList<String>,
-  private var sessionFiles: HashMap<String, ArrayList<ClipDetails>>
 ) : FragmentStateAdapter(recordingActivity) {
 
-  override fun getItemCount() = wordList.size + 2
+  val numPromptPages = recordingActivity.sessionLimit - recordingActivity.sessionStartIndex
+  override fun getItemCount(): Int {
+    return numPromptPages + 2
+  }
 
   override fun createFragment(position: Int): Fragment {
-    Log.d("WordPagerAdapter", "Page changed to {$position}, {$wordList.size}")
-    return if (position < wordList.size) {
-      val word = this.wordList[position]
-
-      val videoAvailable: Boolean = try {
-        recordingActivity.applicationContext.resources?.assets?.openFd("videos/$word.mp4")
-        true
-      } catch (exc: IOException) {
-        false
-      }
-
-      WordPromptFragment(word, R.layout.word_prompt, videoAvailable)
-    } else if (position == wordList.size) {
-      SaveRecordingFragment(R.layout.save_record)
+    Log.d("WordPagerAdapter", "Page changed to {$position}")
+    if (position < numPromptPages) {
+      // TODO Add the videos back in.
+      val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
+      return WordPromptFragment(prompt, R.layout.word_prompt, false)
+    } else if (position == numPromptPages) {
+      return SaveRecordingFragment(R.layout.save_record)
     } else {
-      RecordingListFragment(
-        wordList, sessionFiles,
+      return RecordingListFragment(
         recordingActivity, R.layout.recording_list
       )
     }

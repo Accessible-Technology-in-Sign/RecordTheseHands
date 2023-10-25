@@ -37,11 +37,11 @@
         app:layout_constraintTop_toTopOf="@+id/uidLabel" />
 
     <TextView
-        android:id="@+id/phrasesBox"
+        android:id="@+id/promptsBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Phrases Info Not Set"
+        android:text="Prompts Info Not Set"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="@+id/uidLabel"
         app:layout_constraintTop_toBottomOf="@+id/uidBox" />
@@ -56,7 +56,7 @@
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/phrasesBox" />
+        app:layout_constraintTop_toBottomOf="@+id/promptsBox" />
 
     <TextView
         android:id="@+id/recordingCount"
@@ -143,16 +143,6 @@
     </LinearLayout>
 
     <Button
-        android:id="@+id/rerollButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="60dp"
-        android:layout_marginBottom="24dp"
-        android:text="Reroll"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
         android:id="@+id/startButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -183,16 +173,5 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
-
-    <Button
-        android:id="@+id/loadPhrasesButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="32dp"
-        android:text="Load Phrases"
-        android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="@+id/statisticsHeader"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/statisticsHeader" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

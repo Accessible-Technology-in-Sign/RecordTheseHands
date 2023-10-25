@@ -35,6 +35,7 @@ import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
+import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.R
 
 /**
@@ -42,8 +43,8 @@ import edu.gatech.ccg.recordthesehands.R
  * word they should sign.
  */
 class WordPromptFragment(
-  private var label: String, @LayoutRes layout: Int,
-  private var hasVideo: Boolean = true
+  private var prompt: Prompt, @LayoutRes layout: Int,
+  private var hasVideo: Boolean = false
 ) : Fragment(layout) {
 
   /**
@@ -54,7 +55,7 @@ class WordPromptFragment(
 
     // Set the heading for the UI as the word
     val textField = view.findViewById<TextView>(R.id.promptText)
-    textField.text = label
+    textField.text = prompt.prompt
 
     if (!hasVideo) {
       val promptView = view.findViewById<ConstraintLayout>(R.id.promptLayout)
@@ -73,10 +74,10 @@ class WordPromptFragment(
       }
     }
 
-    if (label.length > 20) {
-      textField.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
-      textField.textSize = 18.0f
-    }
+    //if (prompt.prompt.length > 20) {
+    //  textField.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+    //  textField.textSize = 18.0f
+    // }
   }
 
 }

@@ -1,5 +1,4 @@
 /**
- * HomeScreenActivity.kt
  * This file is part of Record These Hands, licensed under the MIT license.
  *
  * Copyright (c) 2021-23
@@ -31,44 +30,31 @@ package edu.gatech.ccg.recordthesehands.splash
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.GET_ACCOUNTS
 import android.Manifest.permission.READ_CONTACTS
-import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-import android.accounts.AccountManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.GetContent
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
-import edu.gatech.ccg.recordthesehands.Constants.PERMIT_CUSTOM_PHRASE_LOADING
-import edu.gatech.ccg.recordthesehands.Constants.RECORDINGS_PER_WORD
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
-import edu.gatech.ccg.recordthesehands.Constants.WORDS_PER_SESSION
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadService
-import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.min
-import kotlin.random.Random
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -121,15 +107,9 @@ class HomeScreenActivity : ComponentActivity() {
   // State elements
 
   /**
-   * The user's ID, which will be attached to their files and sent with their
-   * confirmation emails.
+   * The DataManager object for mediating with the backend server and storing various values.
    */
-  private var uid = ""
-
-  /**
-   * The list of words selected for the next recording session.
-   */
-  private lateinit var selectedWords: ArrayList<String>
+  private lateinit var dataManager: DataManager
 
   /**
    * Whether or not emailing confirmation emails is enabled. If any of the
@@ -142,19 +122,13 @@ class HomeScreenActivity : ComponentActivity() {
   /**
    * Whether or not we have already asked the user for permissions.
    */
-  private var hasRequestedPermission: Boolean = false
+  private var permissionRequestedPreviously: Boolean = false
 
   /**
    * Gets the global preferences for the device. We use this to get the user's
    * UID.
    */
   private lateinit var globalPrefs: SharedPreferences
-
-  /**
-   * Gets the local preferences for the application. We use this to store how many
-   * times the user has recorded each word.
-   */
-  private lateinit var localPrefs: SharedPreferences
 
   /**
    * A list of all 250 words that we allow recording
@@ -223,13 +197,10 @@ class HomeScreenActivity : ComponentActivity() {
   private val requestRecordingPermissions =
     registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
       val accessCamera = map[CAMERA] ?: false
-      val writeStorage = map[WRITE_EXTERNAL_STORAGE] ?: false
 
-      if (accessCamera && writeStorage) {
+      if (accessCamera) {
         // Permission is granted.
         val intent = Intent(this, RecordingActivity::class.java).apply {
-          putStringArrayListExtra("WORDS", selectedWords)
-          putExtra("UID", uid)
           putExtra("SEND_CONFIRMATION_EMAIL", emailing)
         }
 
@@ -243,116 +214,37 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
   /**
-   * Counts the number of recordings the user has done, and updates the UI accordingly.
-   */
-  private fun updateCounts() {
-    allWords = ArrayList(listOf(*resources.getStringArray(R.array.all)))
-
-    val customPhrases = localPrefs.getStringSet("customPhrases", HashSet<String>())!!
-    allWords.addAll(customPhrases.toList())
-
-    recordingCounts = ArrayList()
-    lifetimeRecordingCount = 0
-
-    val showableWords = ArrayList<Pair<Int, String>>()
-
-    for (word in allWords) {
-      // Get the stored recording count for each word, or default to 0
-      val count = localPrefs.getInt("RECORDING_COUNT_$word", 0)
-      recordingCounts.add(count)
-      lifetimeRecordingCount += count
-
-      // A word should only be shown as recorded on the splash screen if the user
-      // has recorded it at least once.
-      showableWords.add(Pair(count, word))
-    }
-
-    // Sort words by the number of recordings (most to least), then alphabetically.
-    showableWords.sortWith(
-      compareByDescending<Pair<Int, String>> { it.first }.thenBy { it.second }
-    )
-
-    // If the least recorded word has been recorded at least `RECORDINGS_PER_WORD` times,
-    // then the user has done all the recordings they need to! Show an alert accordingly.
-    if (showableWords.isNotEmpty() && showableWords.last().first >= RECORDINGS_PER_WORD) {
-      val builder = AlertDialog.Builder(this).apply {
-        setTitle("\uD83C\uDF89 Congratulations, you've finished recording!")
-        setMessage("If you'd like to record more phrases, click the button below.")
-
-        val input = EditText(context)
-        setView(input)
-
-        setPositiveButton("I'd like to keep recording") { dialog, _ ->
-          dialog.dismiss()
-        }
-      }
-
-      builder.create().show()
-    }
-
-    // Show up to 5 words' counts here
-    val statsWordCount = min(showableWords.size, 5)
-
-    /**
-     * wcText: word counts, wlText: word labels
-     * We need two text elements here, as this information is displayed in a table-like format:
-     *
-     * hello       5 times
-     * world       3 times
-     * foo         2 times
-     * bar         1 time
-     * etc.
-     */
-    var wcText = ""
-    var wlText = ""
-    for (i in 0 until statsWordCount) {
-      val pair = showableWords[i]
-      wlText += "\n" + pair.second
-      wcText += "\n" + pair.first + (if (pair.first == 1) " time" else " times")
-    }
-
-    // Set UI elements according to the results
-    statsWordList = findViewById(R.id.statsWordList)
-    statsWordCounts = findViewById(R.id.statsWordCounts)
-
-    recordingCount = findViewById(R.id.recordingCount)
-
-    if (wlText.isNotEmpty()) {
-      // substring(1) to trim the first \n added to each string above
-      statsWordList.text = wlText.substring(1)
-      statsWordCounts.text = wcText.substring(1)
-    } else {
-      statsWordList.text = "No recordings yet!"
-      statsWordCounts.text = ""
-    }
-
-    val goal = allWords.size * RECORDINGS_PER_WORD
-    recordingCount.text = "$lifetimeRecordingCount recordings completed (out of $goal)"
-
-    val sessionCounter = findViewById<TextView>(R.id.sessionCounter)
-    val count = currentRecordingSessions
-    val pluralize = if (count == 1) "session" else "sessions"
-    sessionCounter.text = "You've completed $count $pluralize in this sitting! Once you " +
-        "finish $MAX_RECORDINGS_IN_SITTING sessions, you can either come back later or " +
-        "restart the app to continue recording."
-  } // updateCounts()
-
-  /**
    * Sets up all of the UI elements.
    */
   private fun setupUI() {
-    updateCounts()
+    startRecordingButton = findViewById(R.id.startButton)
+    startRecordingButton.isEnabled = false
+    startRecordingButton.isClickable = false
 
-    // Get 10 random words and set the randomizeButton to reroll the 10 selected
-    // words when it is pressed.
-    getRandomWords(allWords, recordingCounts)
-    randomizeButton = findViewById(R.id.rerollButton)
-    randomizeButton.setOnClickListener {
-      getRandomWords(allWords, recordingCounts)
+    lifecycleScope.launch {
+      val prompts = dataManager.getPrompts()
+      val username = dataManager.getUsername()
+      val uid = dataManager.getPhoneId()
+      uidBox = findViewById(R.id.uidBox)
+      if (username != null) {
+        uidBox.text = username
+      } else {
+        uidBox.text = uid
+      }
+      val promptsBox: TextView = findViewById(R.id.promptsBox)
+      if (prompts == null) {
+        promptsBox.text = "Prompts not loaded!"
+        val intent = Intent(applicationContext, LoadDataActivity::class.java)
+        startActivity(intent)
+      } else {
+        promptsBox.text = "Found ${prompts.array.size} prompts."
+      }
+      if (prompts != null && username != null) {
+        startRecordingButton.isEnabled = true
+        startRecordingButton.isClickable = true
+      }
     }
 
-
-    startRecordingButton = findViewById(R.id.startButton)
     startRecordingButton.setOnClickListener {
       fun checkPermission(perm: String): Boolean {
         return ContextCompat.checkSelfPermission(this, perm) ==
@@ -368,18 +260,14 @@ class HomeScreenActivity : ComponentActivity() {
       }
 
       Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
-      Log.d(TAG, "Storage allowed: ${checkPermission(WRITE_EXTERNAL_STORAGE)}")
       Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
-      Log.d(TAG, "Ask for storage permission: ${shouldAsk(WRITE_EXTERNAL_STORAGE)}")
 
       // check permissions here
       when {
         // User has granted all necessary permissions
-        (checkPermission(CAMERA) && checkPermission(WRITE_EXTERNAL_STORAGE)) -> {
+        checkPermission(CAMERA) -> {
           // You can use the API that requires the permission.
           val intent = Intent(this, RecordingActivity::class.java).apply {
-            putStringArrayListExtra("WORDS", selectedWords)
-            putExtra("UID", uid)
             putExtra("SEND_CONFIRMATION_EMAIL", emailing)
           }
 
@@ -389,8 +277,7 @@ class HomeScreenActivity : ComponentActivity() {
         // We've asked the user for permissions before, they haven't been granted,
         // and we cannot ask the user for either camera or storage permissions (we already
         // asked them before)
-        hasRequestedPermission && ((cannotGetPermission(CAMERA)) ||
-            cannotGetPermission(WRITE_EXTERNAL_STORAGE)) -> {
+        permissionRequestedPreviously && cannotGetPermission(CAMERA) -> {
 
           val text = "Please enable camera and storage access in Settings"
           val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
@@ -399,8 +286,7 @@ class HomeScreenActivity : ComponentActivity() {
 
         // We've asked the user for permissions before, and the prior `when` case failed,
         // so we are allowed to ask for at least one of the required permissions
-        hasRequestedPermission && ((shouldAsk(CAMERA)) ||
-            shouldAsk(WRITE_EXTERNAL_STORAGE)) -> {
+        permissionRequestedPreviously && shouldAsk(CAMERA) -> {
           // Send an alert prompting the user that they need to grant permissions
           val builder = AlertDialog.Builder(this).apply {
             setTitle("Permissions are required to use the app")
@@ -411,7 +297,7 @@ class HomeScreenActivity : ComponentActivity() {
 
             setPositiveButton("OK") { dialog, _ ->
               requestRecordingPermissions.launch(
-                arrayOf(CAMERA, WRITE_EXTERNAL_STORAGE)
+                arrayOf(CAMERA)
               )
               dialog.dismiss()
             }
@@ -423,23 +309,23 @@ class HomeScreenActivity : ComponentActivity() {
             setCanceledOnTouchOutside(true)
             setOnCancelListener {
               requestRecordingPermissions.launch(
-                arrayOf(CAMERA, WRITE_EXTERNAL_STORAGE)
+                arrayOf(CAMERA)
               )
             }
             show()
           }
         }
 
-        // No permissions, and we haven't asked for permissions before
         else -> {
-          if (!hasRequestedPermission) {
-            hasRequestedPermission = true
+          // No permissions, and we haven't asked for permissions before
+          if (!permissionRequestedPreviously) {
+            permissionRequestedPreviously = true
             with(globalPrefs.edit()) {
-              putBoolean("hasRequestedPermission", true)
+              putBoolean("permissionRequestedPreviously", true)
               apply()
             }
           }
-          requestRecordingPermissions.launch(arrayOf(CAMERA, WRITE_EXTERNAL_STORAGE))
+          requestRecordingPermissions.launch(arrayOf(CAMERA))
         }
       } // when
     } // setRecordingButton.onClickListener
@@ -450,6 +336,7 @@ class HomeScreenActivity : ComponentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    dataManager = DataManager(applicationContext)
 
     // Start the UploadService (which should already be running anyway).
     applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
@@ -497,128 +384,36 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
     globalPrefs = getPreferences(MODE_PRIVATE)
-    localPrefs = getSharedPreferences("app_settings", MODE_PRIVATE)
 
-    hasRequestedPermission = globalPrefs.getBoolean("hasRequestedPermission", false)
+    permissionRequestedPreviously = globalPrefs.getBoolean("permissionRequestedPreviously", false)
 
-    if (globalPrefs.getString("UID", "")!!.isNotEmpty()) {
-      this.uid = globalPrefs.getString("UID", "")!!
-    } else {
-      // Check for permission to read the phone's primary signed-in gmail username
-      requestUsernamePermissions.launch(arrayOf(GET_ACCOUNTS, READ_CONTACTS))
-      val manager = AccountManager.get(this)
-      val accountList = manager.getAccountsByType("com.google")
-      Log.d(TAG, "Google accounts: ${accountList.joinToString(", ")}")
-      if (accountList.isNotEmpty()) {
-        this.uid = accountList[0].name.split("@")[0]
-        with(globalPrefs.edit()) {
-          putString("UID", uid)
-          apply()
+    val titleText = findViewById<TextView>(R.id.header)
+    var numTitleClicks = 0
+    titleText.setOnClickListener {
+      numTitleClicks += 1
+      if (numTitleClicks == 5) {
+        numTitleClicks = 0
+        val intent = Intent(this, LoadDataActivity::class.java)
+        startActivity(intent)
+      }
+    }
+
+    thread {
+      runBlocking {
+        val username = dataManager.getUsername()
+        val prompts = dataManager.getPrompts()
+        if (username == null || prompts == null) {
+          val intent = Intent(applicationContext, LoadDataActivity::class.java)
+          startActivity(intent)
         }
-      } else {
-        // Assign a UID at random
-        this.uid = abs(Random.nextLong()).toString()
-        Log.w(
-          TAG, "Account not found (permission not granted or user not signed " +
-              "in): assigned UID '$uid' at random"
+        val uid = dataManager.getPhoneId()
+        val numPrompts = prompts?.array?.size
+        val promptIndex = prompts?.promptIndex
+        dataManager.logToServer(
+          "Started Application phoneId=${uid} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )
       }
     }
-
-    // The default value for the `phrasesLoaded` internal setting is the opposite of
-    // PERMIT_CUSTOM_PHRASE_LOADING. If PERMIT_CUSTOM_PHRASE_LOADING is false, then we should
-    // not show the "Load Phrases" button. Hence the expression below would evaluate to
-    // !!false (= false). Of course, if the `phrasesLoaded` value has been set, then we should
-    // not show the "Load Phrases" button.
-    if (!localPrefs.getBoolean("phrasesLoaded", !PERMIT_CUSTOM_PHRASE_LOADING)) {
-      val loadPhrasesButton = findViewById<Button>(R.id.loadPhrasesButton)
-      loadPhrasesButton.visibility = View.VISIBLE
-
-      val pickFile = registerForActivityResult(GetContent()) {
-        contentResolver.openInputStream(it)?.use { stream ->
-          val text = stream.bufferedReader().use { reader -> reader.readText() }
-          if (text.isEmpty()) {
-            AlertDialog.Builder(this).apply {
-              setTitle("Loading phrases failed")
-              setMessage("File provided was empty")
-              setPositiveButton("OK") { _, _ -> }
-              create()
-              show()
-            }
-          }
-
-          val phrases = text.split("\n")
-          val phraseSet = phrases.toSet()
-
-          with(localPrefs.edit()) {
-            putBoolean("phrasesLoaded", true)
-            putStringSet("customPhrases", phraseSet)
-            apply()
-
-            runOnUiThread {
-              loadPhrasesButton.visibility = View.INVISIBLE
-              updateCounts()
-
-              AlertDialog.Builder(this@HomeScreenActivity).apply {
-                setTitle("Success!")
-                setMessage("Loaded ${phraseSet.size} custom phrases")
-                setPositiveButton("OK") { _, _ -> }
-                create()
-                show()
-              }
-            }
-          }
-        } ?: run {
-          AlertDialog.Builder(this).apply {
-            setMessage("Could not load the file!")
-            create()
-            show()
-          }
-        }
-      }
-      loadPhrasesButton.setOnClickListener {
-        pickFile.launch("text/plain")
-      }
-
-      val titleText = findViewById<TextView>(R.id.header)
-      var numTitleClicks = 0
-      titleText.setOnClickListener {
-        numTitleClicks += 1
-        if (numTitleClicks == 5) {
-          numTitleClicks = 0
-          val intent = Intent(this, LoadDataActivity::class.java)
-          startActivity(intent)
-        }
-      }
-    }
-
-    val dataManager = DataManager(applicationContext)
-    val username = dataManager.getUsername()
-    thread {
-      runBlocking {
-        val phrases = dataManager.getPhrases()
-        if (username == null) {
-          val intent = Intent(applicationContext, LoadDataActivity::class.java)
-          startActivity(intent)
-        } else {
-          val phrasesBox: TextView = findViewById(R.id.phrasesBox)
-          if (phrases == null) {
-            phrasesBox.text = "Phrases not loaded!"
-            val intent = Intent(applicationContext, LoadDataActivity::class.java)
-            startActivity(intent)
-          } else {
-            phrasesBox.text = "Found ${phrases.array.size} phrases."
-          }
-        }
-      }
-    }
-    uidBox = findViewById(R.id.uidBox)
-    if (username != null) {
-      uidBox.text = username
-    } else {
-      uidBox.text = this.uid
-    }
-
     val versionText = findViewById<TextView>(R.id.versionText)
     versionText.text = "v$APP_VERSION"
 
@@ -637,24 +432,6 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
     setupUI()
-  }
-
-  /**
-   * Helper function to choose a set of random words and put them into the UI element
-   * that shows the user which words will be part of the next recording session.
-   */
-  private fun getRandomWords(wordList: ArrayList<String>, recordingCounts: ArrayList<Int>) {
-    selectedWords = lowestCountRandomChoice(wordList, recordingCounts, WORDS_PER_SESSION)
-
-    nextSessionWords = findViewById(R.id.recordingListColumn1)
-    nextSessionWords.text = selectedWords.subList(0, 5).joinToString("\n") {
-      clipText(it)
-    }
-
-    nextSessionWords = findViewById(R.id.recordingListColumn2)
-    nextSessionWords.text = selectedWords.subList(5, 10).joinToString("\n") {
-      clipText(it)
-    }
   }
 
 }

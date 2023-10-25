@@ -38,9 +38,15 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.fromHex
+import edu.gatech.ccg.recordthesehands.toHex
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONException
 import org.json.JSONObject
@@ -77,20 +83,6 @@ val Context.prefStore: DataStore<Preferences> by preferencesDataStore(
 )
 
 class InterruptedUploadException(message: String) : InterruptedIOException(message)
-
-fun toHex(data: ByteArray): String {
-  return data.joinToString(separator = "") { x -> "%02x".format(x) }
-}
-
-fun fromHex(hex: String): ByteArray {
-  check(hex.length % 2 == 0) { "Must have an even length" }
-
-  val byteIterator = hex.chunkedSequence(2)
-    .map { it.toInt(16).toByte() }
-    .iterator()
-
-  return ByteArray(hex.length / 2) { byteIterator.next() }
-}
 
 fun makeToken(username: String, password: String): String {
   val digest = MessageDigest.getInstance("SHA-256")
@@ -277,6 +269,7 @@ class UploadSession(
       DataManager.serverFormPostRequest(
         url,
         mapOf(
+          "app_version" to APP_VERSION,
           "login_token" to loginToken,
           "path" to relativePath,
           "md5" to md5sum!!,
@@ -467,6 +460,7 @@ class UploadSession(
       DataManager.serverFormPostRequest(
         url,
         mapOf(
+          "app_version" to APP_VERSION,
           "login_token" to loginToken,
           "path" to relativePath,
           "md5" to md5sum!!,
@@ -544,6 +538,12 @@ class UploadSession(
       val size = filepath.length()
       check(size != 0L) { "Could not determine the file size." }
       fileSize = size
+    } else {
+      if (filepath.length() != fileSize) {
+        Log.e(TAG, "fileSize has changed resetting State.")
+        resetState()
+        return true  // continue with other files.
+      }
     }
 
     // Step 1 is computing an md5.
@@ -618,8 +618,9 @@ class DataManagerData() {
     }
   }
 
+  var uid: String? = null
   var loginToken: String? = null
-  var phrasesData: Phrases? = null
+  var promptsData: Prompts? = null
 
   fun initialize(login_token_path: String) {
     try {
@@ -793,6 +794,44 @@ class DataManager(val context: Context) {
     return dataManagerData.loginToken!!.split(':', limit = 2)[0]
   }
 
+  suspend fun getPhoneId(): String {
+    synchronized(dataManagerData) {
+      if (dataManagerData.uid != null) {
+        return dataManagerData.uid!!
+      }
+    }
+    val keyObject = stringPreferencesKey("uid")
+    var uid = context.prefStore.data.map {
+      it[keyObject]
+    }.firstOrNull()
+    synchronized(dataManagerData) {
+      if (dataManagerData.uid != null) {
+        return dataManagerData.uid!!
+      }
+      if (uid != null) {
+        dataManagerData.uid = uid
+        return uid!!
+      }
+    }
+    uid = toHex(SecureRandom().generateSeed(4))
+    context.prefStore.edit { preferences ->
+      preferences[keyObject] = uid!!
+    }
+    synchronized(dataManagerData) {
+      if (dataManagerData.uid != null) {
+        // We need to reset the datastore value to the uid that won the race.
+        uid = dataManagerData.uid
+      } else {
+        dataManagerData.uid = uid
+        return uid!!
+      }
+    }
+    context.prefStore.edit { preferences ->
+      preferences[keyObject] = uid!!
+    }
+    return uid!!
+  }
+
   fun deleteLoginToken() {
     File(LOGIN_TOKEN_FULL_PATH).delete()
     dataManagerData.loginToken = null
@@ -823,7 +862,10 @@ class DataManager(val context: Context) {
 
     val url = URL(SERVER + "/register_login")
     val (code, unused) =
-      serverFormPostRequest(url, mapOf("admin_token" to adminToken, "login_token" to newLoginToken))
+      serverFormPostRequest(url, mapOf(
+        "app_version" to APP_VERSION,
+        "admin_token" to adminToken,
+        "login_token" to newLoginToken))
     if (code < 200 || code >= 300) {
       return false
     }
@@ -847,6 +889,7 @@ class DataManager(val context: Context) {
       serverFormPostRequest(
         url,
         mapOf(
+          "app_version" to APP_VERSION,
           "login_token" to dataManagerData.loginToken!!,
           "key" to entry.key.name as String,
           "value" to entry.value as String
@@ -902,7 +945,10 @@ class DataManager(val context: Context) {
     }
     val (code, data) = DataManager.serverFormPostRequest(
       url,
-      mapOf("login_token" to dataManagerData.loginToken!!, "timestamp" to timestamp!!)
+      mapOf(
+        "app_version" to APP_VERSION,
+        "login_token" to dataManagerData.loginToken!!,
+        "timestamp" to timestamp!!)
     )
     if (code >= 200 && code < 300) {
       // Check JSON to see if we have the latest version.
@@ -970,7 +1016,10 @@ class DataManager(val context: Context) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     val (code, data) = DataManager.serverFormPostRequest(
       url,
-      mapOf("login_token" to dataManagerData.loginToken!!, "id" to id, "timestamp" to timestamp)
+      mapOf(
+        "app_version" to APP_VERSION,
+        "login_token" to dataManagerData.loginToken!!,
+        "id" to id, "timestamp" to timestamp)
     )
     if (code >= 200 && code < 300) {
     } else {
@@ -1034,21 +1083,23 @@ class DataManager(val context: Context) {
       if (!directiveCompleted(id)) {
         return false
       }
-    } else if (op == "downloadPhrases") {
-      val url = URL(SERVER + "/phrases")
-      Log.i(TAG, "downloading phrase data at $url.")
+    } else if (op == "downloadPrompts") {
+      val url = URL(SERVER + "/prompts")
+      Log.i(TAG, "downloading prompt data at $url.")
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-      val relativePath = "phrases" + File.separator + timestamp + ".json"
+      val relativePath = "prompts" + File.separator + timestamp + ".json"
       val filepath = File(context.filesDir, relativePath)
 
       if (!filepath.parentFile!!.exists()) {
         Log.i(TAG, "creating directory ${filepath.parentFile}.")
         filepath.parentFile!!.mkdirs()
       }
-      Log.i(TAG, "downloading phrase data to $filepath")
+      Log.i(TAG, "downloading prompt data to $filepath")
       val (code, data) = serverFormPostRequest(
         url,
-        mapOf("login_token" to dataManagerData.loginToken!!)
+        mapOf(
+          "app_version" to APP_VERSION,
+          "login_token" to dataManagerData.loginToken!!)
       )
       if (code >= 200 && code < 300) {
         if (data == null) {
@@ -1062,18 +1113,18 @@ class DataManager(val context: Context) {
           fileOutputStream.close()
         }
       } else {
-        Log.e(TAG, "unable to fetch phrases.")
+        Log.e(TAG, "unable to fetch prompts.")
         return false
       }
-      Log.i(TAG, "phrase data downloaded with size ${filepath.length()}")
+      Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
 
-      val keyObject = stringPreferencesKey("phrasesFilename")
-      val key2Object = stringPreferencesKey("phraseIndex")
+      val keyObject = stringPreferencesKey("promptsFilename")
+      val key2Object = stringPreferencesKey("promptIndex")
       context.prefStore.edit { preferences ->
         preferences[keyObject] = relativePath
         preferences[key2Object] = "0"
       }
-      dataManagerData.phrasesData = null
+      dataManagerData.promptsData = null
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1127,7 +1178,9 @@ class DataManager(val context: Context) {
     val url = URL(SERVER + "/directives")
     val (code, data) = serverFormPostRequest(
       url,
-      mapOf("login_token" to dataManagerData.loginToken!!)
+      mapOf(
+        "app_version" to APP_VERSION,
+        "login_token" to dataManagerData.loginToken!!)
     )
     if (code >= 200 && code < 300) {
       if (data == null) {
@@ -1156,21 +1209,40 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun logToServer(message: String) {
+  fun logToServer(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    logToServerAtTimestamp(timestamp, message)
+    CoroutineScope(Dispatchers.IO).launch {
+      logToServerAtTimestampSuspend(timestamp, message)
+    }
   }
 
-  suspend fun logToServerAtTimestamp(timestamp: String, message: String) {
+  fun logToServerAtTimestamp(timestamp: String, message: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+      logToServerAtTimestampSuspend(timestamp, message)
+    }
+  }
+
+  suspend fun logToServerSuspend(message: String) {
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    logToServerAtTimestampSuspend(timestamp, message)
+  }
+
+  suspend fun logToServerAtTimestampSuspend(timestamp: String, message: String) {
     addKeyValue("log-$timestamp", message)
   }
 
+  /**
+   * Save a key value pair to the server.  Re-using the same key will overwrite
+   * the existing value (either before uploading to the server, or if it has already
+   * been uploaded then on the server).
+   */
   suspend fun addKeyValue(key: String, value: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val keyObject = stringPreferencesKey(key)
     context.dataStore.edit { preferences ->
       preferences[keyObject] = value
     }
+    Log.i(TAG, "Stored key: \"$key\", value: \"$value\".")
   }
 
   suspend fun registerFile(relativePath: String) {
@@ -1181,57 +1253,73 @@ class DataManager(val context: Context) {
     }
   }
 
-  suspend fun getPhrases(): Phrases? {
+  suspend fun getPrompts(): Prompts? {
     synchronized(dataManagerData) {
-      if (dataManagerData.phrasesData != null) {
-        return dataManagerData.phrasesData
+      if (dataManagerData.promptsData != null) {
+        return dataManagerData.promptsData
       }
     }
-    val newPhrasesData = Phrases(context)
-    if (!newPhrasesData.initialize()) {
+    val newPromptsData = Prompts(context)
+    if (!newPromptsData.initialize()) {
       return null
     }
     synchronized(dataManagerData) {
-      if (dataManagerData.phrasesData != null) {
-        return dataManagerData.phrasesData
+      if (dataManagerData.promptsData != null) {
+        return dataManagerData.promptsData
       }
-      dataManagerData.phrasesData = newPhrasesData
-      return dataManagerData.phrasesData
+      dataManagerData.promptsData = newPromptsData
+      return dataManagerData.promptsData
     }
   }
 }
 
-class Phrase(public val index: Int, public val key: String, public val prompt: String) {
-}
-
-class Phrases(val context: Context) {
-  companion object {
-    private val TAG = Phrases::class.simpleName
+class Prompt(val index: Int, val key: String, val prompt: String) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("index", index)
+    json.put("key", key)
+    json.put("prompt", prompt)
+    return json
   }
 
-  var array = ArrayList<Phrase>()
-  var phrasesIndex = -1
+}
+
+class Prompts(val context: Context) {
+  companion object {
+    private val TAG = Prompts::class.simpleName
+  }
+
+  var array = ArrayList<Prompt>()
+  var promptIndex = -1
+
   suspend fun initialize(): Boolean {
-    Log.i(TAG, "Getting phrase data.")
-    val keyObject = stringPreferencesKey("phrasesFilename")
-    val key2Object = stringPreferencesKey("phraseIndex")
-    val phrasesData = context.prefStore.data.map {
+    Log.i(TAG, "Getting prompt data.")
+    val keyObject = stringPreferencesKey("promptsFilename")
+    val key2Object = stringPreferencesKey("promptIndex")
+    val promptsData = context.prefStore.data.map {
       Pair(it[keyObject], it[key2Object])
     }.firstOrNull() ?: return false
-    val phrasesRelativePath = phrasesData.first ?: return false
-    phrasesIndex = (phrasesData.second ?: return false).toInt()
+    val promptsRelativePath = promptsData.first ?: return false
+    promptIndex = (promptsData.second ?: return false).toInt()
     try {
-      val phrasesJson = JSONObject(File(context.filesDir, phrasesRelativePath).readText())
-      val phrasesJsonArray = phrasesJson.getJSONArray("phrases")
-      array.ensureCapacity(phrasesJsonArray.length())
-      for (i in 0..phrasesJsonArray.length() - 1) {
-        val data = phrasesJsonArray.getJSONObject(i)
-        array.add(Phrase(i, data.getString("key"), data.getString("prompt")))
+      val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
+      val promptsJsonArray = promptsJson.getJSONArray("prompts")
+      array.ensureCapacity(promptsJsonArray.length())
+      for (i in 0..promptsJsonArray.length() - 1) {
+        val data = promptsJsonArray.getJSONObject(i)
+        array.add(Prompt(i, data.getString("key"), data.getString("prompt")))
       }
     } catch (e: JSONException) {
-      Log.e(TAG, "failed to load phrases, encountered JSONException $e")
+      Log.e(TAG, "failed to load prompts, encountered JSONException $e")
       return false
     }
     return true
+  }
+
+  suspend fun savePromptIndex() {
+    val key2Object = stringPreferencesKey("promptIndex")
+    context.prefStore.edit { preferences ->
+      preferences[key2Object] = promptIndex.toString()
+    }
   }
 }

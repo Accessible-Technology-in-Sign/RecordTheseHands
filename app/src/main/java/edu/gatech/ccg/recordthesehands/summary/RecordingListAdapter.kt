@@ -40,7 +40,15 @@ import edu.gatech.ccg.recordthesehands.clipText
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.VideoPreviewFragment
+import edu.gatech.ccg.recordthesehands.recording.saveClipData
+import edu.gatech.ccg.recordthesehands.upload.Prompt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 import java.time.Duration
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -49,12 +57,8 @@ import kotlin.collections.HashMap
  * This view is contained within [RecordingListFragment].
  */
 class RecordingListAdapter(
-  private val wordList: ArrayList<String>,
-  sessionFiles: HashMap<String, ArrayList<ClipDetails>>,
   private val activity: RecordingActivity
 ) : RecyclerView.Adapter<RecordingListAdapter.RecordingListItem>() {
-
-  var recordings = sessionFiles.mapValues { it.value.lastOrNull() }
 
   /**
    * Represents an individual entry within the list of recordings.
@@ -64,66 +68,74 @@ class RecordingListAdapter(
      * Sets up the listener for opening the video preview or marking the recording as invalid.
      */
     fun setData(
-      word: String, activity: RecordingActivity,
+      clipDetails: ClipDetails,
+      activity: RecordingActivity,
       listAdapter: RecordingListAdapter
     ) {
       val label = itemView.findViewById<TextView>(R.id.recordingTitle)
-      label.text = clipText(word, 40)
+      if (clipDetails.prompt.prompt.length > 40) {
+        label.text = clipText(clipDetails.prompt.prompt, 37) + "..."
+      } else {
+        label.text = clipDetails.prompt.prompt
+      }
 
       val deleteButton = itemView.findViewById<ImageButton>(R.id.deleteRecording)
-      val entry = listAdapter.recordings[word]
-
-      entry?.let { clip ->
-        /**
-         * When the user taps the delete button, we simply mark the last recording as invalid.
-         * (The recording is already complete, so there's no way for us to allow the user to
-         * jump back and attempt another recording.)
-         */
-
-        deleteButton.setOnClickListener {
-          activity.deleteMostRecentRecording(word)
-          deleteButton.isClickable = false
-          deleteButton.visibility = View.INVISIBLE
-        }
-
-        /**
-         * When the user taps the word itself, we show a popup of the user's recording for
-         * that word. This is possible because the recording has already been saved locally
-         * and we know the timestamp data for that recording, so we just play that segment
-         * on a loop. (See [VideoPreviewFragment].)
-         */
-        label.setOnClickListener {
-          val bundle = Bundle()
-          bundle.putString("word", word)
-          bundle.putString("filename", clip.file.absolutePath)
-          bundle.putBoolean("isTablet", activity.isTablet())
-
-          bundle.putLong(
-            "startTime", Duration.between(
-              clip.videoStart.toInstant(), clip.signStart.toInstant()
-            ).toMillis()
-          )
-
-          bundle.putLong(
-            "endTime", Duration.between(
-              clip.videoStart.toInstant(), clip.signEnd.toInstant()
-            ).toMillis()
-          )
-
-          val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
-          previewFragment.arguments = bundle
-
-          previewFragment.show(activity.supportFragmentManager, "videoPreview")
-        }
-      } // entry?.let { ... }
 
       /**
-       * If there was no recording, we should instead make the "Delete recording" button
-       * invisible.
+       * When the user taps the delete button, we simply mark the last recording as invalid.
+       * (The recording is already complete, so there's no way for us to allow the user to
+       * jump back and attempt another recording.)
        */
-        ?: run {
-          deleteButton.visibility = View.INVISIBLE
-        } // entry ?: { ... } (entry was null)
+
+      deleteButton.setOnClickListener {
+        val now = Instant.now()
+        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+        clipDetails.valid = false
+        activity.dataManager.logToServerAtTimestamp(
+          timestamp,
+          "delete button for clip ${clipDetails.toJson()}")
+
+        clipDetails.lastModifiedTimestamp = now
+        CoroutineScope(Dispatchers.IO).launch {
+          activity.dataManager.saveClipData(clipDetails)
+        }
+
+        deleteButton.isClickable = false
+        deleteButton.visibility = View.INVISIBLE
+      }
+
+      /**
+       * When the user taps the word itself, we show a popup of the user's recording for
+       * that word. This is possible because the recording has already been saved locally
+       * and we know the timestamp data for that recording, so we just play that segment
+       * on a loop. (See [VideoPreviewFragment].)
+       */
+      label.setOnClickListener {
+        val bundle = Bundle()
+        bundle.putString("prompt", clipDetails.prompt.prompt)
+        // bundle.putString("filepath", "blah" + File.separator + clipDetails.filename) TODO
+        bundle.putString("filepath", "upload" + File.separator + clipDetails.filename)
+        bundle.putBoolean("isTablet", activity.isTablet())
+        // TODO landscape ?
+
+        bundle.putLong(
+          "startTimeMs", Duration.between(
+            clipDetails.videoStart, clipDetails.signStart()
+          ).toMillis()
+        )
+
+        bundle.putLong(
+          "endTimeMs", Duration.between(
+            clipDetails.videoStart, clipDetails.signEnd()
+          ).toMillis()
+        )
+
+        val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
+        previewFragment.arguments = bundle
+
+        previewFragment.show(activity.supportFragmentManager, "videoPreview")
+      }
+
     }
   }
 
@@ -148,15 +160,15 @@ class RecordingListAdapter(
    * the view for that position. Here, we are just passing the word data to a [RecordingListItem].
    */
   override fun onBindViewHolder(holder: RecordingListItem, position: Int) {
-    holder.setData(wordList[position], activity, this)
+    holder.setData(activity.clipData[position], activity, this)
   }
 
   /**
    * Implemented method from RecyclerView.Adapter - gets the number of items in the RecyclerView.
-   * Here, it's just the number of words being recorded in the session.
+   * Here, it's just the number of clips recorded in the session.
    */
   override fun getItemCount(): Int {
-    return wordList.size
+    return activity.clipData.size
   }
 
 }

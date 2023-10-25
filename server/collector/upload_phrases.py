@@ -39,24 +39,24 @@ SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 if __name__ == '__main__':
   local_filepath = sys.argv[1]
-  print(f'phrases: {local_filepath}')
+  print(f'prompts: {local_filepath}')
   db = firestore.Client()
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-  phrases = list()
+  prompts = list()
   with open(local_filepath, 'r') as f:
     for line in f:
       line = line.strip()
-      phrases.append({'key': line, 'prompt': line})
+      prompts.append({'key': line, 'prompt': line})
 
-  path = f'phrases/phrases-{timestamp}.json'
+  path = f'prompts/prompts-{timestamp}.json'
   data = {
-      'phrases': phrases,
+      'prompts': prompts,
       'path': path,
       'timestamp': timestamp,
   }
-  doc_ref = db.document(f'collector/phrases/all/{timestamp}')
+  doc_ref = db.document(f'collector/prompts/all/{timestamp}')
   doc_ref.set(data)
-  doc_ref = db.document('collector/phrases')
+  doc_ref = db.document('collector/prompts')
   doc_ref.set(data)
   print(json.dumps(data, indent=2))
   local_tempfile = pathlib.Path(f'/tmp/{path}')
@@ -71,8 +71,8 @@ if __name__ == '__main__':
   p = subprocess.Popen(command)
   p.communicate()
   assert p.returncode == 0, (
-      'upload of phrases FAILED, do not send update operation to phones!')
-  print('Upload succeeded, send phrases to phone with')
-  print(f'create_directive.py <username> downloadPhrases {path}')
+      'upload of prompts FAILED, do not send update operation to phones!')
+  print('Upload succeeded, send prompts to phone with')
+  print(f'create_directive.py <username> downloadPrompts {path}')
 
 

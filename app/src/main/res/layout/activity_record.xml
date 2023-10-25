@@ -14,7 +14,7 @@
         android:layout_height="0dp"
         android:gravity="center"
         app:layout_constraintDimensionRatio="H,3:4"
-        app:layout_constraintEnd_toEndOf="@+id/wordPager"
+        app:layout_constraintEnd_toEndOf="@+id/sessionPager"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
@@ -34,7 +34,7 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/wordPager"
+        android:id="@+id/sessionPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
@@ -61,6 +61,28 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@drawable/record"
+        app:tint="@android:color/white" />
+
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/finishedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:foregroundGravity="center"
+        android:clickable="true"
+        android:scaleX="2"
+        android:scaleY="2"
+        android:text="Finished"
+        android:textAlignment="center"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:visibility="invisible"
+        app:backgroundTint="#0000F8"
+        app:borderWidth="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:tint="@android:color/white" />
 
     <TextView
@@ -90,7 +112,7 @@
         android:textColor="@android:color/black"
         android:textStyle="bold"
         app:layout_constraintEnd_toStartOf="@+id/videoRecordingLight3"
-        app:layout_constraintTop_toTopOf="@+id/wordPager" />
+        app:layout_constraintTop_toTopOf="@+id/sessionPager" />
 
     <VideoView
         android:id="@+id/demoVideo"

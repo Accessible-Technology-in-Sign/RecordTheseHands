@@ -1,5 +1,4 @@
 /**
- * Constants.kt
  * This file is part of Record These Hands, licensed under the MIT license.
  *
  * Copyright (c) 2021-23
@@ -31,24 +30,9 @@ package edu.gatech.ccg.recordthesehands
 object Constants {
 
   /**
-   * This constant is used when sending confirmation emails, in case we need to debug
-   * something.
+   * The app version (used in server communications).
    */
-  const val APP_VERSION = "1.3.1"
-
-
-  /**
-   * The number of words to randomly select for each recording session.
-   */
-  const val WORDS_PER_SESSION = 10
-
-  /**
-   * The number of times the user has to record each word across all of their
-   * recording sessions to be done with the entire set. For example, if there
-   * are 250 words to choose from, and this value is set to 20, the user will
-   * have to record a total of 5,000 clips (across 500 sessions) to be finished.
-   */
-  const val RECORDINGS_PER_WORD = 1
+  const val APP_VERSION = "2.0.0"
 
   /**
    * The size, in inches, at which we should consider the user's device a tablet
@@ -57,14 +41,7 @@ object Constants {
   const val TABLET_SIZE_THRESHOLD_INCHES = 7.0f
 
   /**
-   * This function determines whether or not the button to load a custom phrase file is
-   * enabled when the app is first installed. Once a file is loaded, the button will always
-   * disappear.
-   */
-  const val PERMIT_CUSTOM_PHRASE_LOADING = true
-
-  /**
-   * The maximum number of recording sessions (set of 10 words) the user can
+   * The maximum number of recording sessions the user can
    * do within one launch of the app. Once this limit is reached, the user
    * needs to close the app via the multitasking menu, then relaunch to keep
    * recording. This was primarily introduced to resolve a memory leak that
@@ -82,11 +59,16 @@ object Constants {
   /**
    * Result code for when the RecordingActivity fails because we lost access to the camera.
    */
-  const val RESULT_CAMERA_DIED = 1
+  const val RESULT_ACTIVITY_STOPPED = 1
+
+  /**
+   * Result code for when the RecordingActivity fails because we lost access to the camera.
+   */
+  const val RESULT_CAMERA_DIED = 2
 
   /**
    * Result code for when the RecordingActivity fails because the recording file or buffer
    * failed for some reason.
    */
-  const val RESULT_RECORDING_DIED = 2
+  const val RESULT_RECORDING_DIED = 3
 }

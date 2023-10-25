@@ -85,19 +85,21 @@ if __name__ == '__main__':
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'updateApk':
     create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'downloadPhrases':
+  elif sys.argv[2] == 'downloadPrompts':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    phrases_data = {
+    prompts_data = {
       'path': sys.argv[3],
       'creationTimestamp': timestamp,
     }
     db = firestore.Client()
     doc_ref = db.document(
-        f'collector/users/{username}/data/phrases/active')
-    doc_ref.set(phrases_data)
+        f'collector/users/{username}/data/prompts/active')
+    doc_ref.set(prompts_data)
     doc_ref = db.document(
-        f'collector/users/{username}/data/phrases/all/all/{timestamp}')
-    doc_ref.set(phrases_data)
+        f'collector/users/{username}/data/prompts/all/all/{timestamp}')
+    doc_ref.set(prompts_data)
     create_directive(sys.argv[1], sys.argv[2], '{}')
+  else:
+    raise AssertionError("Did not understand arguments: " + " ".join(sys.argv))
 
 

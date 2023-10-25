@@ -222,10 +222,10 @@ def download_page():
   return flask.jsonify({'downloadLink': download_link})
 
 
-@app.route('/phrases', methods=['POST'])
-def phrases_page():
-  """Download a phrases."""
-  print('download phrases')
+@app.route('/prompts', methods=['POST'])
+def prompts_page():
+  """Download a prompts."""
+  print('download prompts')
   login_token = flask.request.values.get('login_token', '')
   if not is_valid_user(login_token):
     return 'login_token invalid', 400
@@ -234,14 +234,14 @@ def phrases_page():
   assert username
 
   db = firestore.Client()
-  doc_ref = db.document(f'collector/users/{username}/data/phrases/active')
+  doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
   doc_data = doc_ref.get()
   if not doc_data.exists:
-    return f'no phrases found for user {username}', 404
+    return f'no prompts found for user {username}', 404
   doc_dict = doc_data.to_dict()
   path = doc_dict.get('path')
   if not path:
-    return f'phrase file not found for user {username}', 404
+    return f'prompt file not found for user {username}', 404
 
   download_link = get_download_link(path)
 

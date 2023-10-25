@@ -43,6 +43,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.DialogFragment
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.util.*
 
 /**
@@ -50,9 +52,11 @@ import java.util.*
  * preview a video on top of the main activity.
  */
 class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
-  SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
+  SurfaceHolder.Callback, MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener {
 
   companion object {
+    private val TAG = VideoPreviewFragment::class.java.simpleName
+
     /**
      * Since playback cuts out early from testing, adding an extra half second
      * to the end of a sign's playback could be beneficial to users.
@@ -71,6 +75,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   private lateinit var recordingUri: Uri
 
   /**
+   * A fileInputStream for the file to be used.
+   */
+  private lateinit var fileInputStream: FileInputStream
+
+  /**
    * If we are showing a tutorial to the user (when the press the "?" button in the prompt),
    * we will use this field instead of [recordingUri].
    */
@@ -79,7 +88,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   /**
    * The word for this video.
    */
-  lateinit var word: String
+  lateinit var prompt: String
 
   /**
    * True if the video is in landscape. This is used for the tutorial recordings, as they are
@@ -89,7 +98,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
   /**
    * True if the playback is on a tablet. Note that this is used for the replays at the end
-   * of the recording sessions, which are in either 3:4 (smartphone) or 4:3 (tablet), so
+   * of the recording sessions, which are in either 3:4 (smartphone) or 4:3 (tablet),
    * so this setting and `landscape` (above) should be mutually exclusive.
    */
   private var isTablet = false
@@ -103,40 +112,41 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   /**
    * Time within the full recording that the clip starts.
    */
-  var startTime: Long = 0
+  var startTimeMs: Long = 0
 
   /**
    * Time within the full recording that the clip ends.
    */
-  private var endTime: Long = 0
+  private var endTimeMs: Long = 0
 
   /**
    * Initialize instance variables for this fragment.
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    val word = arguments?.getString("word")!!
-    this.word = word
+    prompt = arguments?.getString("prompt")!!
 
-    /**
-     * If the "filename" argument was supplied, use the user's recording; otherwise,
-     * use the "videos/`word`.mp4" internal asset as the file.
-     */
-    arguments?.getString("filename")?.let {
-      this.recordingUri = Uri.fromFile(File(it))
-    } ?: /* else */ run {
-      context?.resources?.assets?.openFd("videos/$word.mp4")?.let {
-        this.tutorialDesc = it
-      }
-    }
+    // TODO handle a missing filepath.
+    val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
+    fileInputStream = FileInputStream(filepath)
+    Log.d(TAG, "Playing video from $filepath")
+    Log.d(TAG, "file exists: " + filepath.exists().toString())
+    Log.d(TAG, "file readable: " + filepath.canRead().toString())
+    Log.d(TAG, "file length: " + filepath.length().toString())
 
-    // Set start, end, and landscape properties
-    startTime = arguments?.getLong("startTime") ?: 0
-    endTime = arguments?.getLong("endTime") ?: 0
+    startTimeMs = arguments?.getLong("startTimeMs") ?: 0
+    endTimeMs = arguments?.getLong("endTimeMs") ?: 0
     landscape = arguments?.getBoolean("landscape") ?: false
     isTablet = arguments?.getBoolean("isTablet") ?: false
 
+    Log.d(TAG, "startTimeMs $startTimeMs endTimeMs $endTimeMs landscape $landscape isTablet $isTablet")
+
     timer = Timer()
+  }
+
+  override fun onDestroy() {
+    fileInputStream.close()
+    super.onDestroy()
   }
 
   /**
@@ -146,20 +156,25 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     super.onViewCreated(view, savedInstanceState)
     this.setStyle(STYLE_NO_FRAME, 0)
 
+    Log.d(TAG, "onViewCreated")
+
     // Set the video UI
     val videoView = view.findViewById<VideoView>(R.id.videoPreview)
     videoView.holder.addCallback(this)
+    videoView.visibility = View.VISIBLE
 
     val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
     if (landscape) {
-      layoutParams.dimensionRatio = "16:9"
+      layoutParams.dimensionRatio = "H,16:9"
     } else if (isTablet) {
-      layoutParams.dimensionRatio = "4:3"
+      layoutParams.dimensionRatio = "H,4:3"
+    } else {
+      layoutParams.dimensionRatio = "H,3:4"
     }
 
     // Sets the title text for the video
     val title = view.findViewById<TextView>(R.id.wordBeingSigned)
-    title.text = this.word
+    title.text = prompt
   }
 
   /**
@@ -168,19 +183,19 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
    */
   override fun surfaceCreated(holder: SurfaceHolder) {
     // Set the data source
-    this.mediaPlayer = MediaPlayer().apply {
-      if (this@VideoPreviewFragment::recordingUri.isInitialized) {
-        // Playing back the user's recording
-        setDataSource(requireContext(), recordingUri)
-      } else {
-        // Playing back a tutorial video (if the user presses the help button)
-        setDataSource(tutorialDesc!!)
-      }
+    Log.d(TAG, "surfaceCreated")
+    mediaPlayer = MediaPlayer()
 
-      setSurface(holder.surface)
-      setOnPreparedListener(this@VideoPreviewFragment)
-      prepareAsync()
-    }
+    // Passing a filepath or Uri to the file in the app directory gives a permission
+    // denied error (actually a generic error).  Instead, we need to produce a file descriptor
+    // directly and pass it as the source.  We maintain the FileInputStream for the entire
+    // duration that the file descriptor is in use.
+    mediaPlayer.setDataSource(fileInputStream.fd)
+
+    mediaPlayer.setSurface(holder.surface)
+    mediaPlayer.setOnPreparedListener(this)
+    mediaPlayer.setOnErrorListener(this)
+    mediaPlayer.prepareAsync()
   }
 
   /**
@@ -194,6 +209,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
    * Stop video playback if the Surface is destroyed.
    */
   override fun surfaceDestroyed(holder: SurfaceHolder) {
+    Log.d(TAG, "surfaceDestroyed")
     view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
     timer.cancel()
     this.mediaPlayer.let {
@@ -209,14 +225,15 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
    */
   override fun onPrepared(mp: MediaPlayer?) {
     // Loop and start the video
+    Log.d(TAG, "onPrepared")
     mp?.let {
       it.isLooping = true
-      it.seekTo(startTime.toInt())
+      it.seekTo(startTimeMs.toInt())
       it.start()
     }
 
-    // If the startTime and endTime properties are set, set up a looper for the video.
-    if (endTime > startTime) {
+    // If the startTimeMs and endTimeMs properties are set, set up a looper for the video.
+    if (endTimeMs > startTimeMs) {
       val mTimerHandler = Handler()
 
       // Task to set playback to the beginning of the looped segment
@@ -225,7 +242,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
           mTimerHandler.post {
             if (mediaPlayer.isPlaying) {
               Log.i("VideoPreviewFragment", "Looping!")
-              mediaPlayer.seekTo(startTime.toInt())
+              mediaPlayer.seekTo(startTimeMs.toInt())
             }
           }
         }
@@ -235,10 +252,13 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       timer.schedule(
         timerTask,
         Calendar.getInstance().time,
-        endTime - startTime + ENDING_BUFFER_TIME
+        endTimeMs - startTimeMs + ENDING_BUFFER_TIME
       )
     }
   } // onPrepared()
 
-
+  override fun onError(mp: MediaPlayer, what: Int, extra: Int): Boolean {
+    Log.e(TAG, "MediaPlayer error occurred. what = $what extra = $extra")
+    return false
+  }
 }

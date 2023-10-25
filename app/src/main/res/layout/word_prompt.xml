@@ -11,7 +11,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="28dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="-12dp"
         android:background="@drawable/rectangle"
@@ -25,7 +25,7 @@
         android:layout_width="175dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="8dp"
         android:autoSizeMinTextSize="14sp"
         android:autoSizeTextType="uniform"
         android:fontFamily="sans-serif-medium"
@@ -40,7 +40,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Hold the button and sign..."
-        android:textColor="#000000"
+        android:visibility="gone"
+        android:textColor="@android:color/black"
         app:layout_constraintBottom_toTopOf="@+id/promptText"
         app:layout_constraintStart_toStartOf="@+id/promptText" />
 

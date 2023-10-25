@@ -40,6 +40,7 @@ import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
+import edu.gatech.ccg.recordthesehands.upload.Prompt
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -47,8 +48,6 @@ import kotlin.collections.HashMap
  * Represents the recording summary page that shows up at the end of the user's recording session.
  */
 class RecordingListFragment(
-  private val wordList: ArrayList<String>,
-  private val sessionFiles: HashMap<String, ArrayList<ClipDetails>>,
   private val activity: RecordingActivity,
   @LayoutRes layout: Int
 ) : Fragment(layout) {
@@ -61,7 +60,7 @@ class RecordingListFragment(
     scrollView.layoutManager = LinearLayoutManager(this.context)
 
     // Set up recycler view
-    val recordingListAdapter = RecordingListAdapter(wordList, sessionFiles, activity)
+    val recordingListAdapter = RecordingListAdapter(activity)
     scrollView.adapter = recordingListAdapter
 
     // Set the save button to finish the recording activity when pressed.

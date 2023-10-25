@@ -97,28 +97,6 @@ fun padZeroes(number: Int, digits: Int = 5): String {
 
 
 /**
- * Generates the formatted EXIF data for the given clip data (list of start/stop times for
- * user recordings).
- */
-fun generateClipExif(
-  sessionVideoFiles: HashMap<String, ArrayList<ClipDetails>>,
-  duration: Long = 0L, frames: Int = 0
-): String {
-  JSONObject().apply {
-    put("__version", Constants.APP_VERSION)
-    put("durationMs", duration)
-    put("expectedFrames", frames)
-    for ((key, value) in sessionVideoFiles) {
-      put(key, value.mapIndexed { index: Int, clip: ClipDetails ->
-        clip.toString(index + 1)
-      })
-    }
-
-    return toString()
-  }
-}
-
-/**
  * Selects `count` words at random, preferring the least-recorded words in the list first.
  */
 fun <T> lowestCountRandomChoice(list: List<T>, numRecordings: List<Int>, count: Int): ArrayList<T> {
@@ -244,4 +222,18 @@ fun clipText(text: String, len: Int = 20): String {
   } else {
     text
   }
+}
+
+fun toHex(data: ByteArray): String {
+  return data.joinToString(separator = "") { x -> "%02x".format(x) }
+}
+
+fun fromHex(hex: String): ByteArray {
+  check(hex.length % 2 == 0) { "Must have an even length" }
+
+  val byteIterator = hex.chunkedSequence(2)
+    .map { it.toInt(16).toByte() }
+    .iterator()
+
+  return ByteArray(hex.length / 2) { byteIterator.next() }
 }
