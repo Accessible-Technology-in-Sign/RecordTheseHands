@@ -29,7 +29,14 @@
 package edu.gatech.ccg.recordthesehands
 
 import android.util.Log
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.View
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
+import edu.gatech.ccg.recordthesehands.recording.saveClipData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.lang.Math.min
 import java.security.MessageDigest
@@ -42,6 +49,8 @@ import javax.mail.internet.MimeMultipart
 import kotlin.collections.ArrayList
 import kotlin.random.Random
 import org.json.JSONObject
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 /**
  * Selects `count` elements from `list` at random, using the designated seed if given,
@@ -93,48 +102,6 @@ fun padZeroes(number: Int, digits: Int = 5): String {
   }
 
   return "0".repeat(digits - asString.length) + asString
-}
-
-
-/**
- * Selects `count` words at random, preferring the least-recorded words in the list first.
- */
-fun <T> lowestCountRandomChoice(list: List<T>, numRecordings: List<Int>, count: Int): ArrayList<T> {
-  val result = ArrayList<T>()
-  if (count == 0 || list.isEmpty()) {
-    return result
-  }
-
-  // Sort words into buckets by the number of recordings
-  // map<number of recordings, list(words)>
-  val recordingCounts = numRecordings.zip(list)
-  val recordingCountsMap = TreeMap<Int, ArrayList<T>>()
-  for (signCount in recordingCounts) {
-    if (!recordingCountsMap.containsKey(signCount.first)) {
-      recordingCountsMap[signCount.first] = ArrayList()
-    }
-
-    recordingCountsMap[signCount.first]?.add(signCount.second)
-  }
-
-  // Sort recording counts
-  var countRemaining = count
-  val sortedCounts = ArrayList(recordingCountsMap.keys)
-  sortedCounts.sortBy { it }
-
-  // Choose from least-recorded words first until room runs out
-  for (key in sortedCounts) {
-    if (countRemaining <= 0) {
-      break
-    }
-
-    val currSigns = recordingCountsMap[key]!!
-    val numSelected = min(currSigns.size, countRemaining)
-    result.addAll(randomChoice(currSigns, numSelected))
-    countRemaining -= numSelected
-  }
-
-  return result
 }
 
 /**
@@ -236,4 +203,42 @@ fun fromHex(hex: String): ByteArray {
     .iterator()
 
   return ByteArray(hex.length / 2) { byteIterator.next() }
+}
+
+fun msToHMS(ms: Long, compact: Boolean = false): String {
+  var seconds = ms / 1000L
+  var minutes = seconds / 60L
+  var hours = minutes / 60L
+  seconds = seconds % 60L
+  minutes = minutes % 60L
+  val msRemaining = ms % 1000L
+
+  if (compact) {
+    return "%02d:%02d:%02d.%03d".format(hours, minutes, seconds, msRemaining)
+  } else {
+    var output = ""
+    if (hours > 0) {
+      output += "$hours hours, "
+    }
+    if (minutes > 0 || hours > 0) {
+      output += "$minutes minutes, "
+    }
+    if (minutes > 0 || hours > 0 || seconds > 0 || msRemaining > 0) {
+      output += "%d.%03d seconds".format(seconds, msRemaining)
+    } else {
+      output += "0 seconds"
+    }
+    return output
+  }
+}
+fun hapticFeedbackOnTouchListener(view: View, event: MotionEvent): Boolean {
+  when (event.action) {
+    MotionEvent.ACTION_DOWN -> {
+      view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+    MotionEvent.ACTION_UP -> {
+      view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+    }
+  }
+  return false // Allow other listeners to receive events.
 }

@@ -29,6 +29,7 @@
 package edu.gatech.ccg.recordthesehands.summary
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -38,6 +39,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.Prompt
@@ -65,6 +67,7 @@ class RecordingListFragment(
 
     // Set the save button to finish the recording activity when pressed.
     val saveButton = view.findViewById<Button>(R.id.closeSession)
+    saveButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     saveButton.setOnClickListener {
       saveButton.isEnabled = false
       activity.concludeRecordingSession()

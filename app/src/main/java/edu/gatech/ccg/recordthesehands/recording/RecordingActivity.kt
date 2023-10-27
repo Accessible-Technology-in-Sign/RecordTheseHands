@@ -29,6 +29,10 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -56,6 +60,9 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import android.view.animation.AnimationSet
+import android.view.animation.CycleInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -69,7 +76,7 @@ import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_OK
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordTabletBinding
@@ -80,6 +87,7 @@ import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import edu.gatech.ccg.recordthesehands.toHex
+import kotlinx.coroutines.CoroutineScope
 import java.io.File
 import kotlin.collections.ArrayList
 import kotlin.coroutines.resume
@@ -93,6 +101,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.Integer.min
+import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
@@ -108,7 +117,7 @@ import kotlin.random.Random
  * @param attempt    (Int) An attempt number for this phrase key in this session.
  */
 class ClipDetails(
-  val filename: String, val prompt: Prompt, val videoStart: Instant,
+  val clipId: String, val sessionId: String, val filename: String, val prompt: Prompt, val videoStart: Instant,
 ) {
 
   companion object {
@@ -121,13 +130,13 @@ class ClipDetails(
   var swipeBackTimestamp: Instant? = null
   var swipeForwardTimestamp: Instant? = null
 
-  val clipId = Random.nextHexId(8)
   var lastModifiedTimestamp: Instant? = null
   var valid = true
 
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("clipId", clipId)
+    json.put("sessionId", sessionId)
     json.put("filename", filename)
     json.put("promptData", prompt.toJson())
     json.put("videoStart", DateTimeFormatter.ISO_INSTANT.format(videoStart))
@@ -183,7 +192,7 @@ suspend fun DataManager.saveClipData(clipDetails: ClipDetails) {
   val json = clipDetails.toJson()
   // Use a consistent key based on the clipId so that any changes to the clip
   // will be updated on the server.
-  addKeyValue("clipData-${clipDetails.clipId}", json.toString())
+  addKeyValue("clipData-${clipDetails.clipId}", json)
 }
 
 fun Random.Default.nextHexId(numBytes: Int): String {
@@ -197,6 +206,60 @@ fun Context.filenameToFilepath(filename: String): File {
     filesDir,
     File.separator + "upload" + File.separator + filename
   )
+}
+
+/**
+ * Class to handle all the information about the recording session which should be saved
+ * to the server.
+ */
+class RecordingSessionInfo(
+  val sessionId: String, val filename: String, val deviceId: String, val username: String,
+  val sessionType: String, val initialPromptIndex: Int, val limitPromptIndex: Int) {
+  companion object {
+    private val TAG = RecordingSessionInfo::class.java.simpleName
+  }
+
+  var result = "ONGOING"
+  var startTimestamp: Instant? = null
+  var endTimestamp: Instant? = null
+  var finalPromptIndex = initialPromptIndex
+
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("sessionId", sessionId)
+    json.put("result", result)
+    json.put("filename", filename)
+    json.put("deviceId", deviceId)
+    json.put("username", username)
+    json.put("sessionType", sessionType)
+    json.put("initialPromptIndex", initialPromptIndex)
+    json.put("limitPromptIndex", limitPromptIndex)
+    json.put("finalPromptIndex", finalPromptIndex)
+    if (startTimestamp != null) {
+      json.put(
+        "startTimestamp",
+        DateTimeFormatter.ISO_INSTANT.format(startTimestamp)
+      )
+    }
+    if (endTimestamp != null) {
+      json.put(
+        "endTimestamp",
+        DateTimeFormatter.ISO_INSTANT.format(endTimestamp)
+      )
+    }
+    return json
+  }
+
+  override fun toString(): String {
+    val json = toJson()
+    return json.toString(2)
+  }
+}
+
+suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
+  val json = sessionInfo.toJson()
+  // Use a consistent key so that any changes will be updated on the server.
+  addKeyValue("sessionData-${sessionInfo.sessionId}", json)
 }
 
 /**
@@ -346,7 +409,6 @@ class RecordingActivity : AppCompatActivity() {
    */
   private lateinit var countdownTimer: CountDownTimer
 
-
   // Prompt data
   /**
    * The prompts data.
@@ -375,6 +437,11 @@ class RecordingActivity : AppCompatActivity() {
   private var currentClipDetails: ClipDetails? = null
 
   /**
+   * An index used to create unique clipIds.
+   */
+  private var clipIdIndex = 0
+
+  /**
    * The dataManager object for communicating with the server.
    */
   lateinit var dataManager: DataManager
@@ -395,15 +462,14 @@ class RecordingActivity : AppCompatActivity() {
   var sessionLimit = -1
 
   /**
+   * General information about the recording session.
+   */
+  private lateinit var sessionInfo: RecordingSessionInfo
+
+  /**
    * The time at which the recording session started.
    */
   private lateinit var sessionStartTime: Instant
-
-  /**
-   * The time at which the recording session ended. Combined with `sessionStartTime` to estimate
-   * how many frames should be in the recording (or if there are any dropped frames)
-   */
-  private lateinit var sessionEndTime: Instant
 
   /**
    * Because the email and password have been put in a .gitignored file for security
@@ -619,6 +685,12 @@ class RecordingActivity : AppCompatActivity() {
 
   }
 
+  private fun newClipId(): String {
+    val output = "${sessionInfo.sessionId}-${padZeroes(clipIdIndex, 3)}"
+    clipIdIndex += 1
+    return output
+  }
+
   private fun recordButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
     /**
      * Do nothing if the record button is disabled.
@@ -634,13 +706,17 @@ class RecordingActivity : AppCompatActivity() {
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
         currentClipDetails =
-          ClipDetails(filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime)
+          ClipDetails(newClipId(), sessionInfo.sessionId, filename,
+          prompts.array[sessionStartIndex + currentPage], sessionStartTime)
         currentClipDetails!!.startButtonDownTimestamp = now
         currentClipDetails!!.lastModifiedTimestamp = now
         clipData.add(currentClipDetails!!)
         dataManager.saveClipData(currentClipDetails!!)
 
         isSigning = true
+        runOnUiThread {
+          animateGoText()
+        }
       }
 
       MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
@@ -696,7 +772,8 @@ class RecordingActivity : AppCompatActivity() {
         dataManager.saveClipData(lastClipDetails)
 
         currentClipDetails =
-          ClipDetails(filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime)
+          ClipDetails(newClipId(), sessionInfo.sessionId,
+            filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime)
         currentClipDetails!!.startButtonDownTimestamp = now
         currentClipDetails!!.lastModifiedTimestamp = now
         clipData.add(currentClipDetails!!)
@@ -704,10 +781,10 @@ class RecordingActivity : AppCompatActivity() {
 
         isSigning = true
         runOnUiThread {
-          // TODO Create an animation which plays every time the user should start signing.
           setButtonState(recordButton, false)
           setButtonState(restartButton, true)
           setButtonState(finishedButton, false)
+          animateGoText()
         }
       }
 
@@ -806,6 +883,7 @@ class RecordingActivity : AppCompatActivity() {
         override fun onDisconnected(device: CameraDevice) {
           Log.e(TAG, "openCamera: Camera $cameraId has been disconnected")
           this@RecordingActivity.apply {
+            sessionInfo.result = "RESULT_CAMERA_DIED"
             stopRecorder()
             setResult(RESULT_CAMERA_DIED)
             finish()
@@ -912,7 +990,21 @@ class RecordingActivity : AppCompatActivity() {
     recorder.start()
     sessionStartTime = Instant.now()
 
-    // TODO Record the session start time with the server (using a session object).
+    CoroutineScope(Dispatchers.IO).launch {
+      sessionInfo = RecordingSessionInfo(
+        dataManager.newSessionId(),
+        filename, dataManager.getPhoneId(), dataManager.getUsername()!!, "normal",
+        sessionStartIndex, sessionLimit
+      )
+      sessionInfo.startTimestamp = sessionStartTime
+      dataManager.saveSessionInfo(sessionInfo)
+
+      val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+      val json = JSONObject()
+      json.put("filename", filename)
+      json.put("startTimestamp", sessionStartTime)
+      dataManager.addKeyValue("recording_started-${timestamp}", json)
+    }
 
     setButtonState(recordButton, true)
     recordButtonEnabled = true
@@ -968,6 +1060,7 @@ class RecordingActivity : AppCompatActivity() {
     super.onRestart()
     Log.e(TAG, "RecordingActivity.onRestart() called which should be impossible.")
     if (isRecording) {
+      sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
       stopRecorder()
       setResult(RESULT_ACTIVITY_STOPPED)
     }
@@ -982,6 +1075,7 @@ class RecordingActivity : AppCompatActivity() {
     Log.d(TAG, "Recording Activity: onStop")
     try {
       if (isRecording) {
+        sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
         stopRecorder()
         setResult(RESULT_ACTIVITY_STOPPED)
       }
@@ -1011,15 +1105,11 @@ class RecordingActivity : AppCompatActivity() {
   }
 
   private fun stopRecorder() {
-    Log.i(TAG, "stopRecorder")
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    val json = JSONObject()
-    json.put("filename", filename)
-    json.put("endTimestamp", timestamp)
-
     if (isRecording) {
+      isRecording = false
+      Log.i(TAG, "stopRecorder: stopping recording.")
+
       recorder.stop()
-      sessionEndTime = Instant.now()
       session.stopRepeating()
       session.close()
       recorder.release()
@@ -1028,26 +1118,37 @@ class RecordingActivity : AppCompatActivity() {
       recordingSurface.release()
       countdownTimer.cancel()
       cameraHandler.removeCallbacksAndMessages(null)
+
+      runOnUiThread {
+        recordingLightView.visibility = View.GONE
+      }
+
+      UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+
+      lifecycleScope.launch {
+        val now = Instant.now()
+        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+        val json = JSONObject()
+        json.put("filename", filename)
+        json.put("endTimestamp", timestamp)
+        dataManager.addKeyValue("recording_stopped-${timestamp}", json)
+        dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
+        prompts.savePromptIndex()
+        sessionInfo.endTimestamp = now
+        sessionInfo.finalPromptIndex = prompts.promptIndex
+        dataManager.saveSessionInfo(sessionInfo)
+        dataManager.updateLifetimeStatistics(
+          Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
+        )
+      }
+      Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
+      if (emailConfirmationEnabled) {
+        sendConfirmationEmail()
+      }
+      Log.i(TAG, "stopRecorder: finished")
+    } else {
+      Log.i(TAG, "stopRecorder: called with isRecording == false")
     }
-    isRecording = false
-    UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
-    val j = lifecycleScope.launch {
-      Log.i(TAG, "before recording_stopped")
-      dataManager.addKeyValue("recording_stopped-${timestamp}", json.toString())
-      Log.i(TAG, "before registerFile")
-      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
-      Log.i(TAG, "after registerFile")
-      prompts.savePromptIndex()
-      Log.i(TAG, "after savePromptIndex")
-    }
-    runOnUiThread {
-      recordingLightView.visibility = View.GONE
-    }
-    Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
-    if (emailConfirmationEnabled) {
-      sendConfirmationEmail()
-    }
-    Log.i(TAG, "stopRecorder finished")
   }
 
   /**
@@ -1144,11 +1245,11 @@ class RecordingActivity : AppCompatActivity() {
           val now = Instant.now()
           val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
           if (currentPage < sessionPager.currentItem) {
-            // Swiped back.
-            currentClipDetails!!.swipeBackTimestamp = now
-          } else {
-            // Swiped forward.
+            // Swiped forward (currentPage is still the old value)
             currentClipDetails!!.swipeForwardTimestamp = now
+          } else {
+            // Swiped backwards (currentPage is still the old value)
+            currentClipDetails!!.swipeBackTimestamp = now
           }
           currentClipDetails!!.lastModifiedTimestamp = now
           lifecycleScope.launch {
@@ -1159,13 +1260,14 @@ class RecordingActivity : AppCompatActivity() {
         currentPage = sessionPager.currentItem
         super.onPageSelected(currentPage)
         if (endSessionOnClipEnd) {
+          prompts.promptIndex += 1
           goToSummaryPage()
           return
         }
         val promptIndex = sessionStartIndex + currentPage
-        dataManager.logToServer("selected page for prompt ${promptIndex}")
 
         if (promptIndex < sessionLimit) {
+          dataManager.logToServer("selected page for promptIndex ${promptIndex}")
           prompts.promptIndex = promptIndex
           runOnUiThread {
             title = "${prompts.promptIndex + 1} of ${prompts.array.size}"
@@ -1175,7 +1277,8 @@ class RecordingActivity : AppCompatActivity() {
             setButtonState(finishedButton, false)
           }
         } else if (promptIndex == sessionLimit) {
-          Log.i(TAG, "last chance page")
+          dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
+          prompts.promptIndex = sessionLimit
           /**
            * Page to give the user a chance to swipe back and record more before
            * finishing.
@@ -1186,7 +1289,7 @@ class RecordingActivity : AppCompatActivity() {
           setButtonState(restartButton, false)
           setButtonState(finishedButton, true)
         } else {
-          Log.i(TAG, "corrections page")
+          dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
           title = ""
 
           setButtonState(recordButton, false)
@@ -1211,6 +1314,93 @@ class RecordingActivity : AppCompatActivity() {
     recordingLightView = findViewById(R.id.recordingLight)
 
     recordingLightView.visibility = View.GONE
+  }
+
+  private fun animateGoText() {
+    val goText = findViewById<TextView>(R.id.goText)
+    goText.visibility = View.VISIBLE
+
+    // Set the pivot point for SCALE_X and SCALE_Y transformations to the
+    // top-left corner of the zoomed-in view. The default is the center of
+    // the view.
+    //binding.expandedImage.pivotX = 0f
+    //binding.expandedImage.pivotY = 0f
+
+    // Construct and run the parallel animation of the four translation and
+    // scale properties: X, Y, SCALE_X, and SCALE_Y.
+    var expandAnimator = AnimatorSet().apply {
+      play(
+        ObjectAnimator.ofFloat(
+          goText,
+          View.SCALE_X,
+          .5f,
+          2f
+        )
+      ).apply {
+        with(
+          ObjectAnimator.ofFloat(
+            goText,
+            View.SCALE_Y,
+            .5f,
+            2f
+          )
+        )
+      }
+      duration = 500
+      interpolator = CycleInterpolator(0.5f)
+      addListener(object : AnimatorListenerAdapter() {
+
+        override fun onAnimationEnd(animation: Animator) {
+          // currentAnimator = null
+          goText.visibility = View.GONE
+        }
+
+        override fun onAnimationCancel(animation: Animator) {
+          // currentAnimator = null
+          goText.visibility = View.GONE
+        }
+      })
+      start()
+    }
+    /*
+    var contractAnimator = AnimatorSet().apply {
+      play(
+        ObjectAnimator.ofFloat(
+          goText,
+          View.SCALE_X,
+          2f,
+          0f
+        )
+      ).apply {
+        with(
+          ObjectAnimator.ofFloat(
+            goText,
+            View.SCALE_Y,
+            2f,
+            0f
+          )
+        )
+      }
+      duration = 10000
+      interpolator = DecelerateInterpolator()
+      addListener(object : AnimatorListenerAdapter() {
+
+        override fun onAnimationEnd(animation: Animator) {
+          // currentAnimator = null
+          goText.visibility = View.GONE
+        }
+
+        override fun onAnimationCancel(animation: Animator) {
+          // currentAnimator = null
+          goText.visibility = View.GONE
+        }
+      })
+      start()
+    }
+    val animations = AnimationSet(false)
+    animations.addAnimation(expandAnimator)
+    animations.addAnimation(contractAnimator)
+    */
   }
 
   /**
@@ -1271,8 +1461,9 @@ class RecordingActivity : AppCompatActivity() {
    * Finish the recording session and close the activity.
    */
   fun concludeRecordingSession() {
+    sessionInfo.result = "RESULT_OK"
     stopRecorder()
-    setResult(RESULT_NO_ERROR)
+    setResult(RESULT_OK)
     finish()
   }
 
@@ -1298,13 +1489,14 @@ class RecordingActivity : AppCompatActivity() {
       val clipDetails = clipData[i]
       clips.put(i, clipDetails.toJson())
     }
+    output.put("sessionInfo", sessionInfo.toJson())
     output.put("clips", clips)
 
     val subject = "Recording confirmation for $username"
 
     val body = "The user '$username' recorded ${clipData.size} clips for prompts index range " +
         "${sessionStartIndex} to ${sessionLimit} into " +
-        "file $filename\n" +
+        "file $filename\n\n" +
         output.toString(2) + "\n\n"
 
     thread {

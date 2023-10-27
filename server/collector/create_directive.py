@@ -68,6 +68,26 @@ def create_directive(username, op, value):
   doc_ref.set(directive)
 
 
+def cancel_directive(username, directive_id):
+  db = firestore.Client()
+  directive_id = int(directive_id)
+  doc_ref = db.document(
+      f'collector/users/{username}/data/directive/{directive_id}')
+  doc_data = doc_ref.get()
+  if not doc_data.exists:
+    print(
+        f'Unable to find directive for user {username} with id {directive_id}')
+    return False
+  doc_dict = doc_data.to_dict()
+  assert int(doc_dict['id']) == directive_id
+  doc_dict['cancelled'] = datetime.datetime.now(
+      datetime.timezone.utc).isoformat()
+  doc_ref.update(
+      doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
+  print(f'Cancelled directive for user {username} with id {directive_id}')
+  return True
+
+
 if __name__ == '__main__':
   username = sys.argv[1]
   print(f'Using username: {username}')
@@ -99,6 +119,18 @@ if __name__ == '__main__':
         f'collector/users/{username}/data/prompts/all/all/{timestamp}')
     doc_ref.set(prompts_data)
     create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'deleteFile':
+    output = {
+      'filepath': sys.argv[3]
+    }
+    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
+  elif sys.argv[2] == 'uploadState':
+    create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'cancel':
+    directive_id = int(sys.argv[3])
+    cancel_directive(sys.argv[1], directive_id)
+  elif sys.argv[2] == 'getState':
+    print_state(sys.argv[1])
   else:
     raise AssertionError("Did not understand arguments: " + " ".join(sys.argv))
 

@@ -33,6 +33,7 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageInstaller.SessionParams
 import android.util.Base64
 import android.util.Log
+import android.widget.TextView
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -48,6 +49,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
@@ -64,6 +68,7 @@ import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import javax.net.ssl.HostnameVerifier
@@ -618,6 +623,7 @@ class DataManagerData() {
     }
   }
 
+  val lock = Mutex()
   var uid: String? = null
   var loginToken: String? = null
   var promptsData: Prompts? = null
@@ -795,41 +801,38 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPhoneId(): String {
-    synchronized(dataManagerData) {
-      if (dataManagerData.uid != null) {
-        return dataManagerData.uid!!
-      }
+    if (dataManagerData.uid != null) {
+      return dataManagerData.uid!!
     }
-    val keyObject = stringPreferencesKey("uid")
-    var uid = context.prefStore.data.map {
-      it[keyObject]
-    }.firstOrNull()
-    synchronized(dataManagerData) {
+    dataManagerData.lock.withLock {
       if (dataManagerData.uid != null) {
         return dataManagerData.uid!!
       }
+      val keyObject = stringPreferencesKey("uid")
+      var uid = context.prefStore.data.map {
+        it[keyObject]
+      }.firstOrNull()
       if (uid != null) {
         dataManagerData.uid = uid
         return uid!!
       }
-    }
-    uid = toHex(SecureRandom().generateSeed(4))
-    context.prefStore.edit { preferences ->
-      preferences[keyObject] = uid!!
-    }
-    synchronized(dataManagerData) {
-      if (dataManagerData.uid != null) {
-        // We need to reset the datastore value to the uid that won the race.
-        uid = dataManagerData.uid
-      } else {
-        dataManagerData.uid = uid
-        return uid!!
+      uid = toHex(SecureRandom().generateSeed(4))
+      context.prefStore.edit { preferences ->
+        preferences[keyObject] = uid!!
       }
+      dataManagerData.uid = uid
+      return dataManagerData.uid!!
     }
-    context.prefStore.edit { preferences ->
-      preferences[keyObject] = uid!!
+  }
+
+  suspend fun newSessionId(): String {
+    val deviceId = getPhoneId()
+    val keyObject = stringPreferencesKey("sessionIdIndex")
+    val oldValue = context.prefStore.edit { preferences ->
+      preferences[keyObject] = ((preferences[keyObject]?.toInt() ?: 0) + 1).toString()
     }
-    return uid!!
+    val sessionIndex = oldValue[keyObject]?.toInt() ?: 0
+    return "${deviceId}-s${sessionIndex}"
   }
 
   fun deleteLoginToken() {
@@ -879,11 +882,83 @@ class DataManager(val context: Context) {
     return true
   }
 
-  private suspend fun tryUploadKeyValue(entry: Map.Entry<Preferences.Key<*>, Any>): Boolean {
+  private suspend fun uploadState(): Boolean {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValue interrupted.")
     }
-    Log.i(TAG, "Uploading key: \"${entry.key}\" with value \"${entry.value}\"")
+    val json = JSONObject()
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    json.put("timestamp", timestamp)
+    json.put("username", getUsername())
+    json.put("deviceId", getPhoneId())
+    val recordingCountKeyObject = stringPreferencesKey("lifetimeRecordingCount")
+    var lifetimeRecordingCount = context.prefStore.data
+      .map {
+        it[recordingCountKeyObject]?.toLong()
+      }.firstOrNull() ?: 0L
+    json.put("lifetimeRecordingCount", lifetimeRecordingCount)
+    val recordingMsKeyObject = stringPreferencesKey("lifetimeRecordingMs")
+    var lifetimeRecordingMs = context.prefStore.data
+      .map {
+        it[recordingMsKeyObject]?.toLong()
+      }.firstOrNull() ?: 0L
+    json.put("lifetimeRecordingMs", lifetimeRecordingMs)
+
+    val keyValuesJson = JSONArray()
+    json.put("keyValues", keyValuesJson)
+    context.dataStore.data
+      .map {
+        it.asMap().entries
+      }.firstOrNull()?.let {
+        for (entry in it.iterator()) {
+          val entryJson = JSONObject(entry.value as String)
+          entryJson.put("key", entry.key.name)
+          keyValuesJson.put(entryJson)
+        }
+      }
+
+    val filesJson = JSONArray()
+    json.put("files", filesJson)
+    context.registerFileStore.data
+      .map {
+        it.asMap().entries
+      }.firstOrNull()?.let {
+        for (entry in it.iterator()) {
+          val entryJson = JSONObject(entry.value as String)
+          entryJson.put("filepath", entry.key.name)
+          filesJson.put(entryJson)
+        }
+      }
+    json.put("prompts", getPrompts()?.toJson())
+
+    val url = URL(SERVER + "/save_state")
+    val (code, unused) =
+      serverFormPostRequest(
+        url,
+        mapOf(
+          "app_version" to APP_VERSION,
+          "login_token" to dataManagerData.loginToken!!,
+          "state" to json.toString(),
+        )
+      )
+    if (code >= 200 && code < 300) {
+      return true
+    } else {
+      Log.e(
+        TAG,
+        "Unable to save state."
+      )
+      return false
+    }
+  }
+
+  private suspend fun tryUploadKeyValues(entries: JSONArray): Boolean {
+    if (UploadService.isPaused()) {
+      throw InterruptedUploadException("tryUploadKeyValues interrupted.")
+    }
+    for (i in 0..entries.length() - 1) {
+      Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
+    }
     val url = URL(SERVER + "/save")
     val (code, unused) =
       serverFormPostRequest(
@@ -891,7 +966,39 @@ class DataManager(val context: Context) {
         mapOf(
           "app_version" to APP_VERSION,
           "login_token" to dataManagerData.loginToken!!,
-          "key" to entry.key.name as String,
+          "data" to entries.toString(),
+        )
+      )
+    if (code >= 200 && code < 300) {
+      context.dataStore.edit { preferences ->
+        for (i in 0..entries.length() - 1) {
+          val keyObject = stringPreferencesKey(entries.getJSONObject(i).getString("key"))
+          preferences.remove(keyObject)
+        }
+      }
+      return true
+    } else {
+      Log.e(
+        TAG,
+        "Unable to upload keys.  Will try again later."
+      )
+      return false
+    }
+  }
+
+  private suspend fun tryUploadKeyValue(entry: Map.Entry<Preferences.Key<*>, Any>): Boolean {
+    if (UploadService.isPaused()) {
+      throw InterruptedUploadException("tryUploadKeyValue interrupted.")
+    }
+    Log.i(TAG, "Uploading key: \"${entry.key}\"")
+    val url = URL(SERVER + "/save")
+    val (code, unused) =
+      serverFormPostRequest(
+        url,
+        mapOf(
+          "app_version" to APP_VERSION,
+          "login_token" to dataManagerData.loginToken!!,
+          "key" to entry.key.name,
           "value" to entry.value as String
         )
       )
@@ -974,16 +1081,27 @@ class DataManager(val context: Context) {
       Log.i(TAG, "entries was null")
       return false
     }
-    var i = 0
-    for (entry in entries.iterator()) {
+    if (entries.isNotEmpty()) {
       notificationManager.notify(
         UploadService.NOTIFICATION_ID,
-        createNotification("Uploading key/value", "${i + 1} of ${entries.size}")
+        createNotification("Uploading key/values", "${entries.size} key/values uploading")
       )
-      if (!tryUploadKeyValue(entry)) {
+      val jsonArray = JSONArray()
+      var i = 0
+      for (entry in entries.iterator()) {
+        val jsonEntry = JSONObject()
+        jsonEntry.put("key", entry.key.name)
+        val data = JSONObject(entry.value as String).get("data")
+        jsonEntry.put("value", data)
+        jsonArray.put(jsonEntry)
+        i += 1
+        if (i >= 500) {
+          break
+        }
+      }
+      if (!tryUploadKeyValues(jsonArray)) {
         return false
       }
-      i += 1
     }
     val fileEntries = context.registerFileStore.data
       .map {
@@ -993,7 +1111,7 @@ class DataManager(val context: Context) {
       Log.i(TAG, "entries was null")
       return false
     }
-    i = 0
+    var i = 0
     for (entry in fileEntries.iterator()) {
       notificationManager.notify(
         UploadService.NOTIFICATION_ID,
@@ -1128,6 +1246,34 @@ class DataManager(val context: Context) {
       if (!directiveCompleted(id)) {
         return false
       }
+    } else if (op == "deleteFile") {
+      val json = JSONObject(value)
+      val relativePath = json.getString("filepath")
+      val filepath = File(context.filesDir, relativePath)
+
+      if (filepath.exists()) {
+        filepath.delete()
+        logToServer("As directed: Deleted file $relativePath")
+      }
+      val keyObject = stringPreferencesKey(relativePath)
+      context.registerFileStore.edit { preferences ->
+        if (preferences.contains(keyObject)) {
+          preferences.remove(keyObject)
+          logToServer("As directed: Unregistered file $relativePath")
+        }
+      }
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else if (op == "uploadState") {
+      if (uploadState()) {
+        if (!directiveCompleted(id)) {
+          return false
+        }
+        return true
+      } else {
+        return false
+      }
     } else {
       Log.e(TAG, "Unable to understand directive op \"$op\"")
       return false
@@ -1239,10 +1385,21 @@ class DataManager(val context: Context) {
   suspend fun addKeyValue(key: String, value: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val keyObject = stringPreferencesKey(key)
+    val saveJson = JSONObject()
+    saveJson.put("data", value)
     context.dataStore.edit { preferences ->
-      preferences[keyObject] = value
+      preferences[keyObject] = saveJson.toString()
     }
-    Log.i(TAG, "Stored key: \"$key\", value: \"$value\".")
+  }
+
+  suspend fun addKeyValue(key: String, json: JSONObject) {
+    Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
+    val saveJson = JSONObject()
+    saveJson.put("data", json)
+    val keyObject = stringPreferencesKey(key)
+    context.dataStore.edit { preferences ->
+      preferences[keyObject] = saveJson.toString()
+    }
   }
 
   suspend fun registerFile(relativePath: String) {
@@ -1254,21 +1411,31 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPrompts(): Prompts? {
-    synchronized(dataManagerData) {
+    if (dataManagerData.promptsData != null) {
+      return dataManagerData.promptsData
+    }
+    dataManagerData.lock.withLock {
       if (dataManagerData.promptsData != null) {
         return dataManagerData.promptsData
       }
-    }
-    val newPromptsData = Prompts(context)
-    if (!newPromptsData.initialize()) {
-      return null
-    }
-    synchronized(dataManagerData) {
-      if (dataManagerData.promptsData != null) {
-        return dataManagerData.promptsData
+      val newPromptsData = Prompts(context)
+      if (!newPromptsData.initialize()) {
+        return null
       }
       dataManagerData.promptsData = newPromptsData
       return dataManagerData.promptsData
+    }
+  }
+
+  suspend fun updateLifetimeStatistics(sessionLength: Duration) {
+    sessionLength.toMillis()
+    var keyObject1 = stringPreferencesKey("lifetimeRecordingCount")
+    var keyObject2 = stringPreferencesKey("lifetimeRecordingMs")
+    context.prefStore.edit { preferences ->
+      preferences[keyObject1] =
+        preferences[keyObject1]?.let { (it.toLong() + 1).toString() } ?: "1"
+      preferences[keyObject2] =
+        ((preferences[keyObject2]?.toLong() ?: 0) + sessionLength.toMillis()).toString()
     }
   }
 }
@@ -1321,5 +1488,16 @@ class Prompts(val context: Context) {
     context.prefStore.edit { preferences ->
       preferences[key2Object] = promptIndex.toString()
     }
+  }
+
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("promptIndex", promptIndex)
+    val arrayJson = JSONArray()
+    for (prompt in array) {
+      arrayJson.put(prompt.toJson())
+    }
+    json.put("prompts", arrayJson)
+    return json
   }
 }

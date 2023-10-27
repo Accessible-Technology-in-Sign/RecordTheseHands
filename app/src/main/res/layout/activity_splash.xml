@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent" >
 
     <TextView
         android:id="@+id/header"
@@ -22,7 +22,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="Your user ID:"
+        android:text="Username:"
+        android:textSize="18sp"
         app:layout_constraintStart_toStartOf="@+id/header"
         app:layout_constraintTop_toBottomOf="@+id/header" />
 
@@ -30,117 +31,139 @@
         android:id="@+id/uidBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
+        android:layout_marginStart="6dp"
         android:text="UID Not set"
         android:textStyle="bold"
+        android:textSize="18dp"
         app:layout_constraintStart_toEndOf="@+id/uidLabel"
         app:layout_constraintTop_toTopOf="@+id/uidLabel" />
-
-    <TextView
-        android:id="@+id/promptsBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Prompts Info Not Set"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="@+id/uidLabel"
-        app:layout_constraintTop_toBottomOf="@+id/uidBox" />
 
     <TextView
         android:id="@+id/statisticsHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="30dp"
         android:text="Statistics"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/promptsBox" />
+        app:layout_constraintTop_toBottomOf="@+id/uidLabel" />
 
     <TextView
-        android:id="@+id/recordingCount"
+        android:id="@+id/completedPromptsText1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="0 total recordings"
+        android:text="Completed "
+        android:textSize="18dp"
         app:layout_constraintStart_toStartOf="@+id/statisticsHeader"
         app:layout_constraintTop_toBottomOf="@+id/statisticsHeader" />
 
     <TextView
-        android:id="@+id/recordingStatsHeader"
+        android:id="@+id/completedPromptsBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="Most recorded words"
-        android:textSize="20sp"
+        android:text="\?"
+        android:textSize="18dp"
         android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="@+id/statisticsHeader"
-        app:layout_constraintTop_toBottomOf="@+id/recordingCount" />
+        app:layout_constraintStart_toEndOf="@+id/completedPromptsText1"
+        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsText1" />
 
     <TextView
-        android:id="@+id/statsWordList"
+        android:id="@+id/completedPromptsText2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="word1\nword2\nword3\nword4\nword5"
-        app:layout_constraintStart_toStartOf="@+id/statisticsHeader"
-        app:layout_constraintTop_toBottomOf="@+id/recordingStatsHeader" />
-
-    <TextView
-        android:id="@+id/statsWordCounts"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="32dp"
-        android:text="0 times\n0 times\n0 times\n0 times\n0 times"
-        android:textAlignment="textEnd"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/recordingStatsHeader" />
-
-    <TextView
-        android:id="@+id/newSessionHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
         android:layout_marginTop="12dp"
-        android:text="Next recording session:"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statsWordList" />
+        android:text=" of "
+        android:textSize="18dp"
+        app:layout_constraintStart_toEndOf="@+id/completedPromptsBox"
+        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsBox" />
 
-    <LinearLayout
-        android:id="@+id/linearLayout"
+    <TextView
+        android:id="@+id/totalPromptsBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginTop="8dp"
-        android:orientation="horizontal"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/newSessionHeader">
+        android:layout_marginTop="12dp"
+        android:text="\?"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@+id/completedPromptsText2"
+        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsText2" />
 
-        <TextView
-            android:id="@+id/recordingListColumn1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="word1\nword2\nword3\nword4\nword5"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+    <TextView
+        android:id="@+id/completedPromptsText3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text=" prompts"
+        android:textSize="18dp"
+        app:layout_constraintStart_toEndOf="@+id/totalPromptsBox"
+        app:layout_constraintBottom_toBottomOf="@+id/totalPromptsBox" />
 
-        <TextView
-            android:id="@+id/recordingListColumn2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="8dp"
-            android:text="word1\nword2\nword3\nword4\nword5"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+    <TextView
+        android:id="@+id/recordingCountBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="0"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@+id/completedPromptsText1"
+        app:layout_constraintTop_toBottomOf="@+id/completedPromptsText1" />
 
-    </LinearLayout>
+    <TextView
+        android:id="@+id/recordingCountText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text=" total recordings"
+        android:textSize="18dp"
+        app:layout_constraintStart_toEndOf="@+id/recordingCountBox"
+        app:layout_constraintBottom_toBottomOf="@+id/recordingCountBox" />
+
+    <TextView
+        android:id="@+id/recordingTimeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Total Time Spent: "
+        android:textSize="18dp"
+        app:layout_constraintStart_toStartOf="@+id/recordingCountBox"
+        app:layout_constraintTop_toBottomOf="@+id/recordingCountBox" />
+
+    <TextView
+        android:id="@+id/recordingTimeBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="..."
+        android:textSize="18dp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@+id/recordingTimeText"
+        app:layout_constraintBottom_toBottomOf="@+id/recordingTimeText" />
+
+    <TextView
+        android:id="@+id/sessionCounterBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="0"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@+id/recordingTimeText"
+        app:layout_constraintTop_toBottomOf="@+id/recordingTimeText" />
+
+    <TextView
+        android:id="@+id/sessionCounterText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text=" Sessions completed in this sitting"
+        android:textSize="18dp"
+        app:layout_constraintStart_toEndOf="@+id/sessionCounterBox"
+        app:layout_constraintBottom_toBottomOf="@+id/sessionCounterBox" />
 
     <Button
         android:id="@+id/startButton"
@@ -159,19 +182,8 @@
         android:layout_marginStart="6dp"
         android:layout_marginBottom="3dp"
         android:text="v1.0"
+        android:textSize="18dp"
         app:layout_constraintBottom_toBottomOf="@+id/header"
         app:layout_constraintStart_toEndOf="@+id/header" />
-
-    <TextView
-        android:id="@+id/sessionCounter"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="32dp"
-        android:text="You've done 0 sessions in this sitting"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

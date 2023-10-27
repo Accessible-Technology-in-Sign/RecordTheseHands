@@ -29,6 +29,7 @@
 package edu.gatech.ccg.recordthesehands.summary
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,6 +38,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.clipText
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.VideoPreviewFragment
@@ -79,29 +81,55 @@ class RecordingListAdapter(
         label.text = clipDetails.prompt.prompt
       }
 
-      val deleteButton = itemView.findViewById<ImageButton>(R.id.deleteRecording)
+      val clipIsValidImage = itemView.findViewById<ImageButton>(R.id.clipIsValidImage)
+      val clipIsInvalidImage = itemView.findViewById<ImageButton>(R.id.clipIsInvalidImage)
+      if (clipDetails.valid) {
+        clipIsValidImage.visibility = View.VISIBLE
+        clipIsInvalidImage.visibility = View.GONE
+      } else {
+        clipIsValidImage.visibility = View.GONE
+        clipIsInvalidImage.visibility = View.VISIBLE
+      }
 
       /**
-       * When the user taps the delete button, we simply mark the last recording as invalid.
-       * (The recording is already complete, so there's no way for us to allow the user to
-       * jump back and attempt another recording.)
+       * Allow the user to mark the clip valid or invalid as they wish.
        */
 
-      deleteButton.setOnClickListener {
+      clipIsValidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      clipIsValidImage.setOnClickListener {
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         clipDetails.valid = false
+        clipDetails.lastModifiedTimestamp = now
+
         activity.dataManager.logToServerAtTimestamp(
           timestamp,
-          "delete button for clip ${clipDetails.toJson()}")
+          "setting clip invalid ${clipDetails.toJson()}")
+
+        CoroutineScope(Dispatchers.IO).launch {
+          activity.dataManager.saveClipData(clipDetails)
+        }
+
+        clipIsValidImage.visibility = View.GONE
+        clipIsInvalidImage.visibility = View.VISIBLE
+      }
+
+      clipIsInvalidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      clipIsInvalidImage.setOnClickListener {
+        val now = Instant.now()
+        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+        clipDetails.valid = true
+        activity.dataManager.logToServerAtTimestamp(
+          timestamp,
+          "setting clip valid ${clipDetails.toJson()}")
 
         clipDetails.lastModifiedTimestamp = now
         CoroutineScope(Dispatchers.IO).launch {
           activity.dataManager.saveClipData(clipDetails)
         }
 
-        deleteButton.isClickable = false
-        deleteButton.visibility = View.INVISIBLE
+        clipIsValidImage.visibility = View.VISIBLE
+        clipIsInvalidImage.visibility = View.GONE
       }
 
       /**
@@ -110,10 +138,10 @@ class RecordingListAdapter(
        * and we know the timestamp data for that recording, so we just play that segment
        * on a loop. (See [VideoPreviewFragment].)
        */
+      label.setOnTouchListener(::hapticFeedbackOnTouchListener)
       label.setOnClickListener {
         val bundle = Bundle()
         bundle.putString("prompt", clipDetails.prompt.prompt)
-        // bundle.putString("filepath", "blah" + File.separator + clipDetails.filename) TODO
         bundle.putString("filepath", "upload" + File.separator + clipDetails.filename)
         bundle.putBoolean("isTablet", activity.isTablet())
         // TODO landscape ?

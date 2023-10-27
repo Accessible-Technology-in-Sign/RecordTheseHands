@@ -35,6 +35,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -43,17 +44,19 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_NO_ERROR
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.prefStore
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlin.concurrent.thread
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -68,36 +71,6 @@ class HomeScreenActivity : ComponentActivity() {
   }
 
   // UI elements
-
-  /**
-   * A display for the user's UID.
-   */
-  lateinit var uidBox: TextView
-
-  /**
-   * A text box showing the user's five most-recorded words.
-   */
-  lateinit var statsWordList: TextView
-
-  /**
-   * A text box showing the corresponding counts for each of the five words.
-   */
-  lateinit var statsWordCounts: TextView
-
-  /**
-   * A text box showing the total number of recordings the user has done across all words.
-   */
-  lateinit var recordingCount: TextView
-
-  /**
-   * A text box previewing the words the user will sign in the next session.
-   */
-  lateinit var nextSessionWords: TextView
-
-  /**
-   * A button to select a new set of random words for the next session.
-   */
-  private lateinit var randomizeButton: Button
 
   /**
    * The button the user presses to enter the recording session.
@@ -131,22 +104,6 @@ class HomeScreenActivity : ComponentActivity() {
   private lateinit var globalPrefs: SharedPreferences
 
   /**
-   * A list of all 250 words that we allow recording
-   */
-  lateinit var allWords: ArrayList<String>
-
-  /**
-   * A list of how many times each word has been recorded. We use this to preferentially
-   * select the least-recorded words for the next session.
-   */
-  lateinit var recordingCounts: ArrayList<Int>
-
-  /**
-   * The total number of recordings the user has done across all sessions.
-   */
-  private var lifetimeRecordingCount = 0
-
-  /**
    * The total number of recordings the user has done in the current session (i.e., since they
    * last cold-booted the app). After this value reaches [Constants.MAX_RECORDINGS_IN_SITTING],
    * we ask the user to fully close and relaunch the app. This is in place as a quick-hack
@@ -177,12 +134,11 @@ class HomeScreenActivity : ComponentActivity() {
     ActivityResultContracts.StartActivityForResult()
   ) { result: ActivityResult ->
     run {
+      currentRecordingSessions += 1
       when (result.resultCode) {
-        RESULT_NO_ERROR -> {
-          currentRecordingSessions += 1
+        RESULT_OK -> {
         }
-
-        RESULT_CAMERA_DIED, RESULT_RECORDING_DIED -> {
+        else -> {
           val text = "The recording session was ended due to an unexpected error."
           val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
           toast.show()
@@ -225,26 +181,41 @@ class HomeScreenActivity : ComponentActivity() {
       val prompts = dataManager.getPrompts()
       val username = dataManager.getUsername()
       val uid = dataManager.getPhoneId()
-      uidBox = findViewById(R.id.uidBox)
+      val uidBox = findViewById<TextView>(R.id.uidBox)
       if (username != null) {
         uidBox.text = username
       } else {
         uidBox.text = uid
       }
-      val promptsBox: TextView = findViewById(R.id.promptsBox)
-      if (prompts == null) {
-        promptsBox.text = "Prompts not loaded!"
-        val intent = Intent(applicationContext, LoadDataActivity::class.java)
-        startActivity(intent)
-      } else {
-        promptsBox.text = "Found ${prompts.array.size} prompts."
-      }
       if (prompts != null && username != null) {
         startRecordingButton.isEnabled = true
         startRecordingButton.isClickable = true
       }
+      var keyObject = stringPreferencesKey("lifetimeRecordingCount")
+      var lifetimeRecordingCount = applicationContext.prefStore.data
+        .map {
+          it[keyObject]?.toLong()
+        }.firstOrNull() ?: 0L
+      val recordingCountBox = findViewById<TextView>(R.id.recordingCountBox)
+      recordingCountBox.text = lifetimeRecordingCount.toString()
+      keyObject = stringPreferencesKey("lifetimeRecordingMs")
+      var lifetimeRecordingMs = applicationContext.prefStore.data
+        .map {
+          it[keyObject]?.toLong()
+        }.firstOrNull() ?: 0L
+      val recordingTimeBox = findViewById<TextView>(R.id.recordingTimeBox)
+      recordingTimeBox.text = msToHMS(lifetimeRecordingMs)
+      val sessionCounterBox = findViewById<TextView>(R.id.sessionCounterBox)
+      sessionCounterBox.text = currentRecordingSessions.toString()
+      if (prompts != null) {
+        val completedPromptsBox = findViewById<TextView>(R.id.completedPromptsBox)
+        completedPromptsBox.text = prompts.promptIndex.toString()
+        val totalPromptsBox = findViewById<TextView>(R.id.totalPromptsBox)
+        totalPromptsBox.text = prompts.array.size.toString()
+      }
     }
 
+    startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     startRecordingButton.setOnClickListener {
       fun checkPermission(perm: String): Boolean {
         return ContextCompat.checkSelfPermission(this, perm) ==

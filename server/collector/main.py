@@ -27,6 +27,7 @@ import datetime
 import functools
 import hashlib
 import io
+import json
 import mimetypes
 import os
 import pathlib
@@ -271,6 +272,7 @@ def upload():
   login_token = flask.request.values.get('login_token', '')
   if not is_valid_user(login_token):
     return 'login_token invalid', 400
+  app_version = flask.request.values.get('app_version', 'unknown')
 
   username = get_username(login_token)
   assert username
@@ -294,6 +296,7 @@ def upload():
 
   db = firestore.Client()
   db.document(f'collector/users/{username}/data/file/{filename}').set({
+      'app_version': app_version,
       'path': path,
       'md5': md5sum,
       'file_size': int(file_size)
@@ -312,6 +315,7 @@ if IS_LOCAL_ENV:
     """Upload an item."""
     username = 'testing'
 
+    app_version = flask.request.values.get('app_version', 'unknown')
     filename = flask.request.values.get('filename', '')
     m = re.match(r'^[a-zA-Z0-9_:.-]*$', filename)
     if not m:
@@ -324,6 +328,7 @@ if IS_LOCAL_ENV:
     db = firestore.Client()
     db.document(f'collector/users/{username}/data/file/{filename}'
                ).set({
+                   'app_version': app_version,
                    'filename': filename,
                    'md5': md5sum
                })
@@ -420,21 +425,91 @@ def register_login():
       message=f'User {username} successfully created.')
 
 
-@app.route('/save', methods=['POST'])
-def save():
+@app.route('/save_one', methods=['POST'])
+def save_one():
   """Save a key value pair."""
   login_token = flask.request.values.get('login_token', '')
-  key = flask.request.values.get('key', '')
-  value = flask.request.values.get('value', '')
   if not is_valid_user(login_token):
     return 'login_token invalid', 400
+
+  key = flask.request.values.get('key', '')
+  value = flask.request.values.get('value', '{"data":""}')
+  app_version = flask.request.values.get('app_version', 'unknown')
 
   username = get_username(login_token)
   assert username
 
+  data = json.loads(value)
+
+  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
   db = firestore.Client()
+
   db.document(f'collector/users/{username}/data/save/{key}').set(
-      {key: value})
+      {'app_version': app_version,
+       'timestamp': timestamp,
+       'key': key,
+       'value': data.get('data')})
+
+  return flask.render_template(
+      'success.html',
+      message='Key value saved.')
+
+
+@app.route('/save', methods=['POST'])
+def save():
+  """Save multiple key value pairs."""
+  login_token = flask.request.values.get('login_token', '')
+  if not is_valid_user(login_token):
+    return 'login_token invalid', 400
+
+  data_string = flask.request.values.get('data', '[]')
+  app_version = flask.request.values.get('app_version', 'unknown')
+
+  username = get_username(login_token)
+  assert username
+
+  data = json.loads(data_string)
+
+  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+  db = firestore.Client()
+
+  for entry in data:
+    key = entry.get('key')
+    if not key:
+      return 'json entries malformed', 400
+    db.document(f'collector/users/{username}/data/save/{key}').set(
+        {'app_version': app_version,
+         'timestamp': timestamp,
+         'key': key,
+         'value': entry.get('value')})
+
+  return flask.render_template(
+      'success.html',
+      message='Key values saved.')
+
+
+@app.route('/save_state', methods=['POST'])
+def save_state():
+  """Save a key value pair."""
+  login_token = flask.request.values.get('login_token', '')
+  if not is_valid_user(login_token):
+    return 'login_token invalid', 400
+
+  state = flask.request.values.get('state', '')
+  app_version = flask.request.values.get('app_version', 'unknown')
+
+  username = get_username(login_token)
+  assert username
+
+  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+  db = firestore.Client()
+  db.document(f'collector/users/{username}/data/state/{timestamp}').set(
+      {'app_version': app_version,
+       'server_timestamp': timestamp,
+       'state': json.loads(state)})
 
   return flask.render_template(
       'success.html',
@@ -466,6 +541,8 @@ def directives_page():
     doc_dict = doc.to_dict()
     if doc_dict.get('completed'):
       continue
+    if doc_dict.get('completed_client_timestamp'):
+      continue
     if doc_dict.get('cancelled'):
       continue
     assert doc_dict.get('id')
@@ -483,6 +560,7 @@ def directive_completed():
   login_token = flask.request.values.get('login_token', '')
   directive_id = flask.request.values.get('id', '')
   timestamp = flask.request.values.get('timestamp', '')
+  app_version = flask.request.values.get('app_version', 'unknown')
   if not is_valid_user(login_token):
     return 'login_token invalid', 400
   if not directive_id:
@@ -500,7 +578,10 @@ def directive_completed():
   if not doc_data.exists:
     return 'directive not found.', 404
   doc_dict = doc_data.to_dict()
-  doc_dict['completed'] = timestamp
+  server_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+  doc_dict['completed_client_timestamp'] = timestamp
+  doc_dict['completed_server_timestamp'] = server_timestamp
+  doc_dict['app_version'] = app_version
   doc_ref.update(
       doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
   return flask.jsonify({'updated:': True}), 200

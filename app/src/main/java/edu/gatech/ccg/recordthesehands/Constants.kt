@@ -54,7 +54,7 @@ object Constants {
   /**
    * Result code for when the RecordingActivity finishes normally.
    */
-  const val RESULT_NO_ERROR = 0
+  const val RESULT_OK = 0
 
   /**
    * Result code for when the RecordingActivity fails because we lost access to the camera.
