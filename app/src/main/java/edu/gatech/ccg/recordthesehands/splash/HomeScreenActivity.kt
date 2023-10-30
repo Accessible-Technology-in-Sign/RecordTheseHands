@@ -192,14 +192,14 @@ class HomeScreenActivity : ComponentActivity() {
         startRecordingButton.isClickable = true
       }
       var keyObject = stringPreferencesKey("lifetimeRecordingCount")
-      var lifetimeRecordingCount = applicationContext.prefStore.data
+      val lifetimeRecordingCount = applicationContext.prefStore.data
         .map {
           it[keyObject]?.toLong()
         }.firstOrNull() ?: 0L
       val recordingCountBox = findViewById<TextView>(R.id.recordingCountBox)
       recordingCountBox.text = lifetimeRecordingCount.toString()
       keyObject = stringPreferencesKey("lifetimeRecordingMs")
-      var lifetimeRecordingMs = applicationContext.prefStore.data
+      val lifetimeRecordingMs = applicationContext.prefStore.data
         .map {
           it[keyObject]?.toLong()
         }.firstOrNull() ?: 0L
@@ -375,6 +375,10 @@ class HomeScreenActivity : ComponentActivity() {
         val prompts = dataManager.getPrompts()
         if (username == null || prompts == null) {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
+          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          Log.i(TAG, "Pausing uploads and waiting for data lock to be available.")
+          dataManager.waitForDataLock()
+          Log.i(TAG, "Data lock was available.")
           startActivity(intent)
         }
         val uid = dataManager.getPhoneId()

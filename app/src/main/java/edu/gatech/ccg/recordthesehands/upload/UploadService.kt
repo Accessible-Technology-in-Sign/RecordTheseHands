@@ -61,6 +61,9 @@ class UploadService : Service() {
     private var UPLOAD_LOOP_TIMEOUT =
       if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
 
+    var UPLOAD_RESUME_ON_IDLE_TIMEOUT =
+      if (SHORT_TIMEOUTS) 5L * 60L * 1000L else 60L * 60L * 1000L
+
     var UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT =
       if (SHORT_TIMEOUTS) 5L * 1000L else 5 * 60L * 1000L
 

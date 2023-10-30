@@ -106,9 +106,7 @@ class RecordingListAdapter(
           timestamp,
           "setting clip invalid ${clipDetails.toJson()}")
 
-        CoroutineScope(Dispatchers.IO).launch {
-          activity.dataManager.saveClipData(clipDetails)
-        }
+        activity.dataManager.saveClipData(clipDetails)
 
         clipIsValidImage.visibility = View.GONE
         clipIsInvalidImage.visibility = View.VISIBLE
@@ -124,9 +122,7 @@ class RecordingListAdapter(
           "setting clip valid ${clipDetails.toJson()}")
 
         clipDetails.lastModifiedTimestamp = now
-        CoroutineScope(Dispatchers.IO).launch {
-          activity.dataManager.saveClipData(clipDetails)
-        }
+        activity.dataManager.saveClipData(clipDetails)
 
         clipIsValidImage.visibility = View.VISIBLE
         clipIsInvalidImage.visibility = View.GONE

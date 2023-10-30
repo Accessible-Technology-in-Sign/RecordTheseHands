@@ -188,7 +188,7 @@ class ClipDetails(
   }
 }
 
-suspend fun DataManager.saveClipData(clipDetails: ClipDetails) {
+fun DataManager.saveClipData(clipDetails: ClipDetails) {
   val json = clipDetails.toJson()
   // Use a consistent key based on the clipId so that any changes to the clip
   // will be updated on the server.
@@ -256,7 +256,7 @@ class RecordingSessionInfo(
   }
 }
 
-suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
+fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
   val json = sessionInfo.toJson()
   // Use a consistent key so that any changes will be updated on the server.
   addKeyValue("sessionData-${sessionInfo.sessionId}", json)
@@ -984,7 +984,7 @@ class RecordingActivity : AppCompatActivity() {
 
     session.setRepeatingRequest(cameraRequest, null, cameraHandler)
 
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     isRecording = true
 
     recorder.start()
@@ -1090,6 +1090,13 @@ class RecordingActivity : AppCompatActivity() {
     } catch (exc: Throwable) {
       Log.e(TAG, "Error in RecordingActivity.onStop()", exc)
     }
+    UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    CoroutineScope(Dispatchers.IO).launch {
+      // It's important that UploadService has a pause signal at this point, so that in the
+      // unlikely event that we had been idle for the full amount of time and the video is
+      // uploading, it will abort and we can acquire the lock in a reasonable amount of time.
+      dataManager.persistData(true)
+    }
     finish()
   }
 
@@ -1123,8 +1130,6 @@ class RecordingActivity : AppCompatActivity() {
         recordingLightView.visibility = View.GONE
       }
 
-      UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
-
       lifecycleScope.launch {
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
@@ -1140,6 +1145,10 @@ class RecordingActivity : AppCompatActivity() {
         dataManager.updateLifetimeStatistics(
           Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
         )
+        // Persist the data, but do not clear it.  If we make changes to the data on the correction
+        // page, then we may need to save that data again, and clearing it here might delete it
+        // before it is persisted.
+        dataManager.persistData(false)
       }
       Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
       if (emailConfirmationEnabled) {
@@ -1297,6 +1306,7 @@ class RecordingActivity : AppCompatActivity() {
           setButtonState(finishedButton, false)
           sessionPager.isUserInputEnabled = false
 
+          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
           stopRecorder()
         }
       }

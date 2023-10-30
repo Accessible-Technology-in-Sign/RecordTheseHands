@@ -49,22 +49,38 @@ pip install gunicorn
 cat << EndOfMessage
 Local environment is setup and sourced.
 
-Use the following command to start the server:
+########################################
+# Commands for starting the server.
+########################################
 
+You will need credentials in order to create an https server or proxy.
+
+self-signed credentials with no password on key file:
+openssl req -x509 -newkey rsa:4096 -keyout /home/$USER/.ssh/https/key.pem -out /home/$USER/.ssh/https/cert.pem -sha256 -nodes -days 365
+
+########################################
+# Option 1 for https server:
+########################################
+
+Setup https using gunicorn:
+export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
+gunicorn --certfile=/home/$USER/.ssh/https/cert.pem --keyfile=/home/$USER/.ssh/https/key.pem -b :8050 main:app
+
+########################################
+# Option 2 for https (and http) server:
+########################################
+
+Start an http server using gunicorn:
 export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
 gunicorn -b :8040 main:app
 
-Setup https server credentials (self-signed, no password on key file):
-openssl req -x509 -newkey rsa:4096 -keyout /home/$USER/.ssh/https/key.pem -out /home/$USER/.ssh/https/cert.pem -sha256 -nodes -days 365
-
-Setup https using gunicorn:
-gunicorn --certfile=/home/$USER/.ssh/https/cert.pem --keyfile=/home/$USER/.ssh/https/key.pem -b :8050 main:app
-
-Setup https using nginx proxying (process exits, but errors print on terminal)
+Setup https using nginx proxying to the http server
+(process exits, but errors print on terminal):
 sudo nginx -c nginx.conf
-# And in a separate terminal run the regular gunicorn command.
 
-nginx.conf:
+In order to successfully run that command you will need to have created
+the nginx.conf which should look something like this.
+/usr/share/nginx/nginx.conf:
 
 events {}
 
@@ -81,16 +97,22 @@ http {
   }
 }
 
-Setup port forwarding for Android:
-/home/$USER/Android/Sdk/platform-tools/adb reverse tcp:8050 tcp:8050
-/home/$USER/Android/Sdk/platform-tools/adb reverse tcp:8040 tcp:8040
+########################################
+# Port forwarding from device.
+########################################
 
-Check the http server:
+Setup port forwarding for the https port from Android device to computer:
+/home/$USER/Android/Sdk/platform-tools/adb reverse tcp:8050 tcp:8050
+
+########################################
+# Check the server.
+########################################
+
+Check the http server (if it exists):
 curl http://localhost:8040/
 
-Check the https server:
+Check the https server or proxy:
 openssl s_client -debug -connect localhost:8050
 curl https://localhost:8050/
 EndOfMessage
-
 

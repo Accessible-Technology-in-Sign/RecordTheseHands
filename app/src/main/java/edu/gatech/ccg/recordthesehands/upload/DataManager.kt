@@ -42,12 +42,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.fromHex
+import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.toHex
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -627,6 +625,8 @@ class DataManagerData() {
   var uid: String? = null
   var loginToken: String? = null
   var promptsData: Prompts? = null
+  var keyValues = mutableMapOf<String, JSONObject>()
+  var registeredFiles = mutableMapOf<String, JSONObject>()
 
   fun initialize(login_token_path: String) {
     try {
@@ -832,7 +832,7 @@ class DataManager(val context: Context) {
       preferences[keyObject] = ((preferences[keyObject]?.toInt() ?: 0) + 1).toString()
     }
     val sessionIndex = oldValue[keyObject]?.toInt() ?: 0
-    return "${deviceId}-s${sessionIndex}"
+    return "${deviceId}-s${padZeroes(sessionIndex, 2)}"
   }
 
   fun deleteLoginToken() {
@@ -956,33 +956,35 @@ class DataManager(val context: Context) {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValues interrupted.")
     }
-    for (i in 0..entries.length() - 1) {
-      Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
-    }
-    val url = URL(SERVER + "/save")
-    val (code, unused) =
-      serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "login_token" to dataManagerData.loginToken!!,
-          "data" to entries.toString(),
-        )
-      )
-    if (code >= 200 && code < 300) {
-      context.dataStore.edit { preferences ->
-        for (i in 0..entries.length() - 1) {
-          val keyObject = stringPreferencesKey(entries.getJSONObject(i).getString("key"))
-          preferences.remove(keyObject)
-        }
+    dataManagerData.lock.withLock {
+      for (i in 0..entries.length() - 1) {
+        Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
       }
-      return true
-    } else {
-      Log.e(
-        TAG,
-        "Unable to upload keys.  Will try again later."
-      )
-      return false
+      val url = URL(SERVER + "/save")
+      val (code, unused) =
+        serverFormPostRequest(
+          url,
+          mapOf(
+            "app_version" to APP_VERSION,
+            "login_token" to dataManagerData.loginToken!!,
+            "data" to entries.toString(),
+          )
+        )
+      if (code >= 200 && code < 300) {
+        context.dataStore.edit { preferences ->
+          for (i in 0..entries.length() - 1) {
+            val keyObject = stringPreferencesKey(entries.getJSONObject(i).getString("key"))
+            preferences.remove(keyObject)
+          }
+        }
+        return true
+      } else {
+        Log.e(
+          TAG,
+          "Unable to upload keys.  Will try again later."
+        )
+        return false
+      }
     }
   }
 
@@ -1120,12 +1122,18 @@ class DataManager(val context: Context) {
       Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
       val uploadSession = UploadSession(context, dataManagerData.loginToken!!, entry.key.name)
       uploadSession.loadState(entry.value as String)
-      if (!uploadSession.tryUploadFile()) {
-        return false
+      dataManagerData.lock.withLock {
+        if (!uploadSession.tryUploadFile()) {
+          return false
+        }
       }
       i += 1
     }
     return true
+  }
+  suspend fun waitForDataLock() {
+    dataManagerData.lock.lock()
+    dataManagerData.lock.unlock()
   }
 
   private fun directiveCompleted(id: String): Boolean {
@@ -1357,23 +1365,10 @@ class DataManager(val context: Context) {
 
   fun logToServer(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    CoroutineScope(Dispatchers.IO).launch {
-      logToServerAtTimestampSuspend(timestamp, message)
-    }
+    logToServerAtTimestamp(timestamp, message)
   }
 
   fun logToServerAtTimestamp(timestamp: String, message: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-      logToServerAtTimestampSuspend(timestamp, message)
-    }
-  }
-
-  suspend fun logToServerSuspend(message: String) {
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    logToServerAtTimestampSuspend(timestamp, message)
-  }
-
-  suspend fun logToServerAtTimestampSuspend(timestamp: String, message: String) {
     addKeyValue("log-$timestamp", message)
   }
 
@@ -1381,32 +1376,58 @@ class DataManager(val context: Context) {
    * Save a key value pair to the server.  Re-using the same key will overwrite
    * the existing value (either before uploading to the server, or if it has already
    * been uploaded then on the server).
+   *
+   * No data will be sent to the server unless persistData() is called (which stores a snapshot
+   * of the key values to a dataStore).
    */
-  suspend fun addKeyValue(key: String, value: String) {
+  fun addKeyValue(key: String, value: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
-    val keyObject = stringPreferencesKey(key)
     val saveJson = JSONObject()
     saveJson.put("data", value)
-    context.dataStore.edit { preferences ->
-      preferences[keyObject] = saveJson.toString()
-    }
+    dataManagerData.keyValues[key] = saveJson
   }
 
-  suspend fun addKeyValue(key: String, json: JSONObject) {
+  fun addKeyValue(key: String, json: JSONObject) {
     Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
     val saveJson = JSONObject()
     saveJson.put("data", json)
-    val keyObject = stringPreferencesKey(key)
-    context.dataStore.edit { preferences ->
-      preferences[keyObject] = saveJson.toString()
-    }
+    dataManagerData.keyValues[key] = saveJson
   }
 
-  suspend fun registerFile(relativePath: String) {
+  fun registerFile(relativePath: String) {
     Log.i(TAG, "Register file for upload: \"$relativePath\"")
-    val keyObject = stringPreferencesKey(relativePath)
-    context.registerFileStore.edit { preferences ->
-      preferences[keyObject] = JSONObject().toString()
+    dataManagerData.registeredFiles[relativePath] = JSONObject()
+  }
+
+  /**
+   * Persist the key value and registered files data and upload it to the server when convenient.
+   *
+   * If addKeyValue is called while this function is executing then either of the new or old
+   * values may be persisted.  If clearData is true then the data will be deleted (regardless of
+   * whether new data was added).
+   */
+  suspend fun persistData(clearData: Boolean) {
+    dataManagerData.lock.withLock {
+      Log.i(TAG, "Starting to persist data. clearData == $clearData")
+      context.dataStore.edit { preferences ->
+        dataManagerData.keyValues.forEach {
+          val keyObject = stringPreferencesKey(it.key)
+          preferences[keyObject] = it.value.toString()
+        }
+      }
+      if (clearData) {
+        dataManagerData.keyValues.clear()
+      }
+      context.registerFileStore.edit { preferences ->
+        dataManagerData.registeredFiles.forEach {
+          val keyObject = stringPreferencesKey(it.key)
+          preferences[keyObject] = it.value.toString()
+        }
+      }
+      if (clearData) {
+        dataManagerData.registeredFiles.clear()
+      }
+      Log.i(TAG, "Finished persisting data. clearData == $clearData")
     }
   }
 

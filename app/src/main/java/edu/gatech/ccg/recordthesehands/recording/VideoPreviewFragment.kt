@@ -37,6 +37,7 @@ import android.util.Log
 import android.view.SurfaceHolder
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import android.widget.VideoView
 import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -67,28 +68,17 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   /**
    * The controller for playing back the video.
    */
-  lateinit var mediaPlayer: MediaPlayer
-
-  /**
-   * If we are showing a replay of a user's performance, this field will be used.
-   */
-  private lateinit var recordingUri: Uri
+  private var mediaPlayer: MediaPlayer? = null
 
   /**
    * A fileInputStream for the file to be used.
    */
-  private lateinit var fileInputStream: FileInputStream
-
-  /**
-   * If we are showing a tutorial to the user (when the press the "?" button in the prompt),
-   * we will use this field instead of [recordingUri].
-   */
-  private var tutorialDesc: AssetFileDescriptor? = null
+  private var fileInputStream: FileInputStream? = null
 
   /**
    * The word for this video.
    */
-  lateinit var prompt: String
+  private lateinit var prompt: String
 
   /**
    * True if the video is in landscape. This is used for the tutorial recordings, as they are
@@ -126,9 +116,10 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     super.onCreate(savedInstanceState)
     prompt = arguments?.getString("prompt")!!
 
-    // TODO handle a missing filepath.
     val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
-    fileInputStream = FileInputStream(filepath)
+    if (filepath.exists()) {
+      fileInputStream = FileInputStream(filepath)
+    }
     Log.d(TAG, "Playing video from $filepath")
     Log.d(TAG, "file exists: " + filepath.exists().toString())
     Log.d(TAG, "file readable: " + filepath.canRead().toString())
@@ -145,7 +136,10 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   }
 
   override fun onDestroy() {
-    fileInputStream.close()
+    if (fileInputStream != null) {
+      fileInputStream!!.close()
+      fileInputStream = null
+    }
     super.onDestroy()
   }
 
@@ -184,18 +178,26 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   override fun surfaceCreated(holder: SurfaceHolder) {
     // Set the data source
     Log.d(TAG, "surfaceCreated")
-    mediaPlayer = MediaPlayer()
 
-    // Passing a filepath or Uri to the file in the app directory gives a permission
-    // denied error (actually a generic error).  Instead, we need to produce a file descriptor
-    // directly and pass it as the source.  We maintain the FileInputStream for the entire
-    // duration that the file descriptor is in use.
-    mediaPlayer.setDataSource(fileInputStream.fd)
+    // TODO create a message if the file does not exist.
+    if (fileInputStream != null) {
+      mediaPlayer = MediaPlayer().also {
+        // Passing a filepath or Uri to the file in the app directory gives a permission
+        // denied error (actually a generic error).  Instead, we need to produce a file descriptor
+        // directly and pass it as the source.  We maintain the FileInputStream for the entire
+        // duration that the file descriptor is in use.
+        it.setDataSource(fileInputStream!!.fd)
 
-    mediaPlayer.setSurface(holder.surface)
-    mediaPlayer.setOnPreparedListener(this)
-    mediaPlayer.setOnErrorListener(this)
-    mediaPlayer.prepareAsync()
+        it.setSurface(holder.surface)
+        it.setOnPreparedListener(this)
+        it.setOnErrorListener(this)
+        it.prepareAsync()
+      }
+    } else {
+      val text = "Video file not found"
+      val toast = Toast.makeText(activity, text, Toast.LENGTH_SHORT)
+      toast.show()
+    }
   }
 
   /**
@@ -212,12 +214,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     Log.d(TAG, "surfaceDestroyed")
     view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
     timer.cancel()
-    this.mediaPlayer.let {
+    mediaPlayer?.let {
       it.stop()
       it.reset()
       it.release()
     }
-    tutorialDesc?.close()
   }
 
   /**
@@ -240,9 +241,9 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       timerTask = object : TimerTask() {
         override fun run() {
           mTimerHandler.post {
-            if (mediaPlayer.isPlaying) {
+            if (mediaPlayer!!.isPlaying) {
               Log.i("VideoPreviewFragment", "Looping!")
-              mediaPlayer.seekTo(startTimeMs.toInt())
+              mediaPlayer!!.seekTo(startTimeMs.toInt())
             }
           }
         }
