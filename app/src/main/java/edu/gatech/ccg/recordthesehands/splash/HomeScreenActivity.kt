@@ -36,6 +36,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.HapticFeedbackConstants
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -46,6 +47,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
@@ -99,12 +102,6 @@ class HomeScreenActivity : ComponentActivity() {
    * Whether or not we have already asked the user for permissions.
    */
   private var permissionRequestedPreviously: Boolean = false
-
-  /**
-   * Gets the global preferences for the device. We use this to get the user's
-   * UID.
-   */
-  private lateinit var globalPrefs: SharedPreferences
 
   /**
    * The total number of recordings the user has done in the current session (i.e., since they
@@ -206,20 +203,20 @@ class HomeScreenActivity : ComponentActivity() {
           startRecordingButton.isClickable = true
           startRecordingButton.text = "Start"
         } else {
-          startRecordingButton.text = "Cannot Start, Finished"
+          startRecordingButton.visibility = View.GONE
         }
       }
-      var keyObject = stringPreferencesKey("lifetimeRecordingCount")
+      val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
       val lifetimeRecordingCount = applicationContext.prefStore.data
         .map {
-          it[keyObject]?.toLong()
-        }.firstOrNull() ?: 0L
+          it[recordingCountKeyObject]
+        }.firstOrNull() ?: 0
       val recordingCountBox = findViewById<TextView>(R.id.recordingCountBox)
       recordingCountBox.text = lifetimeRecordingCount.toString()
-      keyObject = stringPreferencesKey("lifetimeRecordingMs")
+      val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
       val lifetimeRecordingMs = applicationContext.prefStore.data
         .map {
-          it[keyObject]?.toLong()
+          it[recordingMsKeyObject]
         }.firstOrNull() ?: 0L
       val recordingTimeBox = findViewById<TextView>(R.id.recordingTimeBox)
       recordingTimeBox.text = msToHMS(lifetimeRecordingMs)
@@ -311,19 +308,14 @@ class HomeScreenActivity : ComponentActivity() {
         // We've asked the user for permissions before, they haven't been granted,
         // and we cannot ask the user for either camera or storage permissions (we already
         // asked them before)
-        val text = "Please enable camera and storage access in Settings"
+        val text = "Please enable camera access in Settings"
         val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
         toast.show()
       } else {
-        // No permissions, and we haven't asked for permissions before
-        if (!permissionRequestedPreviously) {
-          permissionRequestedPreviously = true
-          with(globalPrefs.edit()) {
-            putBoolean("permissionRequestedPreviously", true)
-            apply()
-          }
-        }
-        requestRecordingPermissions.launch(arrayOf(CAMERA))
+        Log.e(TAG, "Invalid permission state.")
+        val text = "The app is in a bad state, you likely need to enable camera access in Settings."
+        val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
+        toast.show()
       }
     } // setRecordingButton.onClickListener
   } // setupUI()

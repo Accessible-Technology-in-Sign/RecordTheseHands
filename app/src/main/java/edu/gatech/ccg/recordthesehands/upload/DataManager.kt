@@ -37,6 +37,8 @@ import android.widget.TextView
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -891,16 +893,16 @@ class DataManager(val context: Context) {
     json.put("timestamp", timestamp)
     json.put("username", getUsername())
     json.put("deviceId", getPhoneId())
-    val recordingCountKeyObject = stringPreferencesKey("lifetimeRecordingCount")
-    var lifetimeRecordingCount = context.prefStore.data
+    val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
+    val lifetimeRecordingCount = context.prefStore.data
       .map {
-        it[recordingCountKeyObject]?.toLong()
+        it[recordingCountKeyObject]
       }.firstOrNull() ?: 0L
     json.put("lifetimeRecordingCount", lifetimeRecordingCount)
-    val recordingMsKeyObject = stringPreferencesKey("lifetimeRecordingMs")
-    var lifetimeRecordingMs = context.prefStore.data
+    val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
+    val lifetimeRecordingMs = context.prefStore.data
       .map {
-        it[recordingMsKeyObject]?.toLong()
+        it[recordingMsKeyObject]
       }.firstOrNull() ?: 0L
     json.put("lifetimeRecordingMs", lifetimeRecordingMs)
 
@@ -1155,6 +1157,15 @@ class DataManager(val context: Context) {
     return true
   }
 
+  suspend fun resetStatistics() {
+    val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
+    val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
+    context.prefStore.edit { preferences ->
+      preferences.remove(recordingCountKeyObject)
+      preferences.remove(recordingMsKeyObject)
+    }
+  }
+
   private suspend fun executeDirective(
     id: String, op: String, value: String,
     apkData: JSONObject
@@ -1172,9 +1183,15 @@ class DataManager(val context: Context) {
       Log.i(TAG, "new loginToken ${dataManagerData.loginToken}")
       stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
       stream.close()
+      resetStatistics()
       directiveCompleted(id)  // Use the old loginToken.
       dataManagerData.loginToken = newLoginToken
       return false  // Ignore further directives, the next round will be done with the new login.
+    } else if (op == "resetStatistics") {
+      resetStatistics()
+      if (!directiveCompleted(id)) {
+        return false
+      }
     } else if (op == "updateApk") {
       val url = URL(SERVER + "/apk")
       Log.i(TAG, "updating apk to $url.")
@@ -1449,14 +1466,12 @@ class DataManager(val context: Context) {
   }
 
   suspend fun updateLifetimeStatistics(sessionLength: Duration) {
-    sessionLength.toMillis()
-    var keyObject1 = stringPreferencesKey("lifetimeRecordingCount")
-    var keyObject2 = stringPreferencesKey("lifetimeRecordingMs")
+    val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
+    val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
     context.prefStore.edit { preferences ->
-      preferences[keyObject1] =
-        preferences[keyObject1]?.let { (it.toLong() + 1).toString() } ?: "1"
-      preferences[keyObject2] =
-        ((preferences[keyObject2]?.toLong() ?: 0) + sessionLength.toMillis()).toString()
+      preferences[recordingCountKeyObject] = (preferences[recordingCountKeyObject] ?: 0 ) + 1
+      preferences[recordingMsKeyObject] =
+          (preferences[recordingMsKeyObject] ?: 0 ) + sessionLength.toMillis()
     }
   }
 }
