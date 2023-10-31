@@ -33,7 +33,6 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageInstaller.SessionParams
 import android.util.Base64
 import android.util.Log
-import android.widget.TextView
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit

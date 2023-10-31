@@ -28,14 +28,10 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
-import android.Manifest.permission.GET_ACCOUNTS
-import android.Manifest.permission.READ_CONTACTS
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -49,7 +45,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -111,21 +106,6 @@ class HomeScreenActivity : ComponentActivity() {
    * for too long without a restart.
    */
   private var currentRecordingSessions = 0
-
-  /**
-   * Check permissions necessary to fetch the user's UID
-   */
-  private val requestUsernamePermissions =
-    registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
-      val getAccounts = map[GET_ACCOUNTS] ?: false
-      val readContacts = map[READ_CONTACTS] ?: false
-      if (!getAccounts || !readContacts) {
-        // Permission is not granted.
-        val text = "Cannot assign UID since permissions not granted"
-        val toast = Toast.makeText(this, text, Toast.LENGTH_SHORT)
-        toast.show()
-      }
-    }
 
   /**
    * Handler for what happens when the recording activity finishes.

@@ -60,6 +60,7 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import android.view.WindowManager
 import android.view.animation.AnimationSet
 import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -1186,6 +1187,7 @@ class RecordingActivity : AppCompatActivity() {
 
     val view = binding.root
     setContentView(view)
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
     // Set up view pager
     this.sessionPager = findViewById(R.id.sessionPager)
