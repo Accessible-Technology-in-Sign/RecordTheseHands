@@ -142,7 +142,7 @@ class DataManagerReceiver : BroadcastReceiver() {
 }
 
 class UploadSession(
-  val context: Context, val loginToken: String,
+  val dataManager: DataManager, val loginToken: String,
   val relativePath: String
 ) {
 
@@ -195,7 +195,7 @@ class UploadSession(
   suspend fun saveState() {
     Log.i(TAG, "Saving current session state")
     val keyObject = stringPreferencesKey(relativePath)
-    context.registerFileStore.edit { preferences ->
+    dataManager.context.registerFileStore.edit { preferences ->
       val json = JSONObject()
       if (md5sum != null) {
         json.put("md5", md5sum)
@@ -231,7 +231,7 @@ class UploadSession(
     uploadVerified = false
 
     val keyObject = stringPreferencesKey(relativePath)
-    context.registerFileStore.edit { preferences ->
+    dataManager.context.registerFileStore.edit { preferences ->
       preferences[keyObject] = JSONObject().toString()
     }
   }
@@ -245,13 +245,13 @@ class UploadSession(
     uploadVerified = false
 
     val keyObject = stringPreferencesKey(relativePath)
-    context.registerFileStore.edit { preferences ->
+    dataManager.context.registerFileStore.edit { preferences ->
       preferences.remove(keyObject)
     }
   }
 
   private suspend fun acquireMd5(): Boolean {
-    val filepath = File(context.filesDir, relativePath)
+    val filepath = File(dataManager.context.filesDir, relativePath)
 
     val digest = MessageDigest.getInstance("MD5")
     val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
@@ -277,9 +277,9 @@ class UploadSession(
       throw InterruptedUploadException("acquireUploadLink interrupted.")
     }
     Log.i(TAG, "acquiring upload link: \"${relativePath}\"")
-    val url = URL(DataManager.SERVER + "/upload")
+    val url = URL(dataManager.getServer() + "/upload")
     val (code, data) =
-      DataManager.serverFormPostRequest(
+      dataManager.serverFormPostRequest(
         url,
         mapOf(
           "app_version" to APP_VERSION,
@@ -317,7 +317,7 @@ class UploadSession(
     val url = URL(uploadLink)
     val md5Base64 = Base64.encode(fromHex(md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
     val (code, unused, outputFromHeader) =
-      DataManager.serverRequest(
+      dataManager.serverRequest(
         url,
         "POST",
         mapOf(
@@ -353,7 +353,7 @@ class UploadSession(
     Log.i(TAG, "acquireSessionState: \"${relativePath}\"")
     val url = URL(sessionLink)
     val (code, unused, outputFromHeader) =
-      DataManager.serverRequest(
+      dataManager.serverRequest(
         url,
         "PUT",
         mapOf(
@@ -399,12 +399,12 @@ class UploadSession(
     }
     Log.i(TAG, "uploading from byte $numSavedBytes")
 
-    val filepath = File(context.filesDir, relativePath)
+    val filepath = File(dataManager.context.filesDir, relativePath)
     val url = URL(sessionLink)
 
     val urlConnection = url.openConnection() as HttpsURLConnection
-    if (DataManager.TRUST_ALL_CERTIFICATES) {
-      DataManager.setTrustAllCertificates(urlConnection)
+    if (dataManager.shouldTrustAllCertificates()) {
+      dataManager.setTrustAllCertificates(urlConnection)
     }
 
     var code: Int = -1
@@ -440,7 +440,7 @@ class UploadSession(
       }
 
       code = urlConnection.responseCode
-      val inputStream = DataManager.getDataStream(urlConnection)
+      val inputStream = dataManager.getDataStream(urlConnection)
       output = inputStream.readBytes().toString(Charsets.UTF_8)
       inputStream.close()
       if (code < 200 || code >= 300) {
@@ -469,9 +469,9 @@ class UploadSession(
       throw InterruptedUploadException("verifyUpload interrupted.")
     }
     Log.i(TAG, "verifying upload: \"${relativePath}\"")
-    val url = URL(DataManager.SERVER + "/verify")
+    val url = URL(dataManager.getServer() + "/verify")
     val (code, data) =
-      DataManager.serverFormPostRequest(
+      dataManager.serverFormPostRequest(
         url,
         mapOf(
           "app_version" to APP_VERSION,
@@ -479,6 +479,7 @@ class UploadSession(
           "path" to relativePath,
           "md5" to md5sum!!,
           "file_size" to fileSize!!.toString(),
+          "tutorial_mode" to tutorialMode.toString(),
         )
       )
     if (code >= 200 && code < 300) {
@@ -508,13 +509,13 @@ class UploadSession(
         TAG,
         "Unable to verify \"${relativePath}\".  Will try again later."
       )
-      return false
+      return true  // Continue with other files.
     }
     return true
   }
 
   private suspend fun deleteLocalFile() {
-    val filepath = File(context.filesDir, relativePath)
+    val filepath = File(dataManager.context.filesDir, relativePath)
     deleteState()
     if (filepath.delete()) {
       Log.i(TAG, "Deleted $filepath")
@@ -543,7 +544,7 @@ class UploadSession(
       return true
     }
 
-    val filepath = File(context.filesDir, relativePath)
+    val filepath = File(dataManager.context.filesDir, relativePath)
     if (!filepath.exists()) {
       Log.e(TAG, "File $filepath is registered but does not exist.")
       return true  // Continue with other files.
@@ -658,151 +659,179 @@ class DataManager(val context: Context) {
   companion object {
     private val TAG = DataManager::class.simpleName
     private val LOGIN_TOKEN_RELATIVE_PATH = "config" + File.separator + "loginToken.txt"
-
-    //private val SERVER = "https://collector-dot-sign-annotation-dev.uc.r.appspot.com"
-    val SERVER = "https://localhost:8050"  // TODO use local server for debugging.
-    val TRUST_ALL_CERTIFICATES = (SERVER.startsWith("https://localhost"))
-
-    fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
-      // This is a workaround to work with self signed certificates.  Ideally, we would
-      // install those self signed certificates as trusted on the Android device, but
-      // that turned out to be quite complicated.
-      val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-        }
-
-        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-        }
-
-        override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
-      })
-      val sslContext = SSLContext.getInstance("SSL")
-      sslContext.init(null, trustAllCerts, SecureRandom())
-
-      class TrustAllHostnameVerifier : HostnameVerifier {
-        override fun verify(arg0: String, arg1: SSLSession): Boolean {
-          return true
-        }
-      }
-      urlConnection.setHostnameVerifier(TrustAllHostnameVerifier())
-      urlConnection.sslSocketFactory = sslContext.socketFactory
-    }
-
-    /**
-     * Get the urlConnection's "input" stream (i.e. the result), whether that is the error
-     * stream or the regular stream
-     */
-    fun getDataStream(urlConnection: HttpURLConnection): InputStream {
-      val inputStream: InputStream
-      if (urlConnection.responseCode >= 400) {
-        inputStream = urlConnection.getErrorStream()
-      } else {
-        inputStream = urlConnection.getInputStream()
-      }
-      return inputStream
-    }
-
-    fun serverFormPostRequest(url: URL, data: Map<String, String>): Pair<Int, String?> {
-      val formData = data.map { (k, v) ->
-        URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
-      }.joinToString("&").toByteArray(Charsets.UTF_8)
-      val (code, output, unused) = serverRequest(
-        url,
-        "POST",
-        mapOf("Content-Type" to "application/x-www-form-urlencoded"),
-        formData,
-        null
-      )
-      return Pair(code, output)
-    }
-
-    fun serverGetToFileRequest(
-      url: URL, headers: Map<String, String>,
-      fileOutputStream: FileOutputStream
-    ): Boolean {
-      val urlConnection = url.openConnection() as HttpsURLConnection
-      if (TRUST_ALL_CERTIFICATES) {
-        setTrustAllCertificates(urlConnection)
-      }
-
-      var code: Int = -1
-      try {
-        urlConnection.setDoOutput(false)
-        urlConnection.setRequestMethod("GET")
-        headers.forEach {
-          urlConnection.setRequestProperty(it.key, it.value)
-        }
-
-        code = urlConnection.responseCode
-        if (code >= 200 && code < 300) {
-          val inputStream = getDataStream(urlConnection)
-          inputStream.copyTo(fileOutputStream)
-          inputStream.close()
-        } else if (urlConnection.responseCode >= 400) {
-          Log.e(TAG, "Failed to get url.  Response code: $code ")
-          return false
-        }
-      } catch (e: IOException) {
-        Log.e(TAG, "Get request failed: $e")
-        return false
-      } finally {
-        urlConnection.disconnect()
-      }
-      return true
-    }
-
-    fun serverRequest(
-      url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
-      outputHeader: String?
-    ): Triple<Int, String?, String?> {
-      var outputFromHeader: String? = null
-      val urlConnection = url.openConnection() as HttpsURLConnection
-      if (TRUST_ALL_CERTIFICATES) {
-        setTrustAllCertificates(urlConnection)
-      }
-
-      var code: Int = -1
-      var output: String? = null
-      try {
-        urlConnection.setDoOutput(true)
-        urlConnection.setFixedLengthStreamingMode(data.size)
-        urlConnection.setRequestMethod(requestMethod)
-        headers.forEach {
-          urlConnection.setRequestProperty(it.key, it.value)
-        }
-
-        val outputStream = urlConnection.getOutputStream()
-        outputStream.write(data)
-        outputStream.close()
-
-        if (outputHeader != null) {
-          outputFromHeader = urlConnection.getHeaderField(outputHeader)
-        }
-        // urlConnection.headerFields.forEach {
-        //   Log.d(TAG, "header ${it.key} -> ${it.value}")
-        // }
-
-        code = urlConnection.responseCode
-        val inputStream = getDataStream(urlConnection)
-        output = inputStream.readBytes().toString(Charsets.UTF_8)
-        inputStream.close()
-        if (urlConnection.responseCode >= 400) {
-          Log.e(TAG, "Response code: $code " + output)
-        }
-      } catch (e: IOException) {
-        Log.e(TAG, "Post request failed: $e")
-      } finally {
-        urlConnection.disconnect()
-      }
-      return Triple(code, output, outputFromHeader)
-    }
-
   }
 
   val LOGIN_TOKEN_FULL_PATH =
     context.getFilesDir().getAbsolutePath() + File.separator + LOGIN_TOKEN_RELATIVE_PATH
 
   val dataManagerData = DataManagerData.getInstance(LOGIN_TOKEN_FULL_PATH)
+
+  fun hasServer(): Boolean {
+    val serverStringId = context.resources.getIdentifier(
+      "backend_server",
+      "string",
+      context.packageName
+    )
+    return serverStringId != 0
+  }
+
+  /**
+   * Get the base address of the backend server.  This should be saved in a string resource
+   * which may or may not be present.  If it is not present, then we should disable all
+   * server communication.
+   */
+  fun getServer(): String {
+    val serverStringId = context.resources.getIdentifier(
+      "backend_server",
+      "string",
+      context.packageName
+    )
+    check(serverStringId != 0) {"backend_server is not defined in a resource."}
+    return context.resources.getString(serverStringId)
+  }
+
+  /**
+   * Return whether we should trust any certificate, including self signed ones.
+   * We should only do this when accessing localhost.  It would be better to install the
+   * self signed certificates on the device, but this turns out to be very tricky.
+   */
+  fun shouldTrustAllCertificates(): Boolean {
+    return getServer().startsWith("https://localhost")
+  }
+
+  fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
+    // This is a workaround to work with self signed certificates.  Ideally, we would
+    // install those self signed certificates as trusted on the Android device, but
+    // that turned out to be quite complicated.
+    val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+      override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+      }
+
+      override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+      }
+
+      override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
+    })
+    val sslContext = SSLContext.getInstance("SSL")
+    sslContext.init(null, trustAllCerts, SecureRandom())
+
+    class TrustAllHostnameVerifier : HostnameVerifier {
+      override fun verify(arg0: String, arg1: SSLSession): Boolean {
+        return true
+      }
+    }
+    urlConnection.setHostnameVerifier(TrustAllHostnameVerifier())
+    urlConnection.sslSocketFactory = sslContext.socketFactory
+  }
+
+  /**
+   * Get the urlConnection's "input" stream (i.e. the result), whether that is the error
+   * stream or the regular stream
+   */
+  fun getDataStream(urlConnection: HttpURLConnection): InputStream {
+    val inputStream: InputStream
+    if (urlConnection.responseCode >= 400) {
+      inputStream = urlConnection.getErrorStream()
+    } else {
+      inputStream = urlConnection.getInputStream()
+    }
+    return inputStream
+  }
+
+  fun serverFormPostRequest(url: URL, data: Map<String, String>): Pair<Int, String?> {
+    val formData = data.map { (k, v) ->
+      URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
+    }.joinToString("&").toByteArray(Charsets.UTF_8)
+    val (code, output, unused) = serverRequest(
+      url,
+      "POST",
+      mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+      formData,
+      null
+    )
+    return Pair(code, output)
+  }
+
+  fun serverGetToFileRequest(
+    url: URL, headers: Map<String, String>,
+    fileOutputStream: FileOutputStream
+  ): Boolean {
+    val urlConnection = url.openConnection() as HttpsURLConnection
+    if (shouldTrustAllCertificates()) {
+      setTrustAllCertificates(urlConnection)
+    }
+
+    var code: Int = -1
+    try {
+      urlConnection.setDoOutput(false)
+      urlConnection.setRequestMethod("GET")
+      headers.forEach {
+        urlConnection.setRequestProperty(it.key, it.value)
+      }
+
+      code = urlConnection.responseCode
+      if (code >= 200 && code < 300) {
+        val inputStream = getDataStream(urlConnection)
+        inputStream.copyTo(fileOutputStream)
+        inputStream.close()
+      } else if (urlConnection.responseCode >= 400) {
+        Log.e(TAG, "Failed to get url.  Response code: $code ")
+        return false
+      }
+    } catch (e: IOException) {
+      Log.e(TAG, "Get request failed: $e")
+      return false
+    } finally {
+      urlConnection.disconnect()
+    }
+    return true
+  }
+
+  fun serverRequest(
+    url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
+    outputHeader: String?
+  ): Triple<Int, String?, String?> {
+    var outputFromHeader: String? = null
+    val urlConnection = url.openConnection() as HttpsURLConnection
+    if (shouldTrustAllCertificates()) {
+      setTrustAllCertificates(urlConnection)
+    }
+
+    var code: Int = -1
+    var output: String? = null
+    try {
+      urlConnection.setDoOutput(true)
+      urlConnection.setFixedLengthStreamingMode(data.size)
+      urlConnection.setRequestMethod(requestMethod)
+      headers.forEach {
+        urlConnection.setRequestProperty(it.key, it.value)
+      }
+
+      val outputStream = urlConnection.getOutputStream()
+      outputStream.write(data)
+      outputStream.close()
+
+      if (outputHeader != null) {
+        outputFromHeader = urlConnection.getHeaderField(outputHeader)
+      }
+      // urlConnection.headerFields.forEach {
+      //   Log.d(TAG, "header ${it.key} -> ${it.value}")
+      // }
+
+      code = urlConnection.responseCode
+      val inputStream = getDataStream(urlConnection)
+      output = inputStream.readBytes().toString(Charsets.UTF_8)
+      inputStream.close()
+      if (urlConnection.responseCode >= 400) {
+        Log.e(TAG, "Response code: $code " + output)
+      }
+    } catch (e: IOException) {
+      Log.e(TAG, "Post request failed: $e")
+    } finally {
+      urlConnection.disconnect()
+    }
+    return Triple(code, output, outputFromHeader)
+  }
 
   fun getUsername(): String? {
     if (dataManagerData.loginToken == null) {
@@ -888,12 +917,15 @@ class DataManager(val context: Context) {
       loginTokenPath.parentFile!!.mkdirs()
     }
 
-    val url = URL(SERVER + "/register_login")
+    val url = URL(getServer() + "/register_login")
     val (code, unused) =
-      serverFormPostRequest(url, mapOf(
-        "app_version" to APP_VERSION,
-        "admin_token" to adminToken,
-        "login_token" to newLoginToken))
+      serverFormPostRequest(
+        url, mapOf(
+          "app_version" to APP_VERSION,
+          "admin_token" to adminToken,
+          "login_token" to newLoginToken
+        )
+      )
     if (code < 200 || code >= 300) {
       return false
     }
@@ -956,7 +988,7 @@ class DataManager(val context: Context) {
       }
     json.put("prompts", getPrompts()?.toJson())
 
-    val url = URL(SERVER + "/save_state")
+    val url = URL(getServer() + "/save_state")
     val (code, unused) =
       serverFormPostRequest(
         url,
@@ -985,7 +1017,7 @@ class DataManager(val context: Context) {
       for (i in 0..entries.length() - 1) {
         Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
       }
-      val url = URL(SERVER + "/save")
+      val url = URL(getServer() + "/save")
       val (code, unused) =
         serverFormPostRequest(
           url,
@@ -1018,7 +1050,7 @@ class DataManager(val context: Context) {
       throw InterruptedUploadException("tryUploadKeyValue interrupted.")
     }
     Log.i(TAG, "Uploading key: \"${entry.key}\"")
-    val url = URL(SERVER + "/save")
+    val url = URL(getServer() + "/save")
     val (code, unused) =
       serverFormPostRequest(
         url,
@@ -1068,7 +1100,7 @@ class DataManager(val context: Context) {
       throw InterruptedUploadException("updateApp was interrupted.")
     }
     Log.i(TAG, "Check for latest apk.")
-    val url = URL(DataManager.SERVER + "/update_apk")
+    val url = URL(getServer() + "/update_apk")
     val keyObject = stringPreferencesKey("apkInstallTimestamp")
     var timestamp = context.prefStore.data
       .map {
@@ -1077,12 +1109,13 @@ class DataManager(val context: Context) {
     if (timestamp == null) {
       timestamp = "null"
     }
-    val (code, data) = DataManager.serverFormPostRequest(
+    val (code, data) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
         "login_token" to dataManagerData.loginToken!!,
-        "timestamp" to timestamp!!)
+        "timestamp" to timestamp!!
+      )
     )
     if (code >= 200 && code < 300) {
       // Check JSON to see if we have the latest version.
@@ -1094,6 +1127,10 @@ class DataManager(val context: Context) {
   }
 
   suspend fun uploadData(notificationManager: NotificationManager): Boolean {
+    if (!hasServer()) {
+      Log.i(TAG, "Backend Server not specified.")
+      return false
+    }
     if (dataManagerData.loginToken == null) {
       Log.e(TAG, "No loginToken present, can not upload data.")
       return false
@@ -1142,7 +1179,7 @@ class DataManager(val context: Context) {
         createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
       )
       Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
-      val uploadSession = UploadSession(context, dataManagerData.loginToken!!, entry.key.name)
+      val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
       uploadSession.loadState(entry.value as String)
       dataManagerData.lock.withLock {
         if (!uploadSession.tryUploadFile()) {
@@ -1153,6 +1190,7 @@ class DataManager(val context: Context) {
     }
     return true
   }
+
   suspend fun waitForDataLock() {
     dataManagerData.lock.lock()
     dataManagerData.lock.unlock()
@@ -1160,14 +1198,15 @@ class DataManager(val context: Context) {
 
   private fun directiveCompleted(id: String): Boolean {
     Log.i(TAG, "Marking directive completed.")
-    val url = URL(DataManager.SERVER + "/directive_completed")
+    val url = URL(getServer() + "/directive_completed")
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    val (code, data) = DataManager.serverFormPostRequest(
+    val (code, data) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
         "login_token" to dataManagerData.loginToken!!,
-        "id" to id, "timestamp" to timestamp)
+        "id" to id, "timestamp" to timestamp
+      )
     )
     if (code >= 200 && code < 300) {
     } else {
@@ -1221,7 +1260,7 @@ class DataManager(val context: Context) {
         return false
       }
     } else if (op == "updateApk") {
-      val url = URL(SERVER + "/apk")
+      val url = URL(getServer() + "/apk")
       Log.i(TAG, "updating apk to $url.")
       val filename = apkData.getString("md5") + ".apk"
       val relativePath = "apk" + File.separator + filename
@@ -1255,7 +1294,7 @@ class DataManager(val context: Context) {
         return false
       }
     } else if (op == "downloadPrompts") {
-      val url = URL(SERVER + "/prompts")
+      val url = URL(getServer() + "/prompts")
       Log.i(TAG, "downloading prompt data at $url.")
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
       val relativePath = "prompts" + File.separator + timestamp + ".json"
@@ -1270,7 +1309,8 @@ class DataManager(val context: Context) {
         url,
         mapOf(
           "app_version" to APP_VERSION,
-          "login_token" to dataManagerData.loginToken!!)
+          "login_token" to dataManagerData.loginToken!!
+        )
       )
       if (code >= 200 && code < 300) {
         if (data == null) {
@@ -1366,6 +1406,10 @@ class DataManager(val context: Context) {
   }
 
   suspend fun runDirectives(): Boolean {
+    if (!hasServer()) {
+      Log.i(TAG, "Backend Server not specified.")
+      return false
+    }
     if (dataManagerData.loginToken == null) {
       Log.e(TAG, "No loginToken present, can not download data.")
       return false
@@ -1374,12 +1418,13 @@ class DataManager(val context: Context) {
       throw InterruptedUploadException("runDirective was interrupted.")
     }
     Log.i(TAG, "Download the directives from server.")
-    val url = URL(SERVER + "/directives")
+    val url = URL(getServer() + "/directives")
     val (code, data) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
-        "login_token" to dataManagerData.loginToken!!)
+        "login_token" to dataManagerData.loginToken!!
+      )
     )
     if (code >= 200 && code < 300) {
       if (data == null) {
@@ -1506,9 +1551,9 @@ class DataManager(val context: Context) {
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
     context.prefStore.edit { preferences ->
-      preferences[recordingCountKeyObject] = (preferences[recordingCountKeyObject] ?: 0 ) + 1
+      preferences[recordingCountKeyObject] = (preferences[recordingCountKeyObject] ?: 0) + 1
       preferences[recordingMsKeyObject] =
-          (preferences[recordingMsKeyObject] ?: 0 ) + sessionLength.toMillis()
+        (preferences[recordingMsKeyObject] ?: 0) + sessionLength.toMillis()
     }
   }
 }

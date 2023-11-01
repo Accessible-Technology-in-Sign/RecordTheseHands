@@ -300,7 +300,7 @@ def upload():
   tutorial_mode_prefix = ''
   if tutorial_mode:
     tutorial_mode_prefix = 'tutorial_'
-  
+
   db = firestore.Client()
   db.document(f'collector/users/{username}/{tutorial_mode_prefix}data/'
               f'file/{filename}').set({
@@ -371,10 +371,17 @@ def verify():
   m = re.match(r'^\d+$', file_size)
   if not m:
     return 'file_size was not a non-negative integer', 400
+  tutorial_mode = (
+      flask.request.values.get('tutorial_mode', '').lower() in
+      ['1', 't', 'true'])
+  tutorial_mode_prefix = ''
+  if tutorial_mode:
+    tutorial_mode_prefix = 'tutorial_'
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data/file/{filename}').get()
+      f'collector/users/{username}/{tutorial_mode_prefix}data/'
+      f'file/{filename}').get()
   if not doc_ref.exists:
     return 'no file registered', 400
   doc_dict = doc_ref.to_dict()
