@@ -164,7 +164,9 @@ class HomeScreenActivity : ComponentActivity() {
     startRecordingButton.isEnabled = false
     startRecordingButton.isClickable = false
     startRecordingButton.text = "Cannot Start"
-
+    val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
+    val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
+    exitTutorialModeButton.visibility = View.GONE
     lifecycleScope.launch {
       val prompts = dataManager.getPrompts()
       val username = dataManager.getUsername()
@@ -173,9 +175,16 @@ class HomeScreenActivity : ComponentActivity() {
       if (username != null) {
         uidBox.text = username
       } else {
-        uidBox.text = uid
+        uidBox.text = "deviceId-$uid"
       }
-      val numPrompts = prompts?.let { it.array.size }
+      val tutorialMode = dataManager.getTutorialMode()
+      if (tutorialMode) {
+        tutorialModeText.visibility = View.VISIBLE
+      } else {
+        tutorialModeText.visibility = View.GONE
+      }
+
+      val numPrompts = prompts?.array?.size
       val promptIndex = prompts?.promptIndex
       if (prompts != null && username != null) {
         if (promptIndex!! < numPrompts!!) {
@@ -207,6 +216,19 @@ class HomeScreenActivity : ComponentActivity() {
         completedPromptsBox.text = prompts.promptIndex.toString()
         val totalPromptsBox = findViewById<TextView>(R.id.totalPromptsBox)
         totalPromptsBox.text = prompts.array.size.toString()
+
+        if (currentRecordingSessions > 0 && tutorialMode) {
+          exitTutorialModeButton.visibility = View.VISIBLE
+          exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+          exitTutorialModeButton.setOnClickListener {
+            prompts.promptIndex = 0
+            CoroutineScope(Dispatchers.IO).launch {
+              prompts.savePromptIndex()
+              dataManager.setTutorialMode(false)
+              finish()
+            }
+          }
+        }
       }
     }
 
@@ -271,7 +293,6 @@ class HomeScreenActivity : ComponentActivity() {
             )
             dialog.dismiss()
           }
-
         }
 
         val dialog = builder.create()

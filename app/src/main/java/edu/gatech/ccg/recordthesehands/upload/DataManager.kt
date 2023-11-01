@@ -35,6 +35,7 @@ import android.util.Base64
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -155,6 +156,7 @@ class UploadSession(
   var sessionLink: String? = null
   var uploadCompleted: Boolean = false
   var uploadVerified: Boolean = false
+  var tutorialMode: Boolean = false
 
   fun loadState(registerStoreValue: String) {
     Log.i(TAG, "Loading current session state $registerStoreValue")
@@ -164,6 +166,7 @@ class UploadSession(
     sessionLink = null
     uploadCompleted = false
     uploadVerified = false
+    tutorialMode = false
 
     val inputJson = JSONObject(registerStoreValue)
     if (inputJson.has("fileSize")) {
@@ -183,6 +186,9 @@ class UploadSession(
     }
     if (inputJson.has("uploadVerified")) {
       uploadVerified = inputJson.getBoolean("uploadVerified")
+    }
+    if (inputJson.has("tutorialMode")) {
+      tutorialMode = inputJson.getBoolean("tutorialMode")
     }
   }
 
@@ -208,6 +214,9 @@ class UploadSession(
       }
       if (sessionLink != null) {
         json.put("sessionLink", sessionLink)
+      }
+      if (tutorialMode) {
+        json.put("tutorialMode", tutorialMode)
       }
       preferences[keyObject] = json.toString()
     }
@@ -278,6 +287,7 @@ class UploadSession(
           "path" to relativePath,
           "md5" to md5sum!!,
           "file_size" to fileSize!!.toString(),
+          "tutorial_mode" to tutorialMode.toString(),
         )
       )
     if (code >= 200 && code < 300) {
@@ -826,6 +836,20 @@ class DataManager(val context: Context) {
     }
   }
 
+  suspend fun getTutorialMode(): Boolean {
+    val keyObject = booleanPreferencesKey("tutorialMode")
+    return context.prefStore.data.map {
+      it[keyObject]
+    }.firstOrNull() ?: false
+  }
+
+  suspend fun setTutorialMode(mode: Boolean) {
+    val keyObject = booleanPreferencesKey("tutorialMode")
+    context.prefStore.edit {
+      it[keyObject] = mode
+    }
+  }
+
   suspend fun newSessionId(): String {
     val deviceId = getPhoneId()
     val keyObject = stringPreferencesKey("sessionIdIndex")
@@ -1092,10 +1116,7 @@ class DataManager(val context: Context) {
       val jsonArray = JSONArray()
       var i = 0
       for (entry in entries.iterator()) {
-        val jsonEntry = JSONObject()
-        jsonEntry.put("key", entry.key.name)
-        val data = JSONObject(entry.value as String).get("data")
-        jsonEntry.put("value", data)
+        val jsonEntry = JSONObject(entry.value as String)
         jsonArray.put(jsonEntry)
         i += 1
         if (i >= 500) {
@@ -1188,6 +1209,14 @@ class DataManager(val context: Context) {
       return false  // Ignore further directives, the next round will be done with the new login.
     } else if (op == "resetStatistics") {
       resetStatistics()
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else if (op == "setTutorialMode") {
+      val json = JSONObject(value)
+      val tutorialMode = json.getBoolean("tutorialMode")
+      Log.i(TAG, "setTutorialMode to $tutorialMode")
+      setTutorialMode(tutorialMode)
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1399,13 +1428,15 @@ class DataManager(val context: Context) {
   fun addKeyValue(key: String, value: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val saveJson = JSONObject()
-    saveJson.put("data", value)
+    saveJson.put("key", key)
+    saveJson.put("message", value)
     dataManagerData.keyValues[key] = saveJson
   }
 
   fun addKeyValue(key: String, json: JSONObject) {
     Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
     val saveJson = JSONObject()
+    saveJson.put("key", key)
     saveJson.put("data", json)
     dataManagerData.keyValues[key] = saveJson
   }
@@ -1424,10 +1455,14 @@ class DataManager(val context: Context) {
    */
   suspend fun persistData(clearData: Boolean) {
     dataManagerData.lock.withLock {
+      val tutorialMode = getTutorialMode()
       Log.i(TAG, "Starting to persist data. clearData == $clearData")
       context.dataStore.edit { preferences ->
         dataManagerData.keyValues.forEach {
           val keyObject = stringPreferencesKey(it.key)
+          if (tutorialMode) {
+            it.value.put("tutorialMode", tutorialMode)
+          }
           preferences[keyObject] = it.value.toString()
         }
       }
@@ -1437,6 +1472,9 @@ class DataManager(val context: Context) {
       context.registerFileStore.edit { preferences ->
         dataManagerData.registeredFiles.forEach {
           val keyObject = stringPreferencesKey(it.key)
+          if (tutorialMode) {
+            it.value.put("tutorialMode", tutorialMode)
+          }
           preferences[keyObject] = it.value.toString()
         }
       }

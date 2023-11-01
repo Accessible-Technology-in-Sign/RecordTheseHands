@@ -1206,14 +1206,17 @@ class RecordingActivity : AppCompatActivity() {
     sessionLimit = min(prompts.array.size, prompts.promptIndex + DEFAULT_SESSION_LENGTH)
 
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    filename = "${username}-${timestamp}.mp4"
-
-    lifecycleScope.launch {
-      dataManager.logToServer(
-        "Setting up recording with filename ${filename} for prompts " +
-            "[${prompts.promptIndex}, ${sessionLimit})"
-      )
+    runBlocking {
+      if (dataManager.getTutorialMode()) {
+        filename = "tutorial-${username}-${timestamp}.mp4"
+      } else {
+        filename = "${username}-${timestamp}.mp4"
+      }
     }
+
+    dataManager.logToServer(
+        "Setting up recording with filename ${filename} for prompts " +
+            "[${prompts.promptIndex}, ${sessionLimit})")
 
     // Set title bar text
     title = "${prompts.promptIndex + 1} of ${prompts.array.size}"
@@ -1263,9 +1266,7 @@ class RecordingActivity : AppCompatActivity() {
             currentClipDetails!!.swipeBackTimestamp = now
           }
           currentClipDetails!!.lastModifiedTimestamp = now
-          lifecycleScope.launch {
-            dataManager.saveClipData(currentClipDetails!!)
-          }
+          dataManager.saveClipData(currentClipDetails!!)
           currentClipDetails = null
         }
         currentPage = sessionPager.currentItem

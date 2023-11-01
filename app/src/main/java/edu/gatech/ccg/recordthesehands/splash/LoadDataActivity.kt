@@ -8,6 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityLoadDataBinding
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
@@ -29,6 +30,7 @@ class LoadDataActivity : ComponentActivity() {
 
     val createAccountButton = findViewById<Button>(R.id.createAccountButton)
 
+    createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     createAccountButton.setOnClickListener {
       val username = findViewById<EditText>(R.id.usernameTextField).text.toString()
       val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()

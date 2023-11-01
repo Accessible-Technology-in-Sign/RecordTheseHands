@@ -126,6 +126,11 @@ if __name__ == '__main__':
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'uploadState':
     create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'setTutorialMode':
+    output = {
+      'tutorialMode': sys.argv[3].lower() in ['1', 't', 'true']
+    }
+    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'cancel':
     directive_id = int(sys.argv[3])
     cancel_directive(sys.argv[1], directive_id)

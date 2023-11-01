@@ -293,13 +293,21 @@ def upload():
   m = re.match(r'^\d+$', file_size)
   if not m:
     return 'file_size was not a non-negative integer', 400
+  tutorial_mode = (
+      flask.request.values.get('tutorial_mode', '').lower() in
+      ['1', 't', 'true'])
 
+  tutorial_mode_prefix = ''
+  if tutorial_mode:
+    tutorial_mode_prefix = 'tutorial_'
+  
   db = firestore.Client()
-  db.document(f'collector/users/{username}/data/file/{filename}').set({
-      'app_version': app_version,
+  db.document(f'collector/users/{username}/{tutorial_mode_prefix}data/'
+              f'file/{filename}').set({
+      'appVersion': app_version,
       'path': path,
       'md5': md5sum,
-      'file_size': int(file_size)
+      'fileSize': int(file_size)
   })
 
   upload_link = get_upload_link(f'{username}/{path}')
@@ -328,7 +336,7 @@ if IS_LOCAL_ENV:
     db = firestore.Client()
     db.document(f'collector/users/{username}/data/file/{filename}'
                ).set({
-                   'app_version': app_version,
+                   'appVersion': app_version,
                    'filename': filename,
                    'md5': md5sum
                })
@@ -425,37 +433,6 @@ def register_login():
       message=f'User {username} successfully created.')
 
 
-@app.route('/save_one', methods=['POST'])
-def save_one():
-  """Save a key value pair."""
-  login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
-    return 'login_token invalid', 400
-
-  key = flask.request.values.get('key', '')
-  value = flask.request.values.get('value', '{"data":""}')
-  app_version = flask.request.values.get('app_version', 'unknown')
-
-  username = get_username(login_token)
-  assert username
-
-  data = json.loads(value)
-
-  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-  db = firestore.Client()
-
-  db.document(f'collector/users/{username}/data/save/{key}').set(
-      {'app_version': app_version,
-       'timestamp': timestamp,
-       'key': key,
-       'value': data.get('data')})
-
-  return flask.render_template(
-      'success.html',
-      message='Key value saved.')
-
-
 @app.route('/save', methods=['POST'])
 def save():
   """Save multiple key value pairs."""
@@ -470,6 +447,7 @@ def save():
   assert username
 
   data = json.loads(data_string)
+  # print(json.dumps(data, indent=2))
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -477,13 +455,25 @@ def save():
 
   for entry in data:
     key = entry.get('key')
+    tutorial_mode = entry.get('tutorialMode', False)
+    if tutorial_mode:
+      doc_key = f'collector/users/{username}/tutorial_data/save/{key}'
+    else:
+      doc_key = f'collector/users/{username}/data/save/{key}'
     if not key:
       return 'json entries malformed', 400
-    db.document(f'collector/users/{username}/data/save/{key}').set(
-        {'app_version': app_version,
-         'timestamp': timestamp,
-         'key': key,
-         'value': entry.get('value')})
+    save = {
+        'appVersion': app_version,
+        'serverTimestamp': timestamp,
+        'key': key,
+    }
+    if tutorial_mode:
+      save['tutorialMode'] = tutorial_mode
+    if entry.get('message'):
+      save['message'] = entry.get('message')
+    if entry.get('data'):
+      save['data'] = entry.get('data')
+    db.document(doc_key).set(save)
 
   return flask.render_template(
       'success.html',
@@ -507,8 +497,8 @@ def save_state():
 
   db = firestore.Client()
   db.document(f'collector/users/{username}/data/state/{timestamp}').set(
-      {'app_version': app_version,
-       'server_timestamp': timestamp,
+      {'appVersion': app_version,
+       'serverTimestamp': timestamp,
        'state': json.loads(state)})
 
   return flask.render_template(
@@ -540,6 +530,8 @@ def directives_page():
   for doc in c_ref.stream():
     doc_dict = doc.to_dict()
     if doc_dict.get('completed'):
+      continue
+    if doc_dict.get('completedClientTimestamp'):
       continue
     if doc_dict.get('completed_client_timestamp'):
       continue
@@ -579,9 +571,9 @@ def directive_completed():
     return 'directive not found.', 404
   doc_dict = doc_data.to_dict()
   server_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-  doc_dict['completed_client_timestamp'] = timestamp
-  doc_dict['completed_server_timestamp'] = server_timestamp
-  doc_dict['app_version'] = app_version
+  doc_dict['completedClientTimestamp'] = timestamp
+  doc_dict['completedServerTimestamp'] = server_timestamp
+  doc_dict['appVersion'] = app_version
   doc_ref.update(
       doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
   return flask.jsonify({'updated:': True}), 200
