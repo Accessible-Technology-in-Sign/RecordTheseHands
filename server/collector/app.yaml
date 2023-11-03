@@ -34,7 +34,7 @@ handlers:
   static_files: static/terms_of_service.html
   upload: static/terms_of_service.html
 
-- url: /.*
+- url: /*
   secure: always
   redirect_http_response_code: 301
   script: auto

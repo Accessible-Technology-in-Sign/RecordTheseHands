@@ -75,9 +75,7 @@ def make_token(username, password):
 
 
 if __name__ == '__main__':
-  username = input('username: ')
   import getpass
-
   username = input('username: ')
   if not username:
     username = 'admin'
