@@ -46,8 +46,11 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.fromHex
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.toHex
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -634,7 +637,7 @@ class DataManagerData() {
   }
 
   val lock = Mutex()
-  var uid: String? = null
+  var deviceId: String? = null
   var loginToken: String? = null
   var promptsData: Prompts? = null
   var keyValues = mutableMapOf<String, JSONObject>()
@@ -659,6 +662,8 @@ class DataManager(val context: Context) {
   companion object {
     private val TAG = DataManager::class.simpleName
     private val LOGIN_TOKEN_RELATIVE_PATH = "config" + File.separator + "loginToken.txt"
+
+    private const val TUTORIAL_MODE_DEFAULT = true
   }
 
   val LOGIN_TOKEN_FULL_PATH =
@@ -840,28 +845,38 @@ class DataManager(val context: Context) {
     return dataManagerData.loginToken!!.split(':', limit = 2)[0]
   }
 
-  suspend fun getPhoneId(): String {
-    if (dataManagerData.uid != null) {
-      return dataManagerData.uid!!
+  suspend fun getDeviceId(): String {
+    if (dataManagerData.deviceId != null) {
+      return dataManagerData.deviceId!!
     }
     dataManagerData.lock.withLock {
-      if (dataManagerData.uid != null) {
-        return dataManagerData.uid!!
+      if (dataManagerData.deviceId != null) {
+        return dataManagerData.deviceId!!
       }
-      val keyObject = stringPreferencesKey("uid")
-      var uid = context.prefStore.data.map {
+      val keyObject = stringPreferencesKey("deviceId")
+      val deviceId = context.prefStore.data.map {
         it[keyObject]
       }.firstOrNull()
-      if (uid != null) {
-        dataManagerData.uid = uid
-        return uid!!
+      if (deviceId != null) {
+        dataManagerData.deviceId = deviceId
+        return deviceId
       }
-      uid = toHex(SecureRandom().generateSeed(4))
+      val newDeviceId = toHex(SecureRandom().generateSeed(4))
       context.prefStore.edit { preferences ->
-        preferences[keyObject] = uid!!
+        preferences[keyObject] = newDeviceId
       }
-      dataManagerData.uid = uid
-      return dataManagerData.uid!!
+      dataManagerData.deviceId = newDeviceId
+      return dataManagerData.deviceId!!
+    }
+  }
+
+  suspend fun setDeviceId(deviceId: String) {
+    dataManagerData.lock.withLock {
+      dataManagerData.deviceId = deviceId
+      val keyObject = stringPreferencesKey("deviceId")
+      context.prefStore.edit {
+        it[keyObject] = deviceId
+      }
     }
   }
 
@@ -869,7 +884,7 @@ class DataManager(val context: Context) {
     val keyObject = booleanPreferencesKey("tutorialMode")
     return context.prefStore.data.map {
       it[keyObject]
-    }.firstOrNull() ?: false
+    }.firstOrNull() ?: TUTORIAL_MODE_DEFAULT
   }
 
   suspend fun setTutorialMode(mode: Boolean) {
@@ -880,12 +895,12 @@ class DataManager(val context: Context) {
   }
 
   suspend fun newSessionId(): String {
-    val deviceId = getPhoneId()
-    val keyObject = stringPreferencesKey("sessionIdIndex")
+    val deviceId = getDeviceId()
+    val keyObject = intPreferencesKey("sessionIdIndex")
     val oldValue = context.prefStore.edit { preferences ->
-      preferences[keyObject] = ((preferences[keyObject]?.toInt() ?: 0) + 1).toString()
+      preferences[keyObject] = (preferences[keyObject] ?: 0) + 1
     }
-    val sessionIndex = oldValue[keyObject]?.toInt() ?: 0
+    val sessionIndex = oldValue[keyObject] ?: 0
     return "${deviceId}-s${padZeroes(sessionIndex, 2)}"
   }
 
@@ -947,7 +962,7 @@ class DataManager(val context: Context) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     json.put("timestamp", timestamp)
     json.put("username", getUsername())
-    json.put("deviceId", getPhoneId())
+    json.put("deviceId", getDeviceId())
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val lifetimeRecordingCount = context.prefStore.data
       .map {
@@ -1013,35 +1028,33 @@ class DataManager(val context: Context) {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValues interrupted.")
     }
-    dataManagerData.lock.withLock {
-      for (i in 0..entries.length() - 1) {
-        Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
-      }
-      val url = URL(getServer() + "/save")
-      val (code, unused) =
-        serverFormPostRequest(
-          url,
-          mapOf(
-            "app_version" to APP_VERSION,
-            "login_token" to dataManagerData.loginToken!!,
-            "data" to entries.toString(),
-          )
+    for (i in 0..entries.length() - 1) {
+      Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
+    }
+    val url = URL(getServer() + "/save")
+    val (code, unused) =
+      serverFormPostRequest(
+        url,
+        mapOf(
+          "app_version" to APP_VERSION,
+          "login_token" to dataManagerData.loginToken!!,
+          "data" to entries.toString(),
         )
-      if (code >= 200 && code < 300) {
-        context.dataStore.edit { preferences ->
-          for (i in 0..entries.length() - 1) {
-            val keyObject = stringPreferencesKey(entries.getJSONObject(i).getString("key"))
-            preferences.remove(keyObject)
-          }
+      )
+    if (code >= 200 && code < 300) {
+      context.dataStore.edit { preferences ->
+        for (i in 0..entries.length() - 1) {
+          val keyObject = stringPreferencesKey(entries.getJSONObject(i).getString("key"))
+          preferences.remove(keyObject)
         }
-        return true
-      } else {
-        Log.e(
-          TAG,
-          "Unable to upload keys.  Will try again later."
-        )
-        return false
       }
+      return true
+    } else {
+      Log.e(
+        TAG,
+        "Unable to upload keys.  Will try again later."
+      )
+      return false
     }
   }
 
@@ -1126,7 +1139,7 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager): Boolean {
+  suspend fun uploadData(notificationManager: NotificationManager?): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1135,58 +1148,58 @@ class DataManager(val context: Context) {
       Log.e(TAG, "No loginToken present, can not upload data.")
       return false
     }
-    // First run directives, to make sure we have all the data we need.
-    runDirectives()
-    val entries = context.dataStore.data
-      .map {
-        it.asMap().entries
-      }.firstOrNull()
-    if (entries == null) {
-      Log.i(TAG, "entries was null")
-      return false
-    }
-    if (entries.isNotEmpty()) {
-      notificationManager.notify(
-        UploadService.NOTIFICATION_ID,
-        createNotification("Uploading key/values", "${entries.size} key/values uploading")
-      )
-      val jsonArray = JSONArray()
-      var i = 0
-      for (entry in entries.iterator()) {
-        val jsonEntry = JSONObject(entry.value as String)
-        jsonArray.put(jsonEntry)
-        i += 1
-        if (i >= 500) {
-          break
-        }
-      }
-      if (!tryUploadKeyValues(jsonArray)) {
+    dataManagerData.lock.withLock {
+      // First run directives, to make sure we have all the data we need.
+      runDirectives()
+      val entries = context.dataStore.data
+        .map {
+          it.asMap().entries
+        }.firstOrNull()
+      if (entries == null) {
+        Log.i(TAG, "entries was null")
         return false
       }
-    }
-    val fileEntries = context.registerFileStore.data
-      .map {
-        it.asMap().entries
-      }.firstOrNull()
-    if (fileEntries == null) {
-      Log.i(TAG, "entries was null")
-      return false
-    }
-    var i = 0
-    for (entry in fileEntries.iterator()) {
-      notificationManager.notify(
-        UploadService.NOTIFICATION_ID,
-        createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
-      )
-      Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
-      val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
-      uploadSession.loadState(entry.value as String)
-      dataManagerData.lock.withLock {
-        if (!uploadSession.tryUploadFile()) {
+      if (entries.isNotEmpty()) {
+        notificationManager?.notify(
+          UploadService.NOTIFICATION_ID,
+          createNotification("Uploading key/values", "${entries.size} key/values uploading")
+        )
+        val jsonArray = JSONArray()
+        var i = 0
+        for (entry in entries.iterator()) {
+          val jsonEntry = JSONObject(entry.value as String)
+          jsonArray.put(jsonEntry)
+          i += 1
+          if (i >= 500) {
+            break
+          }
+        }
+        if (!tryUploadKeyValues(jsonArray)) {
           return false
         }
       }
-      i += 1
+      val fileEntries = context.registerFileStore.data
+        .map {
+          it.asMap().entries
+        }.firstOrNull()
+      if (fileEntries == null) {
+        Log.i(TAG, "entries was null")
+        return false
+      }
+      var i = 0
+      for (entry in fileEntries.iterator()) {
+        notificationManager?.notify(
+          UploadService.NOTIFICATION_ID,
+          createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
+        )
+        Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
+        val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
+        uploadSession.loadState(entry.value as String)
+        if (!uploadSession.tryUploadFile()) {
+          return false
+        }
+        i += 1
+      }
     }
     return true
   }
@@ -1243,6 +1256,7 @@ class DataManager(val context: Context) {
       stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
       stream.close()
       resetStatistics()
+      setTutorialMode(true)
       directiveCompleted(id)  // Use the old loginToken.
       dataManagerData.loginToken = newLoginToken
       return false  // Ignore further directives, the next round will be done with the new login.
@@ -1323,6 +1337,7 @@ class DataManager(val context: Context) {
         } finally {
           fileOutputStream.close()
         }
+        setTutorialMode(true)
       } else {
         Log.e(TAG, "unable to fetch prompts.")
         return false
@@ -1459,7 +1474,9 @@ class DataManager(val context: Context) {
   }
 
   fun logToServerAtTimestamp(timestamp: String, message: String) {
-    addKeyValue("log-$timestamp", message)
+    CoroutineScope(Dispatchers.IO).launch {
+      addKeyValue("log-$timestamp", message)
+    }
   }
 
   /**
@@ -1470,25 +1487,31 @@ class DataManager(val context: Context) {
    * No data will be sent to the server unless persistData() is called (which stores a snapshot
    * of the key values to a dataStore).
    */
-  fun addKeyValue(key: String, value: String) {
+  suspend fun addKeyValue(key: String, value: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("message", value)
-    dataManagerData.keyValues[key] = saveJson
+    dataManagerData.lock.withLock {
+      dataManagerData.keyValues[key] = saveJson
+    }
   }
 
-  fun addKeyValue(key: String, json: JSONObject) {
+  suspend fun addKeyValue(key: String, json: JSONObject) {
     Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("data", json)
-    dataManagerData.keyValues[key] = saveJson
+    dataManagerData.lock.withLock {
+      dataManagerData.keyValues[key] = saveJson
+    }
   }
 
-  fun registerFile(relativePath: String) {
+  suspend fun registerFile(relativePath: String) {
     Log.i(TAG, "Register file for upload: \"$relativePath\"")
-    dataManagerData.registeredFiles[relativePath] = JSONObject()
+    dataManagerData.lock.withLock {
+      dataManagerData.registeredFiles[relativePath] = JSONObject()
+    }
   }
 
   /**

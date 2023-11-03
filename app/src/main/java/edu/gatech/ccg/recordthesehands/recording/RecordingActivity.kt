@@ -77,7 +77,6 @@ import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_OK
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordTabletBinding
@@ -189,7 +188,7 @@ class ClipDetails(
   }
 }
 
-fun DataManager.saveClipData(clipDetails: ClipDetails) {
+suspend fun DataManager.saveClipData(clipDetails: ClipDetails) {
   val json = clipDetails.toJson()
   // Use a consistent key based on the clipId so that any changes to the clip
   // will be updated on the server.
@@ -257,7 +256,7 @@ class RecordingSessionInfo(
   }
 }
 
-fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
+suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
   val json = sessionInfo.toJson()
   // Use a consistent key so that any changes will be updated on the server.
   addKeyValue("sessionData-${sessionInfo.sessionId}", json)
@@ -305,7 +304,8 @@ class RecordingActivity : AppCompatActivity() {
     /**
      * The number of prompts to use in each recording session.
      */
-    private const val DEFAULT_SESSION_LENGTH = 5  // TODO change to 50
+    private const val DEFAULT_SESSION_LENGTH = 50
+    private const val DEFAULT_TUTORIAL_SESSION_LENGTH = 5
   }
 
 
@@ -466,6 +466,11 @@ class RecordingActivity : AppCompatActivity() {
    * General information about the recording session.
    */
   private lateinit var sessionInfo: RecordingSessionInfo
+
+  /**
+   * If the app is in tutorial mode.
+   */
+  private var tutorialMode = false
 
   /**
    * The time at which the recording session started.
@@ -992,11 +997,6 @@ class RecordingActivity : AppCompatActivity() {
     sessionStartTime = Instant.now()
 
     CoroutineScope(Dispatchers.IO).launch {
-      sessionInfo = RecordingSessionInfo(
-        dataManager.newSessionId(),
-        filename, dataManager.getPhoneId(), dataManager.getUsername()!!, "normal",
-        sessionStartIndex, sessionLimit
-      )
       sessionInfo.startTimestamp = sessionStartTime
       dataManager.saveSessionInfo(sessionInfo)
 
@@ -1075,12 +1075,12 @@ class RecordingActivity : AppCompatActivity() {
   override fun onStop() {
     Log.d(TAG, "Recording Activity: onStop")
     try {
+      dataManager.logToServer("onStop called.")
       if (isRecording) {
         sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
         stopRecorder()
         setResult(RESULT_ACTIVITY_STOPPED)
       }
-      dataManager.logToServer("onStop called.")
       /**
        * This is remnant code from when we were attempting to find and fix a memory leak
        * that occurred if the user did too many recording sessions in one sitting. It is
@@ -1094,7 +1094,7 @@ class RecordingActivity : AppCompatActivity() {
     UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     CoroutineScope(Dispatchers.IO).launch {
       // It's important that UploadService has a pause signal at this point, so that in the
-      // unlikely event that we had been idle for the full amount of time and the video is
+      // unlikely event that we have been idle for the full amount of time and the video is
       // uploading, it will abort and we can acquire the lock in a reasonable amount of time.
       dataManager.persistData(true)
     }
@@ -1131,7 +1131,7 @@ class RecordingActivity : AppCompatActivity() {
         recordingLightView.visibility = View.GONE
       }
 
-      lifecycleScope.launch {
+      CoroutineScope(Dispatchers.IO).launch {
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         val json = JSONObject()
@@ -1198,20 +1198,28 @@ class RecordingActivity : AppCompatActivity() {
 
     emailConfirmationEnabled = bundle.getBoolean("SEND_CONFIRMATION_EMAIL")
 
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+
     runBlocking {
       prompts = dataManager.getPrompts() ?: throw IllegalStateException("prompts not available.")
       username = dataManager.getUsername() ?: throw IllegalStateException("username not available.")
-    }
-    sessionStartIndex = prompts.promptIndex
-    sessionLimit = min(prompts.array.size, prompts.promptIndex + DEFAULT_SESSION_LENGTH)
-
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    runBlocking {
-      if (dataManager.getTutorialMode()) {
-        filename = "tutorial-${username}-${timestamp}.mp4"
+      tutorialMode = dataManager.getTutorialMode()
+      val sessionType = if (tutorialMode) "tutorial" else "normal"
+      val sessionId = dataManager.newSessionId()
+      if (tutorialMode) {
+        filename = "tutorial-${username}-${sessionId}-${timestamp}.mp4"
       } else {
-        filename = "${username}-${timestamp}.mp4"
+        filename = "${username}-${sessionId}-${timestamp}.mp4"
       }
+      sessionStartIndex = prompts.promptIndex
+      val sessionLength =
+          if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
+      sessionLimit = min(prompts.array.size, prompts.promptIndex + sessionLength)
+      sessionInfo = RecordingSessionInfo(
+        sessionId, filename, dataManager.getDeviceId(), username, sessionType,
+        sessionStartIndex, sessionLimit
+      )
+      dataManager.saveSessionInfo(sessionInfo)
     }
 
     dataManager.logToServer(
@@ -1266,8 +1274,11 @@ class RecordingActivity : AppCompatActivity() {
             currentClipDetails!!.swipeBackTimestamp = now
           }
           currentClipDetails!!.lastModifiedTimestamp = now
-          dataManager.saveClipData(currentClipDetails!!)
+          val saveClipDetails = currentClipDetails!!
           currentClipDetails = null
+          CoroutineScope(Dispatchers.IO).launch {
+            dataManager.saveClipData(saveClipDetails)
+          }
         }
         currentPage = sessionPager.currentItem
         super.onPageSelected(currentPage)

@@ -170,12 +170,14 @@ class HomeScreenActivity : ComponentActivity() {
     lifecycleScope.launch {
       val prompts = dataManager.getPrompts()
       val username = dataManager.getUsername()
-      val uid = dataManager.getPhoneId()
-      val uidBox = findViewById<TextView>(R.id.uidBox)
+      val deviceId = dataManager.getDeviceId()
+
+      val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
+      deviceIdBox.text = deviceId
+
       if (username != null) {
-        uidBox.text = username
-      } else {
-        uidBox.text = "deviceId-$uid"
+        val usernameBox = findViewById<TextView>(R.id.usernameBox)
+        usernameBox.text = username
       }
       val tutorialMode = dataManager.getTutorialMode()
       if (tutorialMode) {
@@ -391,6 +393,7 @@ class HomeScreenActivity : ComponentActivity() {
         startActivity(intent)
       }
     }
+    titleText.isSoundEffectsEnabled = false
 
     thread {
       runBlocking {
@@ -400,11 +403,11 @@ class HomeScreenActivity : ComponentActivity() {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
           startActivity(intent)
         }
-        val uid = dataManager.getPhoneId()
+        val deviceId = dataManager.getDeviceId()
         val numPrompts = prompts?.let { it.array.size }
         val promptIndex = prompts?.promptIndex
         dataManager.logToServer(
-          "Started Application phoneId=${uid} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
+          "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )
       }
     }

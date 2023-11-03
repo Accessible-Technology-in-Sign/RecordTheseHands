@@ -152,9 +152,7 @@ fun sendEmail(from: String, to: List<String>, subject: String, content: String, 
   })
 
   Log.d(
-    "EMAIL", "Attempting to send email with subject '$subject' and " +
-        "message '$content'"
-  )
+    "EMAIL", "Attempting to send email with subject '$subject'")
 
   try {
     Transport.send(msg)

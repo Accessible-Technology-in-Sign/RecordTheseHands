@@ -39,6 +39,7 @@ import kotlin.concurrent.thread
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The upload service.
@@ -53,7 +54,7 @@ class UploadService : Service() {
 
     private var pauseUntil: Date? = null
 
-    private var SHORT_TIMEOUTS = true  // TODO
+    private var SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
 
     private var UPLOAD_RESUME_ON_START_TIMEOUT =
       if (SHORT_TIMEOUTS) 5L * 1000L else 5L * 60L * 1000L
@@ -76,16 +77,8 @@ class UploadService : Service() {
     }
 
     fun isPaused(): Boolean {
-      //if (Random.nextInt(10) == 0) {  // TODO Used to test resume.
-      //  return true
-      //}
-      if (pauseUntil == null) {
-        return false
-      }
-      if (pauseUntil!!.after(Calendar.getInstance().time)) {
-        return true
-      }
-      return false
+      val tmpPauseUntil = pauseUntil ?: return false
+      return tmpPauseUntil.after(Calendar.getInstance().time)
     }
 
   }
@@ -139,7 +132,9 @@ class UploadService : Service() {
       runBlocking {
         val dataManager = DataManager(applicationContext)
         try {
-          dataManager.runDirectives()
+          dataManager.dataManagerData.lock.withLock {
+            dataManager.runDirectives()
+          }
         } catch (e: InterruptedUploadException) {
           Log.w(TAG, "Paused, skipping directives.")
         }

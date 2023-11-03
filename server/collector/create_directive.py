@@ -106,7 +106,7 @@ if __name__ == '__main__':
   elif sys.argv[2] == 'updateApk':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'downloadPrompts':
-    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prompts_data = {
       'path': sys.argv[3],
       'creationTimestamp': timestamp,

@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginTop="12dp"
-        android:text="Create Server Account"
+        android:text="Admin Interface"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
@@ -23,11 +23,11 @@
         android:id="@+id/usernameTextField"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:text="new_username"
+        android:hint="new_username"
         android:textSize="14sp"
-        android:hint="Input"
         android:inputType="text"
         app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
         app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
@@ -38,9 +38,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:text="admin_password"
         android:textSize="14sp"
-        android:hint="Input"
+        android:hint="admin_password"
         android:inputType="textPassword"
         app:layout_constraintStart_toStartOf="@+id/usernameTextField"
         app:layout_constraintTop_toBottomOf="@+id/usernameTextField" />
@@ -50,9 +49,41 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:text="Create"
+        android:text="Create Account"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
+
+    <EditText
+        android:id="@+id/setDeviceIdText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:hint="device_id"
+        android:inputType="text"
+        android:textSize="14sp"
+        app:layout_constraintStart_toStartOf="@+id/createAccountButton"
+        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
+
+    <Button
+        android:id="@+id/setDeviceIdButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:text="Set DeviceId"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
+
+    <Button
+        android:id="@+id/uploadButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="32dp"
+        android:text="Upload Data Now"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
