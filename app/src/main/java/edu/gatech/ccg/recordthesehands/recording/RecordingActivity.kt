@@ -34,6 +34,8 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -304,7 +306,7 @@ class RecordingActivity : AppCompatActivity() {
     /**
      * The number of prompts to use in each recording session.
      */
-    private const val DEFAULT_SESSION_LENGTH = 50
+    private const val DEFAULT_SESSION_LENGTH = 30
     private const val DEFAULT_TUTORIAL_SESSION_LENGTH = 5
   }
 
@@ -1096,7 +1098,7 @@ class RecordingActivity : AppCompatActivity() {
       // It's important that UploadService has a pause signal at this point, so that in the
       // unlikely event that we have been idle for the full amount of time and the video is
       // uploading, it will abort and we can acquire the lock in a reasonable amount of time.
-      dataManager.persistData(true)
+      dataManager.persistData()
     }
     finish()
   }
@@ -1146,10 +1148,9 @@ class RecordingActivity : AppCompatActivity() {
         dataManager.updateLifetimeStatistics(
           Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
         )
-        // Persist the data, but do not clear it.  If we make changes to the data on the correction
-        // page, then we may need to save that data again, and clearing it here might delete it
-        // before it is persisted.
-        dataManager.persistData(false)
+        // Persist the data.  This will lock the dataManager for a few seconds, which is
+        // only acceptable because we are not recording.
+        dataManager.persistData()
       }
       Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
       if (emailConfirmationEnabled) {
@@ -1321,6 +1322,7 @@ class RecordingActivity : AppCompatActivity() {
           sessionPager.isUserInputEnabled = false
 
           UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          sessionInfo.result = "ON_CORRECTIONS_PAGE"
           stopRecorder()
         }
       }
@@ -1487,7 +1489,16 @@ class RecordingActivity : AppCompatActivity() {
   fun concludeRecordingSession() {
     sessionInfo.result = "RESULT_OK"
     stopRecorder()
+    runBlocking {
+      dataManager.saveSessionInfo(sessionInfo)
+    }
     setResult(RESULT_OK)
+
+    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val notification = dataManager.createNotification(
+      "Recording Session Completed", "still need to upload")
+    notificationManager.notify(UploadService.NOTIFICATION_ID, notification)
+
     finish()
   }
 

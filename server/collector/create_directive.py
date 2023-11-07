@@ -37,6 +37,36 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 
+def delete_user(username):
+  """delete the given user."""
+  db = firestore.Client()
+  c_ref = db.collection(f'collector/users/{username}')
+  delete_collection_recursive(c_ref)
+
+
+def delete_document_recursive(doc_ref):
+  for c_ref in doc_ref.collections():
+    delete_collection_recursive(c_ref)
+  doc_ref.delete()
+
+
+def delete_collection_recursive(c_ref):
+  for doc_ref in c_ref.list_documents():
+    delete_document_recursive(doc_ref)
+
+
+def print_directives(username):
+  """Create a directive for the given user."""
+  db = firestore.Client()
+  c_ref = db.collection(f'collector/users/{username}/data/directive')
+  max_sequence_number = -1
+  directives = list()
+  for doc in c_ref.stream():
+    doc_dict = doc.to_dict()
+    directives.append(doc_dict)
+  print(json.dumps(directives, indent=2))
+
+
 def create_directive(username, op, value):
   """Create a directive for the given user."""
   db = firestore.Client()
@@ -93,6 +123,8 @@ if __name__ == '__main__':
   print(f'Using username: {username}')
   if sys.argv[2] == 'noop':
     create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'printDirectives':
+    print_directives(sys.argv[1])
   elif sys.argv[2] == 'changeUser':
     new_username = sys.argv[3]
     login_token, login_hash = token_maker.make_token(sys.argv[3], sys.argv[4])
@@ -124,6 +156,26 @@ if __name__ == '__main__':
       'filepath': sys.argv[3]
     }
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
+  elif sys.argv[2] == 'downloadTutorialPrompts':
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    prompts_data = {
+      'path': sys.argv[3],
+      'creationTimestamp': timestamp,
+      'tutorialMode': True,
+    }
+    db = firestore.Client()
+    doc_ref = db.document(
+        f'collector/users/{username}/data/prompts/tutorial')
+    doc_ref.set(prompts_data)
+    doc_ref = db.document(
+        f'collector/users/{username}/data/prompts/all/all/{timestamp}')
+    doc_ref.set(prompts_data)
+    create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'deleteFile':
+    output = {
+      'filepath': sys.argv[3]
+    }
+    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'uploadState':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'setTutorialMode':
@@ -134,6 +186,8 @@ if __name__ == '__main__':
   elif sys.argv[2] == 'cancel':
     directive_id = int(sys.argv[3])
     cancel_directive(sys.argv[1], directive_id)
+  elif sys.argv[2] == 'deleteUser':
+    delete_user(sys.argv[1])
   elif sys.argv[2] == 'getState':
     print_state(sys.argv[1])
   else:

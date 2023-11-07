@@ -167,6 +167,8 @@ class HomeScreenActivity : ComponentActivity() {
     val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
     val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
     exitTutorialModeButton.visibility = View.GONE
+    val versionText = findViewById<TextView>(R.id.versionText)
+    versionText.text = "v$APP_VERSION"
     lifecycleScope.launch {
       val prompts = dataManager.getPrompts()
       val username = dataManager.getUsername()
@@ -223,10 +225,12 @@ class HomeScreenActivity : ComponentActivity() {
           exitTutorialModeButton.visibility = View.VISIBLE
           exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
           exitTutorialModeButton.setOnClickListener {
-            prompts.promptIndex = 0
             CoroutineScope(Dispatchers.IO).launch {
-              prompts.savePromptIndex()
               dataManager.setTutorialMode(false)
+              dataManager.getPrompts()?.also {
+                it.promptIndex = 0
+                it.savePromptIndex()
+              }
               finish()
             }
           }
@@ -395,26 +399,6 @@ class HomeScreenActivity : ComponentActivity() {
     }
     titleText.isSoundEffectsEnabled = false
 
-    thread {
-      runBlocking {
-        val username = dataManager.getUsername()
-        val prompts = dataManager.getPrompts()
-        if (username == null || prompts == null) {
-          val intent = Intent(applicationContext, LoadDataActivity::class.java)
-          startActivity(intent)
-        }
-        val deviceId = dataManager.getDeviceId()
-        val numPrompts = prompts?.let { it.array.size }
-        val promptIndex = prompts?.promptIndex
-        dataManager.logToServer(
-          "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
-        )
-      }
-    }
-    val versionText = findViewById<TextView>(R.id.versionText)
-    versionText.text = "v$APP_VERSION"
-
-    setupUI()
   }
 
   /**
@@ -426,6 +410,22 @@ class HomeScreenActivity : ComponentActivity() {
     if (currentRecordingSessions >= MAX_RECORDINGS_IN_SITTING) {
       setContentView(R.layout.end_of_sitting_message)
       return
+    }
+    runBlocking {
+      // TODO Make some of these local variables, so we don't need to suspend multiple times
+      // for them.
+      val username = dataManager.getUsername()
+      val prompts = dataManager.getPrompts()
+      if (username == null || prompts == null) {
+        val intent = Intent(applicationContext, LoadDataActivity::class.java)
+        startActivity(intent)
+      }
+      val deviceId = dataManager.getDeviceId()
+      val numPrompts = prompts?.let { it.array.size }
+      val promptIndex = prompts?.promptIndex
+      dataManager.logToServer(
+        "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
+      )
     }
 
     setupUI()

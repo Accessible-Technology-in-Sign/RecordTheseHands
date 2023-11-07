@@ -640,6 +640,7 @@ class DataManagerData() {
   var deviceId: String? = null
   var loginToken: String? = null
   var promptsData: Prompts? = null
+  var tutorialPromptsData: Prompts? = null
   var keyValues = mutableMapOf<String, JSONObject>()
   var registeredFiles = mutableMapOf<String, JSONObject>()
 
@@ -901,7 +902,7 @@ class DataManager(val context: Context) {
       preferences[keyObject] = (preferences[keyObject] ?: 0) + 1
     }
     val sessionIndex = oldValue[keyObject] ?: 0
-    return "${deviceId}-s${padZeroes(sessionIndex, 2)}"
+    return "${deviceId}-s${padZeroes(sessionIndex, 3)}"
   }
 
   fun deleteLoginToken() {
@@ -933,6 +934,7 @@ class DataManager(val context: Context) {
     }
 
     val url = URL(getServer() + "/register_login")
+    Log.d(TAG, "Registering login at $url")
     val (code, unused) =
       serverFormPostRequest(
         url, mapOf(
@@ -1308,49 +1310,20 @@ class DataManager(val context: Context) {
         return false
       }
     } else if (op == "downloadPrompts") {
-      val url = URL(getServer() + "/prompts")
-      Log.i(TAG, "downloading prompt data at $url.")
-      val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-      val relativePath = "prompts" + File.separator + timestamp + ".json"
-      val filepath = File(context.filesDir, relativePath)
-
-      if (!filepath.parentFile!!.exists()) {
-        Log.i(TAG, "creating directory ${filepath.parentFile}.")
-        filepath.parentFile!!.mkdirs()
-      }
-      Log.i(TAG, "downloading prompt data to $filepath")
-      val (code, data) = serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "login_token" to dataManagerData.loginToken!!
-        )
-      )
-      if (code >= 200 && code < 300) {
-        if (data == null) {
-          Log.e(TAG, "data was null.")
-          return false
-        }
-        val fileOutputStream = FileOutputStream(filepath)
-        try {
-          fileOutputStream.write(data!!.toByteArray(Charsets.UTF_8))
-        } finally {
-          fileOutputStream.close()
-        }
-        setTutorialMode(true)
-      } else {
-        Log.e(TAG, "unable to fetch prompts.")
+      if (!downloadPrompts(
+            false, "promptsFilename", "promptIndex")) {
         return false
       }
-      Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
-
-      val keyObject = stringPreferencesKey("promptsFilename")
-      val key2Object = stringPreferencesKey("promptIndex")
-      context.prefStore.edit { preferences ->
-        preferences[keyObject] = relativePath
-        preferences[key2Object] = "0"
+      if (!directiveCompleted(id)) {
+        return false
       }
-      dataManagerData.promptsData = null
+    } else if (op == "downloadTutorialPrompts") {
+      if (!downloadPrompts(
+          true,
+          "tutorialPromptsFilename",
+          "promptIndex")) {
+        return false
+      }
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1386,6 +1359,58 @@ class DataManager(val context: Context) {
       Log.e(TAG, "Unable to understand directive op \"$op\"")
       return false
     }
+    return true
+  }
+
+  private suspend fun downloadPrompts(
+      useTutorialMode: Boolean, promptsFilenameKey: String, promptIndexKey: String): Boolean {
+    val url = URL(getServer() + "/prompts")
+    Log.i(TAG, "downloading prompt data at $url.")
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val relativePath = "prompts" + File.separator + timestamp + ".json"
+    val filepath = File(context.filesDir, relativePath)
+
+    if (!filepath.parentFile!!.exists()) {
+      Log.i(TAG, "creating directory ${filepath.parentFile}.")
+      filepath.parentFile!!.mkdirs()
+    }
+    Log.i(TAG, "downloading prompt data to $filepath")
+    val (code, data) = serverFormPostRequest(
+      url,
+      mapOf(
+        "app_version" to APP_VERSION,
+        "login_token" to dataManagerData.loginToken!!,
+        "tutorial_mode" to useTutorialMode.toString(),
+      )
+    )
+    if (code >= 200 && code < 300) {
+      if (data == null) {
+        Log.e(TAG, "data was null.")
+        return false
+      }
+      val fileOutputStream = FileOutputStream(filepath)
+      try {
+        fileOutputStream.write(data!!.toByteArray(Charsets.UTF_8))
+      } finally {
+        fileOutputStream.close()
+      }
+    } else {
+      Log.e(TAG, "unable to fetch prompts.")
+      return false
+    }
+    Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
+
+    val resetTheIndex = (useTutorialMode == getTutorialMode())
+    val keyObject = stringPreferencesKey(promptsFilenameKey)
+    val key2Object = intPreferencesKey(promptIndexKey)
+    context.prefStore.edit { preferences ->
+      preferences[keyObject] = relativePath
+      if (resetTheIndex) {
+        preferences[key2Object] = 0
+      }
+    }
+    dataManagerData.promptsData = null
+    dataManagerData.tutorialPromptsData = null
     return true
   }
 
@@ -1518,13 +1543,12 @@ class DataManager(val context: Context) {
    * Persist the key value and registered files data and upload it to the server when convenient.
    *
    * If addKeyValue is called while this function is executing then either of the new or old
-   * values may be persisted.  If clearData is true then the data will be deleted (regardless of
-   * whether new data was added).
+   * values may be persisted.  The data will be deleted from
    */
-  suspend fun persistData(clearData: Boolean) {
+  suspend fun persistData() {
     dataManagerData.lock.withLock {
       val tutorialMode = getTutorialMode()
-      Log.i(TAG, "Starting to persist data. clearData == $clearData")
+      Log.i(TAG, "Starting to persist data")
       context.dataStore.edit { preferences ->
         dataManagerData.keyValues.forEach {
           val keyObject = stringPreferencesKey(it.key)
@@ -1534,9 +1558,7 @@ class DataManager(val context: Context) {
           preferences[keyObject] = it.value.toString()
         }
       }
-      if (clearData) {
-        dataManagerData.keyValues.clear()
-      }
+      dataManagerData.keyValues.clear()
       context.registerFileStore.edit { preferences ->
         dataManagerData.registeredFiles.forEach {
           val keyObject = stringPreferencesKey(it.key)
@@ -1546,14 +1568,40 @@ class DataManager(val context: Context) {
           preferences[keyObject] = it.value.toString()
         }
       }
-      if (clearData) {
-        dataManagerData.registeredFiles.clear()
-      }
-      Log.i(TAG, "Finished persisting data. clearData == $clearData")
+      dataManagerData.registeredFiles.clear()
+      Log.i(TAG, "Finished persisting data.")
     }
   }
 
   suspend fun getPrompts(): Prompts? {
+    val tutorialMode = getTutorialMode()
+    if (tutorialMode) {
+      return getTutorialPrompts()
+    } else {
+      return getNormalPrompts()
+    }
+  }
+
+  private suspend fun getTutorialPrompts(): Prompts? {
+    if (dataManagerData.tutorialPromptsData != null) {
+      return dataManagerData.tutorialPromptsData
+    }
+    dataManagerData.lock.withLock {
+      if (dataManagerData.tutorialPromptsData != null) {
+        return dataManagerData.tutorialPromptsData
+      }
+      val newPromptsData = Prompts(
+          context,"tutorialPromptsFilename", "promptIndex")
+      if (newPromptsData.initialize()) {
+        dataManagerData.tutorialPromptsData = newPromptsData
+        return dataManagerData.tutorialPromptsData
+      }
+    }
+    // Fall back on normal prompts.  Make sure to release lock.
+    return getNormalPrompts()
+  }
+
+  private suspend fun getNormalPrompts(): Prompts? {
     if (dataManagerData.promptsData != null) {
       return dataManagerData.promptsData
     }
@@ -1561,7 +1609,8 @@ class DataManager(val context: Context) {
       if (dataManagerData.promptsData != null) {
         return dataManagerData.promptsData
       }
-      val newPromptsData = Prompts(context)
+      val newPromptsData = Prompts(
+          context,"promptsFilename", "promptIndex")
       if (!newPromptsData.initialize()) {
         return null
       }
@@ -1592,7 +1641,7 @@ class Prompt(val index: Int, val key: String, val prompt: String) {
 
 }
 
-class Prompts(val context: Context) {
+class Prompts(val context: Context, val promptsFilenameKey: String, val promptIndexKey: String) {
   companion object {
     private val TAG = Prompts::class.simpleName
   }
@@ -1601,14 +1650,14 @@ class Prompts(val context: Context) {
   var promptIndex = -1
 
   suspend fun initialize(): Boolean {
-    Log.i(TAG, "Getting prompt data.")
-    val keyObject = stringPreferencesKey("promptsFilename")
-    val key2Object = stringPreferencesKey("promptIndex")
+    Log.i(TAG, "Getting prompt data with key ${promptsFilenameKey}.")
+    val keyObject = stringPreferencesKey(promptsFilenameKey)
+    val key2Object = intPreferencesKey(promptIndexKey)
     val promptsData = context.prefStore.data.map {
       Pair(it[keyObject], it[key2Object])
     }.firstOrNull() ?: return false
     val promptsRelativePath = promptsData.first ?: return false
-    promptIndex = (promptsData.second ?: return false).toInt()
+    promptIndex = promptsData.second ?: return false
     try {
       val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
       val promptsJsonArray = promptsJson.getJSONArray("prompts")
@@ -1625,9 +1674,9 @@ class Prompts(val context: Context) {
   }
 
   suspend fun savePromptIndex() {
-    val key2Object = stringPreferencesKey("promptIndex")
+    val key2Object = intPreferencesKey(promptIndexKey)
     context.prefStore.edit { preferences ->
-      preferences[key2Object] = promptIndex.toString()
+      preferences[key2Object] = promptIndex
     }
   }
 

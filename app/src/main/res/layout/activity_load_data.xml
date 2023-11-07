@@ -14,10 +14,33 @@
         android:layout_marginStart="32dp"
         android:layout_marginTop="12dp"
         android:text="Admin Interface"
-        android:textSize="24sp"
+        android:textSize="32sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/setDeviceIdText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:hint="device_id"
+        android:inputType="text"
+        android:textSize="24sp"
+        app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
+        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
+
+    <Button
+        android:id="@+id/setDeviceIdButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:text="Set DeviceId"
+        android:textSize="24sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
 
     <EditText
         android:id="@+id/usernameTextField"
@@ -27,10 +50,10 @@
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
         android:hint="new_username"
-        android:textSize="14sp"
+        android:textSize="24sp"
         android:inputType="text"
-        app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
+        app:layout_constraintStart_toStartOf="@+id/setDeviceIdButton"
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton" />
 
     <EditText
         android:id="@+id/adminPasswordTextField"
@@ -38,7 +61,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:textSize="14sp"
+        android:textSize="24sp"
         android:hint="admin_password"
         android:inputType="textPassword"
         app:layout_constraintStart_toStartOf="@+id/usernameTextField"
@@ -50,30 +73,9 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:text="Create Account"
+        android:textSize="24sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
-
-    <EditText
-        android:id="@+id/setDeviceIdText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:hint="device_id"
-        android:inputType="text"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="@+id/createAccountButton"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
-
-    <Button
-        android:id="@+id/setDeviceIdButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:text="Set DeviceId"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
 
     <Button
         android:id="@+id/uploadButton"
@@ -82,8 +84,20 @@
         android:layout_marginTop="20dp"
         android:layout_marginStart="32dp"
         android:text="Upload Data Now"
+        android:textSize="24sp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton" />
+        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
+
+    <Button
+        android:id="@+id/enableTutorialModeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="32dp"
+        android:text="Enable Tutorial Mode"
+        android:textSize="24sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/uploadButton" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

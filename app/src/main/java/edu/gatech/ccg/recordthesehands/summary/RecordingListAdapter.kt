@@ -29,7 +29,6 @@
 package edu.gatech.ccg.recordthesehands.summary
 
 import android.os.Bundle
-import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -43,7 +42,6 @@ import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.recording.VideoPreviewFragment
 import edu.gatech.ccg.recordthesehands.recording.saveClipData
-import edu.gatech.ccg.recordthesehands.upload.Prompt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,8 +49,6 @@ import java.io.File
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 /**
  * The RecyclerView adapter for the list of recordings shown at the end of the recording session.
@@ -109,6 +105,7 @@ class RecordingListAdapter(
         CoroutineScope(Dispatchers.IO).launch {
           // TODO This has a race condition to saving the data.
           activity.dataManager.saveClipData(clipDetails)
+          activity.dataManager.persistData()
         }
 
         clipIsValidImage.visibility = View.GONE
@@ -128,6 +125,7 @@ class RecordingListAdapter(
         CoroutineScope(Dispatchers.IO).launch {
           // TODO This has a race condition to saving the data.
           activity.dataManager.saveClipData(clipDetails)
+          activity.dataManager.persistData()
         }
 
         clipIsValidImage.visibility = View.VISIBLE
