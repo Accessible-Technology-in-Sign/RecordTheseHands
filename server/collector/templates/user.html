@@ -1,0 +1,90 @@
+<!--
+Copyright 2023 Google LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<html>
+<head>
+<link href="{{favicon}}" rel="shortcut icon" type="image/x-icon" />
+<script type="text/javascript">
+</script>
+</head>
+<body>
+{{dev_header|safe}}
+
+<h1>User {{username}}</h1>
+
+<h2>Directives</h2>
+{% if directives | length == 0 %}
+<p>There are no pending directives.</p>
+{% else %}
+<table>
+<tr>
+  <th>
+    id
+  </th>
+  <th>
+    op
+  </th>
+  <th>
+    value
+  </th>
+</tr>
+  {% for i in range(directives | length) %}
+    {% set directive = directives[i] %}
+<tr class="directive-container">
+  <td>
+    {{directive['id']}}
+  </td>
+  <td>
+    {{directive['op']}}
+  </td>
+  <td>
+    {{directive['value']}}
+  </td>
+</tr>
+  {% endfor %}
+</table>
+{% endif %}
+<h2>Tutorial Videos</h2>
+<table>
+{% for i in range(tutorial_files | length) %}
+  {% set file = tutorial_files[i] %}
+<tr class="file-container">
+  <td>
+    <a href={{url_for('video_page')}}?filename={{file['filename']}}&username={{username}}&tutorial_mode=true>{{file['filename']}}</a>
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Videos</h2>
+<table>
+{% for i in range(files | length) %}
+  {% set file = files[i] %}
+<tr class="file-container">
+  <td>
+    <a href={{url_for('video_page')}}?filename={{file['filename']}}&username={{username}}>{{file['filename']}}</a>
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>
