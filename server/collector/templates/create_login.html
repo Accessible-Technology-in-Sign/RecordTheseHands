@@ -41,58 +41,73 @@ async function loginToken(username, password) {
   }
   return iterated_token
 }
-async function registerToken() {
-  // Use the provided username and password in the "create_hash" form
-  // to generate a registration token and submit the "registration_form".
-  document.getElementById("error_message").style.display = "none";
-  var username = document.getElementById("create_hash_username").value;
-  var password = document.getElementById("create_hash_password").value;
-  if (username.length < 3 || password.length < 3 ||
-      username != username.replace(/[^0-9a-z_]/g, '')) {
-    // Username and password have at least 3 characters and username
-    // only contains lowercase letters, numbers, and underscore.
-    document.getElementById("error_message").style.display = "block";
-    return
-  }
-  document.getElementById("registration_token").value =
-      await loginToken(username, password);
-  document.getElementById("registration_form").submit();
-}
-async function login() {
+async function register() {
   // Use the username and password in the "login" section to
   // submit the login form.
-  var username = document.getElementById("username").value;
-  var password = document.getElementById("password").value;
-  document.getElementById("login_token").value =
+  var username = document.getElementById('username').value;
+  var password = document.getElementById('password').value;
+  var allow_webapp_access =
+      document.getElementById('allow_webapp_access_checkbox').checked;
+  var adminPassword = document.getElementById('admin_password').value;
+  document.getElementById('login_token').value =
       await loginToken(username, password);
-  document.getElementById("login_form").submit();
+  document.getElementById('admin_token').value =
+      await loginToken('admin', adminPassword);
+  if (allow_webapp_access) {
+    document.getElementById('allow_webapp_access').value = 'true'
+  } else {
+    document.getElementById('allow_webapp_access').value = 'false'
+  }
+  document.getElementById('register_form').submit();
 }
 
 window.addEventListener('load', function() {
 }, true);
+
+function passwordVisibility() {
+  if (document.getElementById('show_password').checked) {
+    document.getElementById('password').type = 'text';
+  } else {
+    document.getElementById('password').type = 'password';
+  }
+}
+
+function adminPasswordVisibility() {
+  if (document.getElementById('show_admin_password').checked) {
+    document.getElementById('admin_password').type = 'text';
+  } else {
+    document.getElementById('admin_password').type = 'password';
+  }
+}
 
 </script>
 </head>
 <body>
 {{dev_header|safe}}
 
-<form id="login_form" action="{{url_for('register_login')}}" target="_self"
+<form id="register_form" action="{{url_for('register_login')}}" target="_self"
       method="post">
   <input type="hidden" id="login_token" name="login_token" value="">
   <input type="hidden" id="admin_token" name="admin_token" value="">
+  <input type="hidden" id="allow_webapp_access" name="allow_webapp_access" value="">
 </form>
 
-<p>
-WARNING!!!  Do not use a password you care about.  Minimal care has been
-taken to secure this web application.  Basic security is maintained but
-hashed tokens are easily accessible to developers and standard password
-cracking techniques can recover simple passwords.
-</p>
-
-<label for="username">Username:</label>
-<input type="text" id="username" name="username" placeholder="username"><br>
-<label for="password">Password:</label>
-<input type="password" id="password" name="password" placeholder="password"><br>
+<label for="admin_password">Admin Password:</label>
+<input type="password" id="admin_password" name="admin_password" placeholder="admin_password">
+<input type="checkbox" id="show_admin_password" onclick="adminPasswordVisibility();">
+<label for="show_admin_password">show</label>
+<br>
+<label for="username">New Username:</label>
+<input type="text" id="username" name="username" placeholder="username">
+<br>
+<label for="password">New User Password:</label>
+<input type="password" id="password" name="password" placeholder="password">
+<input type="checkbox" id="show_password" onclick="passwordVisibility();">
+<label for="show_password">show</label>
+<br>
+<input type="checkbox" id="allow_webapp_access_checkbox" checked>
+<label for="allow_webapp_access_checkbox">Allow Access to Webapp</label>
+<br>
 <button type="button" id="register_button" onclick="register();">Register</button>
 
 </body>

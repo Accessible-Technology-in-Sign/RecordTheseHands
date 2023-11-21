@@ -26,6 +26,8 @@ import datetime
 import hashlib
 import urllib.parse
 
+import google.auth.exceptions
+
 
 def generate_signed_url(signer, service_account_email, bucket_name, object_name,
                         subresource=None, expiration=None, http_method='GET',
@@ -96,7 +98,11 @@ def generate_signed_url(signer, service_account_email, bucket_name, object_name,
                               credential_scope,
                               canonical_request_hash])
 
-  signature = binascii.hexlify(signer.sign(string_to_sign)).decode()
+  try:
+    signature = binascii.hexlify(signer.sign(string_to_sign)).decode()
+  except google.auth.exceptions.TransportError:
+    print(f'TransportError while signing string\n\"\"\"{string_to_sign}\"\"\"\nfor canonical request\n\"\"\"{canonical_request}\"\"\"\n')
+    raise
 
   scheme_and_host = '{}://{}'.format('https', host)
   signed_url = '{}{}?{}&x-goog-signature={}'.format(

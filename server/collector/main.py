@@ -35,6 +35,8 @@ import re
 import urllib.request
 
 import flask
+import flask_paranoid
+import flask_login
 
 import google.auth
 import google.auth.iam
@@ -60,10 +62,63 @@ APP_VERSIONS = {
 
 # globals, including Flask environment.
 app = flask.Flask(__name__)
+login_manager = flask_login.LoginManager()
+
+
+def json_pretty(data):
+  return json.dumps(data, sort_keys=True, indent=2)
+
+app.jinja_env.filters['tojson_pretty'] = json_pretty
 
 
 class Error(Exception):
   """Module errors."""
+
+
+# The flask-login user object.
+class User(flask_login.UserMixin):
+  def __init__(self):
+    super().__init__()
+    self.allow_webapp_access = False
+
+
+@login_manager.user_loader
+def user_loader(username):
+  """Load the user given an id."""
+  if not username:
+    return None
+  db = firestore.Client()
+  # Get the user information from firestore.
+  doc_ref = db.document(f'collector/users/{username}/login_hash').get()
+  if not doc_ref.exists:
+    return None
+  allow_webapp_access = doc_ref.to_dict().get('allow_webapp_access', False)
+  user = User()
+  user.id = username
+  user.allow_webapp_access = allow_webapp_access
+  return user
+
+
+@login_manager.request_loader
+def request_loader(request):
+  """Load a request, possibly logging the user in."""
+  login_token = request.values.get('login_token', '')
+  is_valid_login, username, allow_webapp_access = check_login_token(login_token)
+  if not is_valid_login:
+    return None
+
+  user = User()
+  user.id = username
+  user.allow_webapp_access = allow_webapp_access
+  # Anytime a login_token is provided in a form request we automatically
+  # log the user in, regardless of which page they're on.
+  #   
+  # Be very careful logging a user in on a subapplication,
+  # If you create two session cookies things can get very messed up.
+  # So, make sure the session cookies and app secret have the same settings
+  # or you use different names (and hence different login sessions).
+  flask_login.login_user(user)
+  return user
 
 
 def initialize_app():
@@ -73,6 +128,12 @@ def initialize_app():
 
   app.secret_key = get_secret('app_secret_key')
   mimetypes.add_type('image/webp', '.webp', strict=False)
+
+  paranoid = flask_paranoid.Paranoid(app)
+  paranoid.redirect_view = '/'
+
+  login_manager.init_app(app)
+
   print('initialized.')
 
 
@@ -139,18 +200,28 @@ def favicon_path():
       return '/static/red_ilu.ico'
 
 
-def is_valid_user(login_token):
+def check_login_token(login_token):
+  """Checks the login token with the database and returns login information.
+
+  Args:
+    login_token: The login token as a string.
+  Returns
+    A Tuple of (is_valid, username, allow_webapp_access)"""
   m = re.match(r'^([a-z][a-z0-9_]{2,}):[0-9a-f]{64}$', login_token)
   if not m:
-    return False
+    return (False, None, False)
   username = m.group(1)
 
   db = firestore.Client()
   doc_ref = db.document(f'collector/users/{username}/login_hash').get()
   if not doc_ref.exists:
-    return False
-  login_hash = doc_ref.to_dict().get('login_hash')
-  return login_hash == token_maker.get_login_hash(username, login_token)
+    return (False, username, False)
+  doc_dict = doc_ref.to_dict()
+  login_hash = doc_dict.get('login_hash')
+  if login_hash != token_maker.get_login_hash(username, login_token):
+    return (False, username, False)
+  allow_webapp_access = doc_dict.get('allow_webapp_access', False)
+  return (True, username, allow_webapp_access)
 
 
 def get_username(login_token):
@@ -180,7 +251,7 @@ def get_download_link(object_name):
 
 def get_upload_link(object_name):
   """Get a signed url for uploading an object."""
-  gcs_path = str(pathlib.Path('upload').joinpath(object_name))
+  gcs_path = str(object_name)
 
   auth_request = google.auth.transport.requests.Request()
   credentials, unused_project = google.auth.default()
@@ -198,20 +269,24 @@ def get_upload_link(object_name):
   )
 
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'POST'])
 def home_page():
   """The homepage."""
-  return flask.render_template('index.html')
+  if flask_login.current_user.is_authenticated:
+    return flask.render_template('index.html')
+  
+  # If we're using POST and get this far, then the password was incorrect.
+  incorrect_password = flask.request.method != 'GET'
+
+  return flask.render_template(
+      'login.html', incorrect_password=incorrect_password)
 
 
 @app.route('/download', methods=['GET', 'POST'])
+@flask_login.login_required
 def download_page():
   """Download an item."""
-  login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
-    return 'login_token invalid', 400
-
-  username = get_username(login_token)
+  username = flask_login.current_user.id
   assert username
 
   path = flask.request.values.get('path', '')
@@ -228,7 +303,8 @@ def prompts_page():
   """Download a prompts."""
   print('download prompts')
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
   tutorial_mode = flask.request.values.get(
       'tutorial_mode', '').lower() in ['1', 't', 'true']
@@ -237,7 +313,6 @@ def prompts_page():
   else:
     prompts_key = 'active'
 
-  username = get_username(login_token)
   assert username
 
   db = firestore.Client()
@@ -252,6 +327,17 @@ def prompts_page():
   if not path:
     return (f'prompt file not found for user {username}'
             f' with tutorial_mode {tutorial_mode}'), 404
+
+  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+  server_log_key = f'downloadPrompts-{timestamp}'
+  app_version = flask.request.values.get('app_version', 'unknown')
+  doc_ref = db.document(
+      f'collector/users/{username}/data/server/{server_log_key}').set({
+      'appVersion': app_version,
+      'path': path,
+      'tutorialMode': tutorial_mode,
+      'timestamp': timestamp,
+  })
 
   download_link = get_download_link(path)
 
@@ -279,11 +365,11 @@ def apk_page():
 def upload():
   """Upload an item."""
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
   app_version = flask.request.values.get('app_version', 'unknown')
 
-  username = get_username(login_token)
   assert username
 
   path = flask.request.values.get('path', '')
@@ -319,7 +405,7 @@ def upload():
       'fileSize': int(file_size)
   })
 
-  upload_link = get_upload_link(f'{username}/{path}')
+  upload_link = get_upload_link(f'upload/{username}/{path}')
   return flask.jsonify({'uploadLink': upload_link})
 
 
@@ -350,7 +436,7 @@ if IS_LOCAL_ENV:
                    'md5': md5sum
                })
 
-    upload_link = get_upload_link(f'{username}/{filename}')
+    upload_link = get_upload_link(f'upload/{username}/{filename}')
     return flask.jsonify({'uploadLink': upload_link})
 
 
@@ -358,10 +444,10 @@ if IS_LOCAL_ENV:
 def verify():
   """verify the md5 on an uploaded item."""
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
 
-  username = get_username(login_token)
   assert username
 
   path = flask.request.values.get('path', '')
@@ -421,11 +507,187 @@ def verify():
       'sizeMatches': size_matches}), 200 if verified else 400
 
 
+@app.route('/create_login', methods=['GET'])
+def create_login():
+  return flask.render_template('create_login.html')
+
+
+@app.route('/logout', methods=['GET', 'POST'])
+@flask_login.login_required
+def logout():
+  flask_login.logout_user()
+  return flask.redirect(flask.url_for('home_page'), code=303)
+
+
+@app.route('/users', methods=['GET', 'POST'])
+@flask_login.login_required
+def users_page():
+  if not flask_login.current_user.allow_webapp_access:
+    return 'User does not have access to the webapp.', 403
+  db = firestore.Client()
+  doc_ref = db.document(f'collector/users')
+  users = list()
+  for c_ref in doc_ref.collections():
+    users.append(c_ref.id)
+  users.sort()
+  return flask.render_template('users.html', users=users)
+
+
+@app.route('/user', methods=['GET', 'POST'])
+@flask_login.login_required
+def user_page():
+  if not flask_login.current_user.allow_webapp_access:
+    return 'User does not have access to the webapp.', 403
+  db = firestore.Client()
+  username = flask.request.values.get('username', '')
+  if not username:
+    return 'invalid username', 400
+
+  c_ref = db.collection(f'collector/users/{username}/data/directive')
+  directives = list()
+  for doc in c_ref.stream():
+    doc_dict = doc.to_dict()
+    if doc_dict.get('completed'):
+      continue
+    if doc_dict.get('completedClientTimestamp'):
+      continue
+    if doc_dict.get('completed_client_timestamp'):
+      continue
+    if doc_dict.get('cancelled'):
+      continue
+    assert doc_dict.get('id')
+    assert doc_dict.get('op')
+    assert doc_dict.get('value')
+    directives.append(doc_dict)
+  directives.sort(
+      key=lambda x: (x.get('id', ''), x.get('op', ''), x.get('value', '')))
+  
+  c_ref = db.collection(f'collector/users/{username}/data/file')
+  files = list()
+  for doc in c_ref.stream():
+    doc_dict = doc.to_dict()
+    path = doc_dict.get('path')
+    if path:
+      doc_dict['filename'] = pathlib.Path(path).name
+    files.append(doc_dict)
+  files.sort(key=lambda x: (x.get('path', ''), x.get('md5', '')))
+
+  c_ref = db.collection(f'collector/users/{username}/tutorial_data/file')
+  tutorial_files = list()
+  for doc in c_ref.stream():
+    doc_dict = doc.to_dict()
+    path = doc_dict.get('path')
+    if path:
+      doc_dict['filename'] = pathlib.Path(path).name
+    tutorial_files.append(doc_dict)
+  tutorial_files.sort(key=lambda x: (x.get('path', ''), x.get('md5', '')))
+
+  return flask.render_template(
+      'user.html',
+      username=username,
+      directives=directives,
+      files=files,
+      tutorial_files=tutorial_files,
+  )
+
+
+def get_clip_bounds_in_video(clip_data):
+  video_start = clip_data.get('videoStart')
+  if not video_start:
+    return (None, None)
+
+  clip_start = clip_data.get('startButtonDownTimestamp')
+  if not clip_start:
+    clip_start = clip_data.get('startButtonUpTimestamp')
+  if not clip_start:
+    return (None, None)
+
+  clip_end = clip_data.get('restartButtonDownTimestamp')
+  if not clip_end:
+    clip_end = clip_data.get('swipeForwardTimestamp')
+  if not clip_end:
+    clip_end = clip_data.get('swipeBackTimestamp')
+  if not clip_end:
+    return (None, None)
+
+  video_start_time = datetime.datetime.fromisoformat(video_start)
+  clip_start_time = datetime.datetime.fromisoformat(clip_start)
+  clip_end_time = datetime.datetime.fromisoformat(clip_end)
+
+  start_s = (clip_start_time - video_start_time).total_seconds()
+  end_s = (clip_end_time - video_start_time).total_seconds()
+  return (start_s, end_s)
+
+
+@app.route('/video', methods=['GET', 'POST'])
+@flask_login.login_required
+def video_page():
+  if not flask_login.current_user.allow_webapp_access:
+    return 'User does not have access to the webapp.', 403
+  filename = flask.request.values.get('filename', '')
+  if not filename:
+    return 'invalid filename', 401
+  username = flask.request.values.get('username', '')
+  if not username:
+    return 'invalid username', 401
+  tutorial_mode = (
+      flask.request.values.get('tutorial_mode', '').lower() in
+      ['1', 't', 'true'])
+
+  tutorial_mode_prefix = ''
+  if tutorial_mode:
+    tutorial_mode_prefix = 'tutorial_'
+
+  db = firestore.Client()
+  c_ref = db.collection(
+      f'collector/users/{username}/{tutorial_mode_prefix}data/save')
+  num_skipped = 0
+  total_clips = 0
+  clip_data = list()
+  session_data = None
+  for doc in c_ref.stream():
+    if doc.id.startswith('clipData-'):
+      doc_dict = doc.to_dict()
+      data = doc_dict.get('data')
+      total_clips = 0
+      simple_clip = {
+          'clipId': data.get('clipId'),
+          'filename': data.get('filename'),
+          'promptText': data.get('promptData').get('prompt'),
+          'valid': data.get('valid'),
+      }
+      start_s, end_s = get_clip_bounds_in_video(data)
+      if start_s:
+        simple_clip['start_s'] = start_s
+      if end_s:
+        simple_clip['end_s'] = end_s
+      if data.get('filename') == filename:
+        clip_data.append(simple_clip)
+      else:
+        num_skipped += 1
+    elif doc.id.startswith('sessionData-'):
+      doc_dict = doc.to_dict()
+      data = doc_dict.get('data')
+      if data.get('filename') == filename:
+        session_data = data
+  clip_data.sort(key=lambda x: (x.get('clipId', ''),))
+
+  download_link = get_download_link(f'upload/{username}/upload/{filename}')
+  
+  return flask.render_template(
+      'video.html',
+      filename=filename,
+      session_data=session_data,
+      video_link=download_link,
+      clip_data=clip_data)
+
+
 @app.route('/register_login', methods=['POST'])
 def register_login():
   """Create an authentication token for login."""
   login_token = flask.request.values.get('login_token', '')
   admin_token = flask.request.values.get('admin_token', '')
+  allow_webapp_access = flask.request.values.get('allow_webapp_access', '')
 
   admin_token_hash = get_secret('admin_token_hash')
   if admin_token_hash != token_maker.get_login_hash('admin', admin_token):
@@ -441,8 +703,11 @@ def register_login():
         400)
   username = m.group(1)
   db = firestore.Client()
-  db.document(f'collector/users/{username}/login_hash').set(
-      {'login_hash': token_maker.get_login_hash(username, login_token)})
+  data = {
+      'login_hash': token_maker.get_login_hash(username, login_token),
+      'allow_webapp_access': allow_webapp_access == 'true',
+  }
+  db.document(f'collector/users/{username}/login_hash').set(data)
 
   return flask.render_template(
       'success.html',
@@ -453,13 +718,13 @@ def register_login():
 def save():
   """Save multiple key value pairs."""
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
 
   data_string = flask.request.values.get('data', '[]')
   app_version = flask.request.values.get('app_version', 'unknown')
 
-  username = get_username(login_token)
   assert username
 
   data = json.loads(data_string)
@@ -500,13 +765,13 @@ def save():
 def save_state():
   """Save a key value pair."""
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
 
   state = flask.request.values.get('state', '')
   app_version = flask.request.values.get('app_version', 'unknown')
 
-  username = get_username(login_token)
   assert username
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -526,10 +791,10 @@ def save_state():
 def directives_page():
   """Save a key value pair."""
   login_token = flask.request.values.get('login_token', '')
-  if not is_valid_user(login_token):
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
 
-  username = get_username(login_token)
   assert username
 
   db = firestore.Client()
@@ -569,14 +834,15 @@ def directive_completed():
   directive_id = flask.request.values.get('id', '')
   timestamp = flask.request.values.get('timestamp', '')
   app_version = flask.request.values.get('app_version', 'unknown')
-  if not is_valid_user(login_token):
+
+  is_valid_login, username, _ = check_login_token(login_token)
+  if not is_valid_login:
     return 'login_token invalid', 400
   if not directive_id:
     return 'no directive id provided', 400
   if not timestamp:
     return 'timestamp must be provided', 400
 
-  username = get_username(login_token)
   assert username
 
   db = firestore.Client()

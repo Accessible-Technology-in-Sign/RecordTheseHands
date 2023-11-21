@@ -114,5 +114,14 @@ curl http://localhost:8040/
 Check the https server or proxy:
 openssl s_client -debug -connect localhost:8050
 curl https://localhost:8050/
+
+########################################
+# Export line again
+########################################
+
+# And again, before you do anything else you probably want to
+# set the environ variable GOOGLE_CLOUD_PROJECT .
+export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
+
 EndOfMessage
 

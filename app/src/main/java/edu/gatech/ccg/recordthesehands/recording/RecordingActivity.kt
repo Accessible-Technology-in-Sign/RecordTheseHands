@@ -74,6 +74,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
@@ -523,6 +526,11 @@ class RecordingActivity : AppCompatActivity() {
    * Details of the camera being used to record the video.
    */
   private lateinit var camera: CameraDevice
+
+  /**
+   * Window insets controller for hiding and showing the toolbars.
+   */
+  var windowInsetsController: WindowInsetsControllerCompat? = null
 
   /**
    * The buffer to which the camera sends frames for the purposes of displaying a live preview
@@ -1075,6 +1083,7 @@ class RecordingActivity : AppCompatActivity() {
    * Handles stopping the recording session.
    */
   override fun onStop() {
+    windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
     try {
       dataManager.logToServer("onStop called.")
@@ -1167,6 +1176,12 @@ class RecordingActivity : AppCompatActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    windowInsetsController =
+      WindowCompat.getInsetsController(window, window.decorView)?.also {
+        it.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
 
     dataManager = DataManager(applicationContext)
 
@@ -1437,6 +1452,7 @@ class RecordingActivity : AppCompatActivity() {
   override fun onResume() {
     super.onResume()
 
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
     // Create camera thread
     cameraThread = generateCameraThread()
     cameraHandler = Handler(cameraThread.looper)

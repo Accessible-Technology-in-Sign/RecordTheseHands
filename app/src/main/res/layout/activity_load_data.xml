@@ -39,6 +39,11 @@
         android:layout_marginStart="32dp"
         android:text="Set DeviceId"
         android:textSize="24sp"
+        android:background="@drawable/rounded_corners"
+        android:backgroundTint="@color/button_color"
+        android:textColor="@color/white"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
 
@@ -74,19 +79,13 @@
         android:layout_marginStart="32dp"
         android:text="Create Account"
         android:textSize="24sp"
+        android:background="@drawable/rounded_corners"
+        android:backgroundTint="@color/button_color"
+        android:textColor="@color/white"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
-
-    <Button
-        android:id="@+id/uploadButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:text="Upload Data Now"
-        android:textSize="24sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
 
     <Button
         android:id="@+id/enableTutorialModeButton"
@@ -96,8 +95,13 @@
         android:layout_marginStart="32dp"
         android:text="Enable Tutorial Mode"
         android:textSize="24sp"
+        android:background="@drawable/rounded_corners"
+        android:backgroundTint="@color/button_color"
+        android:textColor="@color/white"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/uploadButton" />
+        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

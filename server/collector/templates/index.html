@@ -26,17 +26,17 @@ SOFTWARE.
 <body>
 {{dev_header|safe}}
 
-<p>
-This is the entry page for the data collector.
-It seems the service is up.
-</p>
-<p>
-You'll want to access the specific APIs with proper authentication in order to do anything.
-</p>
+<p>You are logged in as {{ current_user.id }} you can log out <a href="{{url_for('logout')}}">here</a></p>
 
+{% if current_user.allow_webapp_access %}
 <p>
-<a href="/download?object_name=red_ilu.ico">Download page for object "red_ilu.ico"</a>
+<a href={{url_for('users_page')}}>Users summary page</a>
 </p>
+{% else %}
+<p>Unfortunately you do not have access to the webapp, maybe try
+<a href={{url_for('create_login')}}>creating</a> a different user.
+</p>
+{% endif %}
 
 </body>
 </html>

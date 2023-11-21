@@ -88,32 +88,6 @@ class LoadDataActivity : ComponentActivity() {
       }
     }
 
-    val uploadButton = findViewById<Button>(R.id.uploadButton)
-    uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    uploadButton.setOnClickListener {
-      val textStart = "Starting upload"
-      val toastStart = Toast.makeText(applicationContext, textStart, Toast.LENGTH_SHORT)
-      toastStart.show()
-      CoroutineScope(Dispatchers.IO).launch {
-        UploadService.pauseUploadUntil(null)
-        try {
-          dataManager.uploadData(null)
-          runOnUiThread {
-            val textFinish = "Upload finished"
-            val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-            toastFinish.show()
-          }
-        } catch (e: InterruptedUploadException) {
-          Log.w(TAG, "Upload Data was interrupted.")
-          runOnUiThread {
-            val textFinish = "Upload interrupted"
-            val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-            toastFinish.show()
-          }
-        }
-      }
-    }
-
     val enableTutorialModeButton = findViewById<Button>(R.id.enableTutorialModeButton)
     enableTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     enableTutorialModeButton.setOnClickListener {

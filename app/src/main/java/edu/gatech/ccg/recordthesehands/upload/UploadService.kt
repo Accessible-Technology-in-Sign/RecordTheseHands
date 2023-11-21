@@ -57,7 +57,7 @@ class UploadService : Service() {
     private var SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
 
     private var UPLOAD_RESUME_ON_START_TIMEOUT =
-      if (SHORT_TIMEOUTS) 5L * 1000L else 5L * 60L * 1000L
+      if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
 
     private var UPLOAD_LOOP_TIMEOUT =
       if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
@@ -66,7 +66,7 @@ class UploadService : Service() {
       if (SHORT_TIMEOUTS) 5L * 60L * 1000L else 60L * 60L * 1000L
 
     var UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT =
-      if (SHORT_TIMEOUTS) 5L * 1000L else 5 * 60L * 1000L
+      if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
 
     fun pauseUploadTimeout(millis: Long) {
       pauseUploadUntil(Date(Calendar.getInstance().timeInMillis + millis))

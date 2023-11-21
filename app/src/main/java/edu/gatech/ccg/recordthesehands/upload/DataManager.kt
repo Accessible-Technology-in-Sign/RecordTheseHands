@@ -427,7 +427,7 @@ class UploadSession(
       try {
         val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
         val buffer = ByteArray(STREAM_BUFFER_LENGTH)
-        Log.i(TAG, "Uploading Chunk of $filepath")
+        Log.i(TAG, "Uploading $filepath")
         val fileStream = FileInputStream(filepath.absolutePath)
         fileStream.skip(numSavedBytes)
         var read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
@@ -450,8 +450,7 @@ class UploadSession(
         uploadCompleted = true
         saveState()
         return true
-      }
-      if (urlConnection.responseCode >= 400) {
+      } else if (urlConnection.responseCode >= 400) {
         Log.e(TAG, "Response code: $code " + output)
         resetState()
         return false
@@ -464,7 +463,7 @@ class UploadSession(
     } finally {
       urlConnection.disconnect()
     }
-    return false
+    return true
   }
 
   private suspend fun verifyUpload(): Boolean {
@@ -643,6 +642,7 @@ class DataManagerData() {
   var tutorialPromptsData: Prompts? = null
   var keyValues = mutableMapOf<String, JSONObject>()
   var registeredFiles = mutableMapOf<String, JSONObject>()
+  var connectedToServer = false
 
   fun initialize(login_token_path: String) {
     try {
@@ -786,7 +786,6 @@ class DataManager(val context: Context) {
       }
     } catch (e: IOException) {
       Log.e(TAG, "Get request failed: $e")
-      return false
     } finally {
       urlConnection.disconnect()
     }
@@ -828,6 +827,7 @@ class DataManager(val context: Context) {
       val inputStream = getDataStream(urlConnection)
       output = inputStream.readBytes().toString(Charsets.UTF_8)
       inputStream.close()
+
       if (urlConnection.responseCode >= 400) {
         Log.e(TAG, "Response code: $code " + output)
       }
@@ -914,6 +914,35 @@ class DataManager(val context: Context) {
     return dataManagerData.loginToken != null
   }
 
+  private suspend fun reloadPromptsFromServer(): Boolean {
+    dataManagerData.tutorialPromptsData = null
+    dataManagerData.promptsData = null
+    val key1Object = stringPreferencesKey("promptsFilename")
+    val key2Object = stringPreferencesKey("tutorialPromptsFilename")
+    val key3Object = intPreferencesKey("promptIndex")
+    context.prefStore.edit { preferences ->
+      preferences.remove(key1Object)
+      preferences.remove(key2Object)
+      preferences.remove(key3Object)
+    }
+    var returnValue = true
+    if (!downloadPrompts(
+        false,
+        "promptsFilename",
+        "promptIndex")) {
+      Log.w(TAG, "Unable to download normal prompts file.")
+      returnValue = false
+    }
+    if (!downloadPrompts(
+        true,
+        "tutorialPromptsFilename",
+        "promptIndex")) {
+      Log.w(TAG, "Unable to download tutorial prompts file.")
+      returnValue = false
+    }
+    return returnValue
+  }
+
   fun createAccount(username: String, adminPassword: String): Boolean {
     Log.i(TAG, "Creating new account for $username")
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
@@ -953,6 +982,9 @@ class DataManager(val context: Context) {
     stream.close()
 
     dataManagerData.loginToken = newLoginToken
+    runBlocking {
+      reloadPromptsFromServer()
+    }
     return true
   }
 
@@ -1152,16 +1184,14 @@ class DataManager(val context: Context) {
     }
     dataManagerData.lock.withLock {
       // First run directives, to make sure we have all the data we need.
-      runDirectives()
+      val directivesReturnValue = runDirectives()
       val entries = context.dataStore.data
         .map {
           it.asMap().entries
         }.firstOrNull()
       if (entries == null) {
         Log.i(TAG, "entries was null")
-        return false
-      }
-      if (entries.isNotEmpty()) {
+      } else if (entries.isNotEmpty()) {
         notificationManager?.notify(
           UploadService.NOTIFICATION_ID,
           createNotification("Uploading key/values", "${entries.size} key/values uploading")
@@ -1185,25 +1215,25 @@ class DataManager(val context: Context) {
           it.asMap().entries
         }.firstOrNull()
       if (fileEntries == null) {
-        Log.i(TAG, "entries was null")
-        return false
-      }
-      var i = 0
-      for (entry in fileEntries.iterator()) {
-        notificationManager?.notify(
-          UploadService.NOTIFICATION_ID,
-          createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
-        )
-        Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
-        val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
-        uploadSession.loadState(entry.value as String)
-        if (!uploadSession.tryUploadFile()) {
-          return false
+        Log.i(TAG, "fileEntries was null")
+      } else {
+        var i = 0
+        for (entry in fileEntries.iterator()) {
+          notificationManager?.notify(
+            UploadService.NOTIFICATION_ID,
+            createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
+          )
+          Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
+          val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
+          uploadSession.loadState(entry.value as String)
+          if (!uploadSession.tryUploadFile()) {
+            return false
+          }
+          i += 1
         }
-        i += 1
       }
+      return directivesReturnValue
     }
-    return true
   }
 
   suspend fun waitForDataLock() {
@@ -1261,6 +1291,7 @@ class DataManager(val context: Context) {
       setTutorialMode(true)
       directiveCompleted(id)  // Use the old loginToken.
       dataManagerData.loginToken = newLoginToken
+      reloadPromptsFromServer()
       return false  // Ignore further directives, the next round will be done with the new login.
     } else if (op == "resetStatistics") {
       resetStatistics()
@@ -1306,6 +1337,13 @@ class DataManager(val context: Context) {
       installPackage(relativePath, apkData)
       Log.i(TAG, "finished installing apk")
 
+      if (!directiveCompleted(id)) {
+        return false
+      }
+    } else if (op == "reloadPrompts") {
+      if (!reloadPromptsFromServer()) {
+        return false
+      }
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1467,6 +1505,7 @@ class DataManager(val context: Context) {
       )
     )
     if (code >= 200 && code < 300) {
+      dataManagerData.connectedToServer = true
       if (data == null) {
         Log.e(TAG, "data was null.")
         return false
@@ -1486,8 +1525,12 @@ class DataManager(val context: Context) {
           return false
         }
       }
+    } else if (code >= 500) {
+      Log.e(TAG, "unable to fetch directives due to server error (code ${code}).")
+      dataManagerData.connectedToServer = false
     } else {
-      Log.e(TAG, "unable to fetch directives.")
+      Log.e(TAG, "unable to fetch directives (code ${code}).")
+      dataManagerData.connectedToServer = false
       return false
     }
     return true
@@ -1580,6 +1623,10 @@ class DataManager(val context: Context) {
     } else {
       return getNormalPrompts()
     }
+  }
+
+  fun connectedToServer(): Boolean {
+    return dataManagerData.connectedToServer
   }
 
   private suspend fun getTutorialPrompts(): Prompts? {

@@ -28,8 +28,12 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -52,6 +56,7 @@ import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.CoroutineScope
@@ -156,6 +161,34 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
 
+  private fun updateConnectionUi() {
+    val connectivityManager =
+      applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork
+    runOnUiThread {
+      val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
+      if (network == null) {
+        internetConnectionText.visibility = View.VISIBLE
+        internetConnectionText.text = "Internet Unavailable"
+      } else {
+        if (dataManager.connectedToServer()) {
+          internetConnectionText.visibility = View.INVISIBLE
+        } else {
+          internetConnectionText.visibility = View.VISIBLE
+        }
+        internetConnectionText.text = "Internet Connected"
+      }
+
+      val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
+      if (dataManager.connectedToServer()) {
+        serverConnectionText.visibility = View.INVISIBLE
+        serverConnectionText.text = "Connected to Server"
+      } else {
+        serverConnectionText.visibility = View.VISIBLE
+        serverConnectionText.text = "Unable to connect to Server"
+      }
+    }
+  }
   /**
    * Sets up all of the UI elements.
    */
@@ -173,6 +206,8 @@ class HomeScreenActivity : ComponentActivity() {
       val prompts = dataManager.getPrompts()
       val username = dataManager.getUsername()
       val deviceId = dataManager.getDeviceId()
+
+      updateConnectionUi();
 
       val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
       deviceIdBox.text = deviceId
@@ -325,6 +360,45 @@ class HomeScreenActivity : ComponentActivity() {
         toast.show()
       }
     } // setRecordingButton.onClickListener
+
+    val uploadButton = findViewById<Button>(R.id.uploadButton)
+    uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    uploadButton.setOnClickListener {
+      Log.i(TAG, "Upload Now button clicked.")
+      uploadButton.isEnabled = false
+      uploadButton.isClickable = false
+      uploadButton.text = "Uploading..."
+      CoroutineScope(Dispatchers.IO).launch {
+        UploadService.pauseUploadUntil(null)
+        try {
+          updateConnectionUi();
+          val uploadSucceeded = dataManager.uploadData(null)
+          runOnUiThread {
+            uploadButton.isEnabled = true
+            uploadButton.isClickable = true
+            if (uploadSucceeded) {
+              uploadButton.text = "Upload Now"
+            } else {
+              uploadButton.text = "Upload Failed, Click to try again"
+              val textFinish = "Upload Failed"
+              val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+              toastFinish.show()
+            }
+          }
+        } catch (e: InterruptedUploadException) {
+          Log.w(TAG, "Upload Data was interrupted.")
+          runOnUiThread {
+            val textFinish = "Upload interrupted"
+            val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+            toastFinish.show()
+            uploadButton.isEnabled = true
+            uploadButton.isClickable = true
+            uploadButton.text = "Upload Now"
+          }
+        }
+        updateConnectionUi();
+      }
+    }
   } // setupUI()
 
   /**
