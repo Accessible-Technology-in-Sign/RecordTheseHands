@@ -32,7 +32,18 @@ SOFTWARE.
 {% for i in range(users | length) %}
 <tr class="user-container">
   <td>
-    <a href="{{url_for('user_page')}}?username={{users[i]}}">{{users[i]}}</a>
+    <a href="{{url_for('user_page')}}?username={{users[i].get('username')}}">{{users[i].get('username')}}</a>
+    {% if 'heartbeatFromNow' in users[i] %}
+      {% if users[i]['heartbeatFromNow'] < 60 %}
+        (last checkin {{users[i].get('heartbeatFromNow') | round(1)}} <span style="color: #209e00">seconds</span> ago)
+      {% elif users[i]['heartbeatFromNow'] < 3600 %}
+        (last checkin {{(users[i].get('heartbeatFromNow') / 60) | round(1)}} <span style="color: #209e00">minutes</span> ago)
+      {% elif users[i]['heartbeatFromNow'] < 259200 %}
+        (last checkin {{(users[i].get('heartbeatFromNow') / 3600) | round(1)}} <span style="color: #de5c00">hours</span> ago)
+      {% else %}
+        (last checkin {{(users[i].get('heartbeatFromNow') / 86400) | round(1)}} <span style="color: #c92500">days</span> ago)
+      {% endif %}
+    {% endif %}
   </td>
 </tr>
 {% endfor %}

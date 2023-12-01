@@ -28,6 +28,7 @@ import functools
 import hashlib
 import io
 import json
+import logging
 import mimetypes
 import os
 import pathlib
@@ -44,6 +45,7 @@ import google.auth.iam
 from google.cloud import firestore
 from google.cloud import secretmanager
 from google.cloud import storage
+import google.cloud.logging
 
 import config
 import generate_signed_url
@@ -122,6 +124,9 @@ def request_loader(request):
 
 
 def initialize_app():
+  logging_client = google.cloud.logging.Client()
+  logging_client.setup_logging()
+
   app.config['APPLICATION_ROOT'] = '/'
   app.config['SESSION_COOKIE_NAME'] = 'session'
   app.config['SESSION_COOKIE_PATH'] = '/'
@@ -289,6 +294,8 @@ def download_page():
   username = flask_login.current_user.id
   assert username
 
+  logging.info(f'/download {username}')
+
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
@@ -301,7 +308,6 @@ def download_page():
 @app.route('/prompts', methods=['POST'])
 def prompts_page():
   """Download a prompts."""
-  print('download prompts')
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
@@ -314,6 +320,8 @@ def prompts_page():
     prompts_key = 'active'
 
   assert username
+
+  logging.info(f'/prompts {username} tutorial_mode={tutorial_mode}')
 
   db = firestore.Client()
   doc_ref = db.document(
@@ -356,6 +364,8 @@ def apk_page():
   apk_filename = apk_data.get('filename')
   assert apk_filename
 
+  logging.info(f'/apk')
+
   download_link = get_download_link(f'apk/{apk_filename}')
 
   return flask.redirect(download_link, code=307)
@@ -371,6 +381,8 @@ def upload():
   app_version = flask.request.values.get('app_version', 'unknown')
 
   assert username
+
+  logging.info(f'/upload {username}')
 
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
@@ -450,6 +462,8 @@ def verify():
 
   assert username
 
+  logging.info(f'/verify {username}')
+
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
@@ -526,10 +540,24 @@ def users_page():
     return 'User does not have access to the webapp.', 403
   db = firestore.Client()
   doc_ref = db.document(f'collector/users')
+
+  current_time = datetime.datetime.now(datetime.timezone.utc)
+
   users = list()
   for c_ref in doc_ref.collections():
-    users.append(c_ref.id)
-  users.sort()
+    users.append({'username': c_ref.id})
+    doc_ref = c_ref.document('data/heartbeat/latest')
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      doc_dict = doc_data.to_dict()
+      timestamp = doc_dict.get('timestamp')
+      if timestamp:
+        users[-1]['heartbeat'] = timestamp
+        t = datetime.datetime.fromisoformat(timestamp)
+        users[-1]['heartbeatFromNow'] = (
+            current_time - t) / datetime.timedelta(seconds=1)
+      
+  users.sort(key=lambda x: x.get('username'))
   return flask.render_template('users.html', users=users)
 
 
@@ -560,7 +588,9 @@ def user_page():
     assert doc_dict.get('value')
     directives.append(doc_dict)
   directives.sort(
-      key=lambda x: (x.get('id', ''), x.get('op', ''), x.get('value', '')))
+      key=lambda x: (int(x.get('id', '-1')),
+                     x.get('op', ''),
+                     x.get('value', '')))
   
   c_ref = db.collection(f'collector/users/{username}/data/file')
   files = list()
@@ -727,6 +757,8 @@ def save():
 
   assert username
 
+  logging.info(f'/save {username}')
+
   data = json.loads(data_string)
   # print(json.dumps(data, indent=2))
 
@@ -769,6 +801,8 @@ def save_state():
   if not is_valid_login:
     return 'login_token invalid', 400
 
+  logging.info(f'/save_state {username}')
+
   state = flask.request.values.get('state', '')
   app_version = flask.request.values.get('app_version', 'unknown')
 
@@ -797,6 +831,8 @@ def directives_page():
 
   assert username
 
+  logging.info(f'/directives {username}')
+
   db = firestore.Client()
 
   doc_ref = db.document(f'collector/apk')
@@ -823,7 +859,23 @@ def directives_page():
     assert doc_dict.get('value')
     directives.append(doc_dict)
   directives.sort(
-      key=lambda x: (x.get('id', ''), x.get('op', ''), x.get('value', '')))
+      key=lambda x: (int(x.get('id', '-1')),
+                     x.get('op', ''),
+                     x.get('value', '')))
+  if directives:
+    logging.info(
+        f'responding to /directives for {username} with ids=' +
+        ','.join([str(x.get('id', '-1')) for x in directives]))
+
+  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+  app_version = flask.request.values.get('app_version', 'unknown')
+
+  doc_ref = db.document(f'collector/users/{username}/data/heartbeat/latest')
+  doc_ref.set({
+      'appVersion': app_version,
+      'timestamp': timestamp,
+  })
+
   return flask.jsonify({'directives': directives, 'apk': apk_data}), 200
 
 
@@ -844,6 +896,8 @@ def directive_completed():
     return 'timestamp must be provided', 400
 
   assert username
+
+  logging.info(f'/directive_completed {username}')
 
   db = firestore.Client()
   doc_ref = db.document(
