@@ -66,6 +66,9 @@ class LoadDataActivity : ComponentActivity() {
     createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     createAccountButton.setOnClickListener {
       val username = usernameText.text.toString()
+      createAccountButton.isEnabled = false
+      createAccountButton.isClickable = false
+      createAccountButton.text = "Creating account."
       val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
       lifecycleScope.launch {
         thread {  // Don't run network on UI thread.
@@ -75,9 +78,15 @@ class LoadDataActivity : ComponentActivity() {
               if (result) {
                 setTitle("Success")
                 setMessage("Created account for \"$username\" and stored credentials.")
+                createAccountButton.isEnabled = true
+                createAccountButton.isClickable = true
+                createAccountButton.text = "Create account"
               } else {
                 setTitle("Failed")
                 setMessage("Failed to Create account for \"$username\".")
+                createAccountButton.isEnabled = true
+                createAccountButton.isClickable = true
+                createAccountButton.text = "Create account failed, try again"
               }
               setPositiveButton("OK") { _, _ -> }
               create()

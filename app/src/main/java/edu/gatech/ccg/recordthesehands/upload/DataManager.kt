@@ -145,21 +145,21 @@ class DataManagerReceiver : BroadcastReceiver() {
 }
 
 class UploadSession(
-  val dataManager: DataManager, val loginToken: String,
-  val relativePath: String
+  private val dataManager: DataManager, private val loginToken: String,
+  private val relativePath: String
 ) {
 
   companion object {
     private val TAG = UploadSession::class.simpleName
   }
 
-  var fileSize: Long? = null
-  var md5sum: String? = null
-  var uploadLink: String? = null
-  var sessionLink: String? = null
-  var uploadCompleted: Boolean = false
-  var uploadVerified: Boolean = false
-  var tutorialMode: Boolean = false
+  private var fileSize: Long? = null
+  private var md5sum: String? = null
+  private var uploadLink: String? = null
+  private var sessionLink: String? = null
+  private var uploadCompleted: Boolean = false
+  private var uploadVerified: Boolean = false
+  private var tutorialMode: Boolean = false
 
   fun loadState(registerStoreValue: String) {
     Log.i(TAG, "Loading current session state $registerStoreValue")

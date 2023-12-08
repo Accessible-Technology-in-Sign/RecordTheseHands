@@ -44,6 +44,9 @@ SOFTWARE.
         (last checkin {{(users[i].get('heartbeatFromNow') / 86400) | round(1)}} <span style="color: #c92500">days</span> ago)
       {% endif %}
     {% endif %}
+    {% if 'maxPrompt' in users[i] %}
+      recorded {{users[i]['maxPrompt']}} prompts
+    {% endif %}
   </td>
 </tr>
 {% endfor %}

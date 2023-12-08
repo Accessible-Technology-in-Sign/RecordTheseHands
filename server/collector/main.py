@@ -119,7 +119,7 @@ def request_loader(request):
   # If you create two session cookies things can get very messed up.
   # So, make sure the session cookies and app secret have the same settings
   # or you use different names (and hence different login sessions).
-  flask_login.login_user(user)
+  flask_login.login_user(user, remember=True)
   return user
 
 
@@ -556,6 +556,11 @@ def users_page():
         t = datetime.datetime.fromisoformat(timestamp)
         users[-1]['heartbeatFromNow'] = (
             current_time - t) / datetime.timedelta(seconds=1)
+    doc_ref = c_ref.document('data/heartbeat/max_prompt')
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      doc_dict = doc_data.to_dict()
+      users[-1]['maxPrompt'] = doc_dict.get('maxPrompt')
       
   users.sort(key=lambda x: x.get('username'))
   return flask.render_template('users.html', users=users)
@@ -766,15 +771,20 @@ def save():
 
   db = firestore.Client()
 
+  max_prompt_index = None
   for entry in data:
     key = entry.get('key')
-    tutorial_mode = entry.get('tutorialMode', False)
-    if tutorial_mode:
-      doc_key = f'collector/users/{username}/tutorial_data/save/{key}'
-    else:
-      doc_key = f'collector/users/{username}/data/save/{key}'
     if not key:
       return 'json entries malformed', 400
+    tutorial_mode = entry.get('tutorialMode', False)
+    log_suffix = ''
+    if key.startswith('log-'):
+      log_suffix = '_log'
+    tutorial_mode_prefix = ''
+    if tutorial_mode:
+      tutorial_mode_prefix = 'tutorial_'
+    doc_key = (f'collector/users/{username}/{tutorial_mode_prefix}data/'
+               f'save{log_suffix}/{key}')
     save = {
         'appVersion': app_version,
         'serverTimestamp': timestamp,
@@ -787,6 +797,17 @@ def save():
     if entry.get('data'):
       save['data'] = entry.get('data')
     db.document(doc_key).set(save)
+
+    if key.startswith('sessionData-') and not tutorial_mode:
+      if 'data' in save:
+        if 'finalPromptIndex' in save['data']:
+          final_prompt_index = int(save['data']['finalPromptIndex'])
+          if max_prompt_index is None or max_prompt_index < final_prompt_index:
+            max_prompt_index = final_prompt_index
+  if max_prompt_index is not None:
+    db.document(
+        f'collector/users/{username}/data/'
+        f'heartbeat/max_prompt').set({'maxPrompt': max_prompt_index})
 
   return flask.render_template(
       'success.html',
