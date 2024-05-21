@@ -62,6 +62,16 @@ APP_VERSIONS = {
     'collector': 1,
 }
 
+_BANNED_USERNAMES = frozenset([
+  'apk',
+  'download',
+  'metadata',
+  'prompts',
+  'renamed_videos',
+  'resource',
+  'upload',
+])
+
 # globals, including Flask environment.
 app = flask.Flask(__name__)
 login_manager = flask_login.LoginManager()
@@ -287,22 +297,23 @@ def home_page():
       'login.html', incorrect_password=incorrect_password)
 
 
-@app.route('/download', methods=['GET', 'POST'])
+@app.route('/resource', methods=['GET', 'POST'])
 @flask_login.login_required
-def download_page():
-  """Download an item."""
+def resource_page():
+  """Download a resource item."""
   username = flask_login.current_user.id
   assert username
 
-  logging.info(f'/download {username}')
-
   path = flask.request.values.get('path', '')
+
+  logging.info(f'/resource username={username} path={path!r}')
+
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
     return 'path had weird characters in it or too much depth.', 400
-  download_link = get_download_link(f'{username}/{path}')
+  download_link = get_download_link(f'resource/{path}')
 
-  return flask.jsonify({'downloadLink': download_link})
+  return flask.redirect(download_link, code=303)
 
 
 @app.route('/prompts', methods=['POST'])
@@ -368,7 +379,7 @@ def apk_page():
 
   download_link = get_download_link(f'apk/{apk_filename}')
 
-  return flask.redirect(download_link, code=307)
+  return flask.redirect(download_link, code=303)
 
 
 @app.route('/upload', methods=['POST'])
@@ -737,6 +748,11 @@ def register_login():
          'numbers, and underscores.'),
         400)
   username = m.group(1)
+  if username in _BANNED_USERNAMES:
+    return  (
+        ('username choice is banned.  '
+         'Your username cannot be a banned keywoard.'),
+        400)
   db = firestore.Client()
   data = {
       'login_hash': token_maker.get_login_hash(username, login_token),

@@ -1616,6 +1616,10 @@ class DataManager(val context: Context) {
     }
   }
 
+  fun connectedToServer(): Boolean {
+    return dataManagerData.connectedToServer
+  }
+
   suspend fun getPrompts(): Prompts? {
     val tutorialMode = getTutorialMode()
     if (tutorialMode) {
@@ -1623,10 +1627,6 @@ class DataManager(val context: Context) {
     } else {
       return getNormalPrompts()
     }
-  }
-
-  fun connectedToServer(): Boolean {
-    return dataManagerData.connectedToServer
   }
 
   private suspend fun getTutorialPrompts(): Prompts? {
@@ -1638,14 +1638,16 @@ class DataManager(val context: Context) {
         return dataManagerData.tutorialPromptsData
       }
       val newPromptsData = Prompts(
-          context,"tutorialPromptsFilename", "promptIndex")
-      if (newPromptsData.initialize()) {
-        dataManagerData.tutorialPromptsData = newPromptsData
-        return dataManagerData.tutorialPromptsData
+          context, "tutorialPromptsFilename", "promptIndex")
+      if (!newPromptsData.initialize()) {
+        return null
       }
+      if (!ensureResources(newPromptsData)) {
+        return null
+      }
+      dataManagerData.tutorialPromptsData = newPromptsData
+      return dataManagerData.tutorialPromptsData
     }
-    // Fall back on normal prompts.  Make sure to release lock.
-    return getNormalPrompts()
   }
 
   private suspend fun getNormalPrompts(): Prompts? {
@@ -1657,13 +1659,68 @@ class DataManager(val context: Context) {
         return dataManagerData.promptsData
       }
       val newPromptsData = Prompts(
-          context,"promptsFilename", "promptIndex")
+          context, "promptsFilename", "promptIndex")
       if (!newPromptsData.initialize()) {
+        return null
+      }
+      if (!ensureResources(newPromptsData)) {
         return null
       }
       dataManagerData.promptsData = newPromptsData
       return dataManagerData.promptsData
     }
+  }
+
+  suspend fun ensureResources(prompts: Prompts): Boolean {
+    for (prompt in prompts.array) {
+      if (prompt.resourcePath != null) {
+        if (!ensureResource(prompt.resourcePath)) {
+          Log.e(TAG, "failed to acquire resource ${prompt.resourcePath}")
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  suspend fun ensureResource(resourcePath: String): Boolean {
+    if (!resourcePath.startsWith("resource/")) {
+      Log.e(TAG, "resource path does not start with \"resource/\" ${resourcePath}")
+      return false
+    }
+    val resource = File(context.filesDir, resourcePath)
+    if (resource.exists()) {
+      return true
+    }
+    return downloadResource(resource)
+  }
+
+  suspend fun downloadResource(resource: File): Boolean {
+    val data = mapOf(
+      "app_version" to APP_VERSION,
+      "login_token" to dataManagerData.loginToken!!,
+    )
+    val formData = data.map { (k, v) ->
+      URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
+    }.joinToString("&").toByteArray(Charsets.UTF_8)
+    // TODO make sure this doesn't get logged anywhere.
+    // I'd be more comfortable with this if we used the POST method.
+    val url = URL(getServer() + "/resource?" + formData)
+
+    val fileOutputStream = FileOutputStream(resource.absolutePath)
+    try {
+      Log.i(TAG, "downloading resource to $resource")
+      if (!serverGetToFileRequest(
+          url,
+          emptyMap(),
+          fileOutputStream)) {
+        return false
+      }
+    } finally {
+      fileOutputStream.close()
+    }
+    Log.i(TAG, "downloaded resource $filepath with size ${resource.length()}")
+    return true
   }
 
   suspend fun updateLifetimeStatistics(sessionLength: Duration) {
@@ -1677,12 +1734,26 @@ class DataManager(val context: Context) {
   }
 }
 
-class Prompt(val index: Int, val key: String, val prompt: String) {
+enum class PromptType {
+  TEXT, IMAGE, VIDEO
+}
+
+class Prompt(val index: Int,
+             val key: String,
+             val type: PromptType,
+             val prompt: String?,
+             val resourcePath: String?) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("index", index)
     json.put("key", key)
-    json.put("prompt", prompt)
+    json.put("promptType", promptType.toString())
+    if (prompt != null) {
+      json.put("prompt", prompt)
+    }
+    if (resourcePath != null) {
+      json.put("resourcePath", resourcePath)
+    }
     return json
   }
 
@@ -1711,12 +1782,26 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
       array.ensureCapacity(promptsJsonArray.length())
       for (i in 0..promptsJsonArray.length() - 1) {
         val data = promptsJsonArray.getJSONObject(i)
-        array.add(Prompt(i, data.getString("key"), data.getString("prompt")))
+        val key = data.getString("key")
+        val promptType = PromptType.TEXT
+        if (data.has("promptType") {
+          promptType = PromptType.valueOf(data.getString("promptType"))
+        }
+        val prompt: String? = null
+        if (data.has("prompt") {
+          prompt = data.getString("prompt")
+        }
+        val resourcePath: String? = null
+        if (data.has("resourcePath") {
+          prompt = data.getString("resourcePath")
+        }
+        array.add(Prompt(i, key, promptType, prompt, resourcePath))
       }
     } catch (e: JSONException) {
       Log.e(TAG, "failed to load prompts, encountered JSONException $e")
       return false
     }
+
     return true
   }
 
