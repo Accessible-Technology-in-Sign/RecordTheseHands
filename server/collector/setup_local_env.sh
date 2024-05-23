@@ -50,6 +50,13 @@ cat << EndOfMessage
 Local environment is setup and sourced.
 
 ########################################
+# Remember to authenticate Google Cloud Platform.
+########################################
+
+gcloud auth login
+gcloud auth application-default login
+
+########################################
 # Commands for starting the server.
 ########################################
 

@@ -33,6 +33,7 @@ import mimetypes
 import os
 import pathlib
 import re
+import sys
 import urllib.request
 
 import flask
@@ -75,6 +76,16 @@ _BANNED_USERNAMES = frozenset([
 # globals, including Flask environment.
 app = flask.Flask(__name__)
 login_manager = flask_login.LoginManager()
+
+if IS_LOCAL_ENV:
+  root = logging.getLogger()
+  root.setLevel(logging.DEBUG)
+
+  handler = logging.StreamHandler(sys.stdout)
+  handler.setLevel(logging.DEBUG)
+  formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s')
+  handler.setFormatter(formatter)
+  root.addHandler(handler)
 
 
 def json_pretty(data):
@@ -149,7 +160,8 @@ def initialize_app():
 
   login_manager.init_app(app)
 
-  print('initialized.')
+  print('initialized (printing on stdout).')
+  logging.info('initialized (printing on logging).')
 
 
 def get_secret(secret_id):

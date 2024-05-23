@@ -18,48 +18,40 @@
         app:layout_constraintBottom_toBottomOf="@+id/promptText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" >
+    </View>
 
     <TextView
         android:id="@+id/promptText"
-        android:layout_width="175dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="28dp"
+        android:layout_marginEnd="28dp"
         android:layout_marginTop="8dp"
-        android:autoSizeMinTextSize="14sp"
-        android:autoSizeTextType="uniform"
         android:fontFamily="sans-serif-medium"
-        android:text="Word"
+        android:text="Prompt Text."
         android:textColor="@android:color/black"
         android:textSize="34sp"
         app:layout_constraintStart_toStartOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
 
-    <TextView
-        android:id="@+id/instructions"
+    <ImageView
+        android:id="@+id/promptImage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hold the button and sign..."
+        android:layout_marginEnd="0dp"
         android:visibility="gone"
-        android:textColor="@android:color/black"
-        app:layout_constraintBottom_toTopOf="@+id/promptText"
-        app:layout_constraintStart_toStartOf="@+id/promptText" />
+        app:layout_constraintEnd_toEndOf="@+id/promptView"
+        app:layout_constraintTop_toTopOf="@+id/promptView" />
 
-
-    <!--    <LinearLayout-->
-    <!--        android:id="@+id/videoRecordingLight"-->
-    <!--        android:layout_width="17dp"-->
-    <!--        android:layout_height="17dp"-->
-    <!--        android:background="@+id/recording_light"-->
-    <!--        android:orientation="horizontal"-->
-    <!--        app:layout_constraintBottom_toBottomOf="@+id/view"-->
-    <!--        app:layout_constraintEnd_toEndOf="@+id/view"-->
-    <!--        app:layout_constraintStart_toStartOf="@+id/view"-->
-    <!--        app:layout_constraintTop_toTopOf="@+id/view" />-->
-    <!--    <View-->
-    <!--        android:id="@+id/videoRecordingLight"-->
-    <!--        android:layout_width="10dp"-->
-    <!--        android:layout_height="10dp"-->
-    <!--        android:background="@+id/recording_light" />-->
+    <VideoView
+        android:id="@+id/promptVideo"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginTop="0dp"
+        android:visibility="gone"
+        app:layout_constraintDimensionRatio="H,3:4"
+        app:layout_constraintEnd_toEndOf="@+id/promptView"
+        app:layout_constraintTop_toTopOf="@+id/promptView" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,11 +2,7 @@
  * VideoPreviewFragment.kt
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-23
- *   Georgia Institute of Technology
- *   Authors:
- *     Sahir Shahryar <contact@sahirshahryar.com>
- *     Matthew So <matthew.so@gatech.edu>
+ * Copyright (c) 2021-2024
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,9 +24,7 @@
  */
 package edu.gatech.ccg.recordthesehands.recording
 
-import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
@@ -45,7 +39,6 @@ import androidx.fragment.app.DialogFragment
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.*
 
 /**
@@ -76,9 +69,9 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   private var fileInputStream: FileInputStream? = null
 
   /**
-   * The word for this video.
+   * The text prompt for this video.
    */
-  private lateinit var prompt: String
+  private var prompt: String? = null
 
   /**
    * True if the video is in landscape. This is used for the tutorial recordings, as they are
@@ -114,16 +107,16 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    prompt = arguments?.getString("prompt")!!
+    prompt = arguments?.getString("prompt")
 
     val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
     if (filepath.exists()) {
       fileInputStream = FileInputStream(filepath)
     }
     Log.d(TAG, "Playing video from $filepath")
-    Log.d(TAG, "file exists: " + filepath.exists().toString())
-    Log.d(TAG, "file readable: " + filepath.canRead().toString())
-    Log.d(TAG, "file length: " + filepath.length().toString())
+    //Log.d(TAG, "file exists: " + filepath.exists().toString())
+    //Log.d(TAG, "file readable: " + filepath.canRead().toString())
+    //Log.d(TAG, "file length: " + filepath.length().toString())
 
     startTimeMs = arguments?.getLong("startTimeMs") ?: 0
     endTimeMs = arguments?.getLong("endTimeMs") ?: 0
@@ -166,9 +159,14 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       layoutParams.dimensionRatio = "H,3:4"
     }
 
-    // Sets the title text for the video
-    val title = view.findViewById<TextView>(R.id.wordBeingSigned)
-    title.text = prompt
+    if (prompt != null) {
+      // Sets the title text for the video
+      val title = view.findViewById<TextView>(R.id.wordBeingSigned)
+      title.text = prompt
+    } else {
+      val title = view.findViewById<TextView>(R.id.wordBeingSigned)
+      title.visibility = View.GONE
+    }
   }
 
   /**
@@ -235,16 +233,12 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
     // If the startTimeMs and endTimeMs properties are set, set up a looper for the video.
     if (endTimeMs > startTimeMs) {
-      val mTimerHandler = Handler()
-
       // Task to set playback to the beginning of the looped segment
       timerTask = object : TimerTask() {
         override fun run() {
-          mTimerHandler.post {
-            if (mediaPlayer!!.isPlaying) {
-              Log.i("VideoPreviewFragment", "Looping!")
-              mediaPlayer!!.seekTo(startTimeMs.toInt())
-            }
+          if (mediaPlayer?.isPlaying == true) {
+            Log.i("VideoPreviewFragment", "Looping!")
+            mediaPlayer!!.seekTo(startTimeMs.toInt())
           }
         }
       }

@@ -32,11 +32,10 @@ object Constants {
   /**
    * The app version (used in server communications).
    */
-  const val APP_VERSION = "2.0.1"
+  const val APP_VERSION = "2.1.0"
 
   /**
-   * The size, in inches, at which we should consider the user's device a tablet
-   * and render the layout in activity_record_tablet.xml instead of activity_record.xml.
+   * The size, in inches, at which we should consider the user's device a tablet.
    */
   const val TABLET_SIZE_THRESHOLD_INCHES = 7.0f
 

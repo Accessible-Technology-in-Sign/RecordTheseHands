@@ -34,12 +34,10 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.content.res.AssetFileDescriptor
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -47,7 +45,6 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.media.MediaCodec
-import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -63,11 +60,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.AnimationSet
 import android.view.animation.CycleInterpolator
-import android.view.animation.DecelerateInterpolator
-import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -359,7 +352,7 @@ class RecordingActivity : AppCompatActivity() {
    * The instructional video, if [SHOW_INSTRUCTION_VIDEO] is true. If false, this value will
    * be null.
    */
-  private var tutorialView: VideoTutorialController? = null
+  private var tutorialView: VideoPromptController? = null
 
   // UI state variables
   /**
@@ -820,13 +813,16 @@ class RecordingActivity : AppCompatActivity() {
   }
 
   fun goToSummaryPage() {
+    isSigning = false
+
+    if (!prompts.useSummaryPage) {
+      concludeRecordingSession()
+    }
     runOnUiThread {
       // Move to the next prompt and allow the user to swipe back and forth.
       sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
       sessionPager.isUserInputEnabled = false
     }
-
-    isSigning = false
   }
 
   /**
@@ -1039,7 +1035,7 @@ class RecordingActivity : AppCompatActivity() {
           endSessionOnClipEnd = true
         } else {
           // TODO test this.
-          sessionPager.currentItem = prompts.array.size + 1
+          goToSummaryPage()
         }
       }
     } // CountDownTimer
@@ -1258,12 +1254,12 @@ class RecordingActivity : AppCompatActivity() {
     finishedButton.isHapticFeedbackEnabled = true
     setButtonState(finishedButton, false)
 
-    sessionPager.adapter = WordPagerAdapter(this)
+    sessionPager.adapter = WordPagerAdapter(this, prompts.useSummaryPage)
 
     if (SHOW_INSTRUCTION_VIDEO) {
       // TODO This is broken.  Add in ability to download videos and show them.
       val videoView: VideoView = findViewById(R.id.demoVideo)
-      this.tutorialView = VideoTutorialController(this, videoView, "none")
+      tutorialView = VideoPromptController(applicationContext, this, videoView, "")
     } else {
       val videoView: VideoView = findViewById(R.id.demoVideo)
       videoView.visibility = View.GONE
@@ -1329,6 +1325,10 @@ class RecordingActivity : AppCompatActivity() {
           setButtonState(finishedButton, true)
         } else {
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
+          if (!prompts.useSummaryPage) {
+            // Shouldn't happen, but just in case.
+            concludeRecordingSession()
+          }
           title = ""
 
           setButtonState(recordButton, false)
@@ -1587,140 +1587,3 @@ class RecordingActivity : AppCompatActivity() {
 
 } // RecordingActivity
 
-/**
- * A simple class to manage the video player at the top of the screen. See
- * TODO update this to to download videos from the server (pushed as directives)
- * TODO and access them with a key here.
- * [RecordingActivity.tutorialView].
- */
-class VideoTutorialController(
-  private val activity: RecordingActivity,
-  private val videoView: VideoView,
-  initialWord: String
-) : SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
-
-  companion object {
-    private val TAG = VideoTutorialController::class.java.simpleName
-  }
-
-  /**
-   * The currently selected word.
-   */
-  private var word: String = initialWord
-
-  /**
-   * The video file being played back.
-   */
-  private var dataSource: AssetFileDescriptor? = null
-
-  /**
-   * The video playback controller.
-   */
-  private var mediaPlayer: MediaPlayer? = null
-
-  /**
-   * Initializes the controller.
-   */
-  init {
-    Log.d(TAG, "Constructor called")
-
-    setWord(this.word)
-
-    // When we click on the video, it should expand to a larger preview.
-    videoView.setOnClickListener {
-      val bundle = Bundle()
-      bundle.putString("prompt", this.word)
-      bundle.putString("filepath", "tutorial" + File.separator + "${this.word}.mp4")
-      bundle.putBoolean("landscape", true)
-
-      val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
-      previewFragment.arguments = bundle
-
-      previewFragment.show(activity.supportFragmentManager, "videoPreview")
-    }
-  }
-
-  /**
-   * Allows us to control the visibility of the video player directly from [RecordingActivity].
-   */
-  fun setVisibility(visibility: Int) {
-    videoView.visibility = visibility
-  }
-
-  /**
-   * Sets the video player to play the given word.
-   */
-  fun setWord(newWord: String) {
-    word = newWord
-    videoView.visibility = View.VISIBLE
-
-    // If the media player already exists, just change its data source and start playback again.
-    mediaPlayer?.let {
-      it.stop()
-      it.reset()
-      it.setDataSource(dataSource!!)
-      it.setOnPreparedListener(this@VideoTutorialController)
-      it.prepareAsync()
-    }
-
-    // If the media player has not been initialized, set up the video player.
-    // We will set up the data source from the surfaceCreated() function
-      ?: run {
-        videoView.holder.addCallback(this)
-      }
-  }
-
-  fun releasePlayer() {
-    this.mediaPlayer?.let {
-      it.stop()
-      it.release()
-    }
-  }
-
-
-  /**
-   * When the videoView's pixel buffer is set up, this function is called. The MediaPlayer object
-   * will then target the videoView's canvas.
-   */
-  override fun surfaceCreated(holder: SurfaceHolder) {
-    this.mediaPlayer = MediaPlayer().apply {
-      dataSource?.let {
-        setDataSource(dataSource!!)
-        setSurface(holder.surface)
-        setOnPreparedListener(this@VideoTutorialController)
-        prepareAsync()
-      }
-    }
-  }
-
-  /**
-   * We don't use surfaceChanged right now since the same surface is used for the entire
-   * duration of the activity.
-   */
-  override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-    // TODO("Not yet implemented")
-  }
-
-  /**
-   * When the recording activity is finished, we can free the memory used by the media player.
-   */
-  override fun surfaceDestroyed(holder: SurfaceHolder) {
-    this.mediaPlayer?.let {
-      it.stop()
-      it.release()
-    }
-  }
-
-  /**
-   * This function is called since we used `setOnPreparedListener(this@VideoTutorialController)`.
-   * When the video file is ready, this function makes it so that the video loops and then starts
-   * playing back.
-   */
-  override fun onPrepared(mp: MediaPlayer?) {
-    mp?.let {
-      it.isLooping = true
-      it.start()
-    }
-  }
-
-}

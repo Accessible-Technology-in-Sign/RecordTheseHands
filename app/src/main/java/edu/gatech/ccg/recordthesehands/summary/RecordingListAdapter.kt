@@ -71,10 +71,11 @@ class RecordingListAdapter(
       listAdapter: RecordingListAdapter
     ) {
       val label = itemView.findViewById<TextView>(R.id.recordingTitle)
-      if (clipDetails.prompt.prompt.length > 40) {
-        label.text = clipText(clipDetails.prompt.prompt, 37) + "..."
+      val promptText = clipDetails.prompt.prompt ?: ""
+      if (promptText.length > 40) {
+        label.text = clipText(promptText, 37) + "..."
       } else {
-        label.text = clipDetails.prompt.prompt
+        label.text = promptText
       }
 
       val clipIsValidImage = itemView.findViewById<ImageButton>(R.id.clipIsValidImage)
@@ -141,7 +142,7 @@ class RecordingListAdapter(
       label.setOnTouchListener(::hapticFeedbackOnTouchListener)
       label.setOnClickListener {
         val bundle = Bundle()
-        bundle.putString("prompt", clipDetails.prompt.prompt)
+        bundle.putString("prompt", clipDetails.prompt.prompt ?: "")
         bundle.putString("filepath", "upload" + File.separator + clipDetails.filename)
         bundle.putBoolean("isTablet", activity.isTablet())
         // TODO landscape ?

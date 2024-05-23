@@ -32,8 +32,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -63,7 +61,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlin.concurrent.thread
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -207,7 +204,7 @@ class HomeScreenActivity : ComponentActivity() {
       val username = dataManager.getUsername()
       val deviceId = dataManager.getDeviceId()
 
-      updateConnectionUi();
+      updateConnectionUi()
 
       val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
       deviceIdBox.text = deviceId
@@ -371,7 +368,7 @@ class HomeScreenActivity : ComponentActivity() {
       CoroutineScope(Dispatchers.IO).launch {
         UploadService.pauseUploadUntil(null)
         try {
-          updateConnectionUi();
+          updateConnectionUi()
           val uploadSucceeded = dataManager.uploadData(null)
           runOnUiThread {
             uploadButton.isEnabled = true
@@ -396,7 +393,7 @@ class HomeScreenActivity : ComponentActivity() {
             uploadButton.text = "Upload Now"
           }
         }
-        updateConnectionUi();
+        updateConnectionUi()
       }
     }
   } // setupUI()

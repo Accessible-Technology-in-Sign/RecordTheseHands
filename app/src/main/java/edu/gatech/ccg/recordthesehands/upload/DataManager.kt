@@ -1696,6 +1696,11 @@ class DataManager(val context: Context) {
   }
 
   suspend fun downloadResource(resource: File): Boolean {
+    if (!resource.parentFile!!.exists()) {
+      Log.i(TAG, "creating directory for resource.")
+      resource.parentFile!!.mkdirs()
+    }
+
     val data = mapOf(
       "app_version" to APP_VERSION,
       "login_token" to dataManagerData.loginToken!!,
@@ -1719,7 +1724,7 @@ class DataManager(val context: Context) {
     } finally {
       fileOutputStream.close()
     }
-    Log.i(TAG, "downloaded resource $filepath with size ${resource.length()}")
+    Log.i(TAG, "downloaded resource $resource with size ${resource.length()}")
     return true
   }
 
@@ -1747,7 +1752,7 @@ class Prompt(val index: Int,
     val json = JSONObject()
     json.put("index", index)
     json.put("key", key)
-    json.put("promptType", promptType.toString())
+    json.put("type", type.toString())
     if (prompt != null) {
       json.put("prompt", prompt)
     }
@@ -1766,6 +1771,7 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
 
   var array = ArrayList<Prompt>()
   var promptIndex = -1
+  var useSummaryPage = false
 
   suspend fun initialize(): Boolean {
     Log.i(TAG, "Getting prompt data with key ${promptsFilenameKey}.")
@@ -1783,19 +1789,22 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
       for (i in 0..promptsJsonArray.length() - 1) {
         val data = promptsJsonArray.getJSONObject(i)
         val key = data.getString("key")
-        val promptType = PromptType.TEXT
-        if (data.has("promptType") {
-          promptType = PromptType.valueOf(data.getString("promptType"))
+        var promptType = PromptType.TEXT
+        if (data.has("type")) {
+          promptType = PromptType.valueOf(data.getString("type"))
         }
-        val prompt: String? = null
-        if (data.has("prompt") {
+        var prompt: String? = null
+        if (data.has("prompt")) {
           prompt = data.getString("prompt")
         }
         val resourcePath: String? = null
-        if (data.has("resourcePath") {
+        if (data.has("resourcePath")) {
           prompt = data.getString("resourcePath")
         }
         array.add(Prompt(i, key, promptType, prompt, resourcePath))
+      }
+      if (promptsJson.has("useSummaryPage")) {
+        useSummaryPage = promptsJson.getBoolean("useSummaryPage")
       }
     } catch (e: JSONException) {
       Log.e(TAG, "failed to load prompts, encountered JSONException $e")

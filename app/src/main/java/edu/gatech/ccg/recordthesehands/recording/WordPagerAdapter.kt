@@ -40,13 +40,21 @@ import java.io.IOException
 import java.util.*
 import kotlin.collections.HashMap
 
+/**
+ * The Adapter for swiping through the prompts.  The name "Word" is in
+ * reference to the original prompts which were single words.
+ */
 class WordPagerAdapter(
   private var recordingActivity: RecordingActivity,
+  private val useSummaryPage: Boolean,
 ) : FragmentStateAdapter(recordingActivity) {
 
   val numPromptPages = recordingActivity.sessionLimit - recordingActivity.sessionStartIndex
   override fun getItemCount(): Int {
-    return numPromptPages + 2
+    if (useSummaryPage) {
+      return numPromptPages + 2
+    }
+    return numPromptPages + 1
   }
 
   override fun createFragment(position: Int): Fragment {
@@ -54,7 +62,7 @@ class WordPagerAdapter(
     if (position < numPromptPages) {
       // TODO Add the videos back in.
       val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
-      return WordPromptFragment(prompt, R.layout.word_prompt, false)
+      return WordPromptFragment(prompt, R.layout.word_prompt)
     } else if (position == numPromptPages) {
       return SaveRecordingFragment(R.layout.save_record)
     } else {
