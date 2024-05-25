@@ -1,118 +1,106 @@
 ![app-icon-updated](https://github.com/Accessible-Technology-in-Sign/RecordTheseHands/assets/1849924/80c0241b-4d86-4710-8012-1c17032e6538)
 
 # Record These Hands!
-© 2021&ndash;2023 Georgia Institute of Technology / 
-Center for Accessible Technology in Sign (GT-CATS)<br>
+
+© 2021&ndash;2024 Georgia Institute of Technology /
+Center for Accessible Technology in Sign (GT-CATS) / Google LLC<br>
 Licensed under the MIT license.
 
 Principal authors:
 
-* Sahir Shahryar (sahirshahryar@gmail.com)
-* Matthew So (matthew.so@gatech.edu)
+*   Sahir Shahryar (sahirshahryar@gmail.com)
+*   Manfred Georg (mgeorg@google.com)
+*   Matthew So (matthew.so@gatech.edu)
 
-Instruction videos provided by the [Deaf Professional Arts Network (DPAN)](https://dpan.tv).
+Instruction videos provided by the
+[Deaf Professional Arts Network (DPAN)](https://dpan.tv).
 
 ## About
-*Record These Hands!* is an Android app that researchers can use to
-collect sign language training data from Deaf and hard-of-hearing (DHH)
-volunteers. An earlier version of the app, titled ASLRecorder, was used to
-collect data to train machine learning models for 
-[PopSignAI](https://www.popsign.org/), a bubble shooter game that hearing 
-parents of Deaf children can use to learn the basics of American Sign
-Language.
 
-The data collected using this app was also used for a 
+*Record These Hands!* is an Android app that researchers can use to collect sign
+language training data from Deaf and hard-of-hearing (DHH) volunteers. An
+earlier version of the app, titled ASLRecorder, was used to collect data to
+train machine learning models for [PopSignAI](https://www.popsign.org/), a
+bubble shooter game that hearing parents of Deaf children can use to learn the
+basics of American Sign Language.
+
+The data collected using this app was also used for a
 [Kaggle machine learning competition](https://www.kaggle.com/competitions/asl-signs)
 sponsored by Google, with the intent of using the best-performing model directly
-within PopSignAI. The Kaggle competition and PopSignAI received 
-[a brief mention](https://www.youtube.com/watch?v=r8T0SnwHRNI&t=3965s) at
-the Google I/O &rsquo;23 Developer Keynote. To learn more about the dataset 
-and how we went about collecting it, please see our paper on the subject,
-*PopSign ASL v1.0: An Isolated American Sign Language Dataset Collected 
-via Smartphones* (arXiv link available shortly).
+within PopSignAI. The Kaggle competition and PopSignAI received
+[a brief mention](https://www.youtube.com/watch?v=r8T0SnwHRNI&t=3965s) at the
+Google I/O &rsquo;23 Developer Keynote. To learn more about the dataset and how
+we went about collecting it, please see our paper on the subject, *PopSign ASL
+v1.0: An Isolated American Sign Language Dataset Collected via Smartphones*
+(arXiv link available shortly).
 
 This updated version of ASLRecorder has a few improvements over the original
-app, and it has been cleaned up to make it possible for researchers to get a 
-running start when collecting their own sign language datasets.  It is named
-*Record These Hands!* in honor of a 
+app, and it has been cleaned up to make it possible for researchers to get a
+running start when collecting their own sign language datasets. It is named
+*Record These Hands!* in honor of a
 [popular song by Sean Forbes](https://www.youtube.com/watch?v=7lQx1f5lEFo), who
 is a cofounder of DPAN. He and several people working at DPAN collaborated
 extensively with students at the Georgia Institute of Technology and the
 Rochester Institute of Technology to make PopSignAI possible.
 
 ## How it works
-The app has been designed around the model of lending volunteers an Android
-smartphone which is signed into a temporary Google account. This is because we
-use Google Photos&rsquo; backup feature to handle the uploading of recorded videos
-to the Internet. Doing so allowed us to skip the process of maintaining our own
-servers and writing complex handler code for uploads, and it also allows the user
-the convenience of uploading photos when the app is closed. However, since the
-entire photo library gets backed up to an account that should be accessible to 
-researchers, **this app is not intended for volunteers to install on their 
-personal devices**. 
 
-In the process of  collecting the dataset for PopSign, we distributed 
-Google Pixel 4as with pre-provisioned accounts created specifically for data
-capture.
+The app communicates with a Google Cloud Platform server (code is in the server
+directory). This server must be setup before the app is able to function. The
+app routinely queries the server for directives which allow for the
+configuration and reconfiguration of the device without physically needing to
+attend to it. The videos the participant records are automatically uploaded to
+the server (and deleted from the device once upload is verified). No internet
+connection is required during data collection. Metadata and video data will be
+stored on the device until it can be uploaded to the server once an internet
+connection is established.
 
-* Users enter the app and see a simple home screen showing how many recordings
-they've done so far, as well as the signs they'll record in the next session.
-The user's ID, which is included in the filename for all videos they record,
-is based on the phone's signed-in Google account, or a random number is used if
-the user denies permission to access contacts.
-* When the user presses "Start", the camera opens and begins recording. Users
-see a prompt at the top of the screen telling them which sign they should
-record, as well as an instructional video (as some signs can have several 
-variations that mean the same thing, or the English word presented to the 
-user can have several different meanings). The user can tap the video to
-expand it.
-* Users hold down the "Record" button, sign the word presented to them, and
-then release the "Record" button. The app swipes to the next word, and they
-can continue. Users can page freely back and forth between words. Rather
-than making a video file for each word signed, the app records continuously
-and we instead keep track of the timestamps when the user pressed and released
-the Record button. This is done so that we can accommodate users who press the 
-Record button too late (or release it too early) by simply adjusting the 
-timestamps. 
-* For each video, we generate a corresponding thumbnail image. The timestamps
-are encoded into the EXIF metadata of this thumbnail, so that we can upload
-the timestamps to Google Photos too (via the image). Code for generating 
-clips from a recording and its timestamp info can be found in the `scripts` 
-folder.
-* We keep track of how many times each user has recorded each sign. You can
-customize how many words are chosen per recording session, as well as how
-many recordings of each word the user should do (across all of their sessions),
-by changing the `WORDS_PER_SESSION` and `RECORDINGS_PER_WORD` values in
-`Constants.kt`. 
-* The app chooses which words the user will sign next at random from the set
-of least frequently-recorded words. This ensures that, by the time they finish,
-the user will have recorded at least `RECORDINGS_PER_WORD` clips for every
-word.
-* The app can be configured to send confirmation emails to an observer inbox.
-This allows the person who recruited the volunteers to keep track of each
-volunteer's progress. See the **Enabling confirmation emails** section below
-for more info. **No APK available for download in the Releases section of
-this repository has this functionality enabled**, as the credentials needed 
-to enable this feature must be present at compile time.
+The intended use case is to have researchers provide devices to participants
+that are preloaded and configured for a data collection. Ideally, the
+participant would connect the device to their wifi so that videos and metadata
+are uploaded while the device is out in the field. This data can be monitored
+from the server website. Once the participant has completed their data
+collection they would return the device and the researchers can verify that all
+data has been uploaded.
 
-## Defining your own signs to record
-You can change which words volunteers need to sign by modifying the string array
-named `"all"` inside `app/src/main/res/values/strings.xml`. If you want the
-app to display corresponding tutorial videos, you should replace the video files
-within `app/src/main/assets/videos/`. Each video file should be named exactly
-the same as the word inside `strings.xml` (plus `.mp4`); for example, 
-the word `"french fries"` should have a video file named `french fries.mp4`.
+Please be aware that data is stored in the local filesystem and uninstalling the
+app will completely erase all local data.
+
+The data collection process proceeds as follows. * Users enter the app and see a
+simple home screen showing their progress. * Generally the app would be
+configured to be in "tutorial" mode. Which has a separate set of prompts which
+can be used for training purposes and will be uploaded and stored to a separate
+part of the database. This data would generally be ignored, as it generally
+includes conversation with the researcher and any other training setup and
+mistakes which might happen. * When the user presses "Start", the camera opens
+and begins recording. Users see a prompt at the top of the screen letting them
+know what to sign. * Note that the app records continously and simply keeps
+track of the timestamp of all events such as button presses. If the participant
+wishes to end the session they can do that at any time by closing the app (at
+which point the partial session video will be saved on device). * on each prompt
+page, the participant presses "START" then signs. If a mistake is made, then
+they can press "MISTAKE RESTART" and sign again. When they are stisfied with
+what they have signed, they swipe their finger from right to left to get to the
+next prompt. * The app can be configured to send confirmation emails to an
+observer inbox. This allows the researcher to keep track of each participant's
+progress. See the **Enabling confirmation emails** section below for more info.
+
+## Defining your own prompts
+
+The scripts to generate prompt files and upload them to the server are in the
+server/collector directory. Image and Videos can be provided in the prompts.
 
 ## Enabling confirmation e-mails
+
 To enable the sending of confirmation emails when a user completes a recording
 session, you should add the following resources. Although these values can be
-placed in any string resource file, we recommend creating a new file, such as
-`app/src/main/res/values/credentials.xml`, and adding that file to your 
-`.gitignore` in case you want to open-source your code. (Don't ask why we 
-know that! 😅)
+placed in any string resource file, we recommend creating the file
+`app/src/main/res/values/credentials.xml`, and ensuring that file is in your
+`.gitignore` so it will not be uploaded to the repository.
 
 ```xml
 <resources>
+    <string name="backend_server">https://localhost:8050</string>
     <string name="confirmation_email_sender">example@gmail.com</string>
     <string name="confirmation_email_password">abcdefghijklmnop</string>
     <string-array name="confirmation_email_recipients">
@@ -122,47 +110,32 @@ know that! 😅)
 ```
 
 The `confirmation_email_sender` should be a Gmail account with two-factor
-authentication enabled, and `confirmation_email_password` should be an 
-[app password](https://support.google.com/accounts/answer/185833?hl=en)
-for that account. You can add as many emails as you want to the 
-`confirmation_email_recipients` array, though you should note that
-adding too many emails to this list can cause you to hit
+authentication enabled, and `confirmation_email_password` should be an
+[app password](https://support.google.com/accounts/answer/185833?hl=en) for that
+account. You can add as many emails as you want to the
+`confirmation_email_recipients` array, though you should note that adding too
+many emails to this list can cause you to hit
 [Gmail's limits](https://support.google.com/mail/answer/22839?hl=en).
 
-If you want to use another email service or your own SMTP server, you can
-tweak the `sendEmail()` function in `Utilities.kt`.
+If you want to use another email service or your own SMTP server, you can tweak
+the `sendEmail()` function in `Utilities.kt`.
 
 ## Using RecordTheseHands with tablets
-As of v1.3, the app supports being used on tablets in landscape mode. As of right now, the
-app is configured to use tablet mode on any display larger than 7 inches in size, as determined
-by the built-in methods for screen resolution and pixel density in the Android SDK.
 
-In the tablet mode, rather than the user holding down the "Record" button, they press the button
-once to start a recording, then press it again to stop the recording and automatically swipe to the
-next phrase. The video orientation has been determined experimentally for the Google Pixel Tablet
-(2023) &mdash; [shown here](https://www.theverge.com/23765921/google-pixel-tablet-review) &mdash;
-which is designed to be used in one specific orientation (USB-C charging port to the left) while
-attached to the included stand. Other tablets may run into issues, as the app has not been set up
-to handle any other orientations. However, if you wish to use other tablets or other orientations,
-all of the code for handling tablet-specific logic is located in 
-`app/src/main/java/edu/gatech/ccg/recordthesehands/recording/RecordingActivity.kt`, with the layout
-code in `app/src/main/res/layout/activity_record_tablet.xml`. (In `RecordingActivity.kt`, search
-for `isTablet` &mdash; all of the logic specific to tablets is gated under that value.) 
+As of v1.3, the app supports being used on tablets in landscape mode. As of
+right now, the app is configured to use tablet mode on any display larger than 7
+inches in size, as determined by the built-in methods for screen resolution and
+pixel density in the Android SDK.
 
-## Using per-user custom phrases
-The app includes, as of v1.3, an option to load a custom phrase file for each user. The strings
-located in the `"all"` string array inside the `app/src/main/res/values/strings.xml` file are 
-common to all users, but you can additionally generate plaintext files that can be loaded into the
-app. A "Load Phrases" button is present in the app until a file has been selected; once selected,
-the button will disappear until the app is deleted and reinstalled.
-
-Your file should be a simple `.txt` file with each phrase on its own line. Internally, the app uses
-a `StringSet` to store the phrases, so any duplicate phrases will be ignored. Avoid using blank
-lines in your text file.
-
-To disable this functionality, build the app with `PERMIT_CUSTOM_PHRASE_LOADING = false` in 
-`app/src/main/java/edu/gatech/ccg/recordthesehands/Constants.kt`.
+The video orientation has been determined experimentally for the Google Pixel
+Tablet (2023) &mdash;
+[shown here](https://www.theverge.com/23765921/google-pixel-tablet-review)
+&mdash; which is designed to be used in one specific orientation (USB-C charging
+port to the left) while attached to the included stand. Other tablets may run
+into issues, as the app has not been set up to handle any other orientations.
 
 ## Feedback
-If you have some feedback or would like to contribute to the app, please feel free to reach out to 
-us, or to submit issues or pull requests! We'll do our best to respond promptly.
+
+If you have some feedback or would like to contribute to the app, please feel
+free to reach out to us, or to submit issues or pull requests! We'll do our best
+to respond promptly.
