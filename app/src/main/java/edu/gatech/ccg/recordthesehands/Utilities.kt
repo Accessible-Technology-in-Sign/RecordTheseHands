@@ -1,12 +1,7 @@
 /**
- * Utilities.kt
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-23
- *   Georgia Institute of Technology
- *   Authors:
- *     Sahir Shahryar <contact@sahirshahryar.com>
- *     Matthew So <matthew.so@gatech.edu>
+ * Copyright (c) 2023-2024
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

@@ -1,5 +1,4 @@
 /**
- * VideoPreviewFragment.kt
  * This file is part of Record These Hands, licensed under the MIT license.
  *
  * Copyright (c) 2021-2024
