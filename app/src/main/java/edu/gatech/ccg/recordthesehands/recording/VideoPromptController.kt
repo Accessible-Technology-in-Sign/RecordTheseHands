@@ -30,6 +30,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.SurfaceHolder
 import android.widget.VideoView
+import androidx.constraintlayout.widget.ConstraintLayout
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
 import java.io.FileInputStream
@@ -42,6 +43,7 @@ class VideoPromptController(
   private val activity: RecordingActivity?,
   private val videoView: VideoView,
   private var videoPath: String,
+  private val setConstraint: Boolean,
 ) : SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
 
   companion object {
@@ -120,7 +122,7 @@ class VideoPromptController(
       createFileInputStream()
       if (fileInputStream != null) {
         it.setDataSource(fileInputStream!!.fd)
-        it.setOnPreparedListener(this@VideoPromptController)
+        it.setOnPreparedListener(this)
         it.prepareAsync()
       }
     }
@@ -172,13 +174,19 @@ class VideoPromptController(
   }
 
   /**
-   * This function is called since we used `setOnPreparedListener(this@VideoPromptController)`.
-   * When the video file is ready, this function makes it so that the video loops and then starts
-   * playing back.
+   * This function is called when the video file is ready, this function makes it so that
+   * the video loops and then starts playing back.
    */
   override fun onPrepared(mp: MediaPlayer?) {
     mp?.let {
       it.isLooping = true
+      if (setConstraint) {
+        val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
+        val constraint = "${layoutParams.dimensionRatio[0]},${it.videoWidth}:${it.videoHeight}"
+        Log.d(TAG, "Setting video constraint to ${constraint}")
+        layoutParams.dimensionRatio = constraint
+        videoView.requestLayout()
+      }
       it.start()
     }
   }

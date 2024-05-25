@@ -786,6 +786,7 @@ class DataManager(val context: Context) {
       }
     } catch (e: IOException) {
       Log.e(TAG, "Get request failed: $e")
+      return false
     } finally {
       urlConnection.disconnect()
     }
@@ -1024,7 +1025,7 @@ class DataManager(val context: Context) {
       }
 
     val filesJson = JSONArray()
-    json.put("files", filesJson)
+    json.put("registeredFiles", filesJson)
     context.registerFileStore.data
       .map {
         it.asMap().entries
@@ -1035,6 +1036,17 @@ class DataManager(val context: Context) {
           filesJson.put(entryJson)
         }
       }
+
+    val localFilesJson = JSONArray()
+    json.put("localFiles", localFilesJson)
+    context.filesDir.walk().forEach {
+      if (it.isFile()) {
+        val entryJson = JSONObject(it.path)
+        entryJson.put("path", it.path)
+        localFilesJson.put(entryJson)
+      }
+    }
+
     json.put("prompts", getPrompts()?.toJson())
 
     val url = URL(getServer() + "/save_state")
@@ -1087,36 +1099,6 @@ class DataManager(val context: Context) {
       Log.e(
         TAG,
         "Unable to upload keys.  Will try again later."
-      )
-      return false
-    }
-  }
-
-  private suspend fun tryUploadKeyValue(entry: Map.Entry<Preferences.Key<*>, Any>): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("tryUploadKeyValue interrupted.")
-    }
-    Log.i(TAG, "Uploading key: \"${entry.key}\"")
-    val url = URL(getServer() + "/save")
-    val (code, unused) =
-      serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "login_token" to dataManagerData.loginToken!!,
-          "key" to entry.key.name,
-          "value" to entry.value as String
-        )
-      )
-    if (code >= 200 && code < 300) {
-      context.dataStore.edit { preferences ->
-        preferences.remove(entry.key)
-      }
-      return true
-    } else {
-      Log.e(
-        TAG,
-        "Unable to upload key \"${entry.key}\", value \"${entry.value}\".  Will try again later."
       )
       return false
     }
@@ -1384,6 +1366,12 @@ class DataManager(val context: Context) {
       if (!directiveCompleted(id)) {
         return false
       }
+    } else if (op == "deleteResources") {
+      val resourceDir = File(context.filesDir, "resource")
+      resourceDir.deleteRecursively()
+      if (!directiveCompleted(id)) {
+        return false
+      }
     } else if (op == "uploadState") {
       if (uploadState()) {
         if (!directiveCompleted(id)) {
@@ -1412,7 +1400,7 @@ class DataManager(val context: Context) {
       Log.i(TAG, "creating directory ${filepath.parentFile}.")
       filepath.parentFile!!.mkdirs()
     }
-    Log.i(TAG, "downloading prompt data to $filepath")
+    Log.i(TAG, "downloading prompt data to $filepath (useTutorialMode = ${useTutorialMode})")
     val (code, data) = serverFormPostRequest(
       url,
       mapOf(
@@ -1543,7 +1531,7 @@ class DataManager(val context: Context) {
 
   fun logToServerAtTimestamp(timestamp: String, message: String) {
     CoroutineScope(Dispatchers.IO).launch {
-      addKeyValue("log-$timestamp", message)
+      addKeyValue("log-$timestamp", message, "log")
     }
   }
 
@@ -1555,21 +1543,23 @@ class DataManager(val context: Context) {
    * No data will be sent to the server unless persistData() is called (which stores a snapshot
    * of the key values to a dataStore).
    */
-  suspend fun addKeyValue(key: String, value: String) {
+  suspend fun addKeyValue(key: String, value: String, partition: String) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("message", value)
+    saveJson.put("partition", partition)
     dataManagerData.lock.withLock {
       dataManagerData.keyValues[key] = saveJson
     }
   }
 
-  suspend fun addKeyValue(key: String, json: JSONObject) {
+  suspend fun addKeyValue(key: String, json: JSONObject, partition: String) {
     Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("data", json)
+    saveJson.put("partition", partition)
     dataManagerData.lock.withLock {
       dataManagerData.keyValues[key] = saveJson
     }
@@ -1585,8 +1575,9 @@ class DataManager(val context: Context) {
   /**
    * Persist the key value and registered files data and upload it to the server when convenient.
    *
-   * If addKeyValue is called while this function is executing then either of the new or old
-   * values may be persisted.  The data will be deleted from
+   * This function doesn't return until the data has been persisted to disk.  During that time
+   * this function will hold the dataManagerData lock which means all calls to addKeyValue and
+   * registerFile will block until this function is done.
    */
   suspend fun persistData() {
     dataManagerData.lock.withLock {
@@ -1672,7 +1663,9 @@ class DataManager(val context: Context) {
   }
 
   suspend fun ensureResources(prompts: Prompts): Boolean {
+    Log.i(TAG, "ensureResources")
     for (prompt in prompts.array) {
+      Log.d(TAG, "prompt ${prompt.toJson()}")
       if (prompt.resourcePath != null) {
         if (!ensureResource(prompt.resourcePath)) {
           Log.e(TAG, "failed to acquire resource ${prompt.resourcePath}")
@@ -1684,30 +1677,35 @@ class DataManager(val context: Context) {
   }
 
   suspend fun ensureResource(resourcePath: String): Boolean {
+    Log.d(TAG, "ensureResource: resourcePath ${resourcePath}")
     if (!resourcePath.startsWith("resource/")) {
       Log.e(TAG, "resource path does not start with \"resource/\" ${resourcePath}")
       return false
     }
     val resource = File(context.filesDir, resourcePath)
     if (resource.exists()) {
+      Log.d(TAG, "ensureResource: resource already exists ${resource}")
       return true
     }
-    return downloadResource(resource)
+    return downloadResource(resourcePath)
   }
 
-  suspend fun downloadResource(resource: File): Boolean {
+  suspend fun downloadResource(resourcePath: String): Boolean {
+    val resource = File(context.filesDir, resourcePath)
     if (!resource.parentFile!!.exists()) {
       Log.i(TAG, "creating directory for resource.")
       resource.parentFile!!.mkdirs()
     }
 
+    var deleteFile = false
     val data = mapOf(
       "app_version" to APP_VERSION,
       "login_token" to dataManagerData.loginToken!!,
+      "path" to resourcePath,
     )
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
-    }.joinToString("&").toByteArray(Charsets.UTF_8)
+    }.joinToString("&")
     // TODO make sure this doesn't get logged anywhere.
     // I'd be more comfortable with this if we used the POST method.
     val url = URL(getServer() + "/resource?" + formData)
@@ -1718,11 +1716,18 @@ class DataManager(val context: Context) {
       if (!serverGetToFileRequest(
           url,
           emptyMap(),
-          fileOutputStream)) {
+          fileOutputStream
+        )
+      ) {
+        deleteFile = true
         return false
       }
     } finally {
       fileOutputStream.close()
+      if (deleteFile) {
+        Log.i(TAG, "Deleting file ${resource} that wasn't successfully downloaded.")
+        resource.delete()
+      }
     }
     Log.i(TAG, "downloaded resource $resource with size ${resource.length()}")
     return true
@@ -1797,9 +1802,9 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
         if (data.has("prompt")) {
           prompt = data.getString("prompt")
         }
-        val resourcePath: String? = null
+        var resourcePath: String? = null
         if (data.has("resourcePath")) {
-          prompt = data.getString("resourcePath")
+          resourcePath = data.getString("resourcePath")
         }
         array.add(Prompt(i, key, promptType, prompt, resourcePath))
       }

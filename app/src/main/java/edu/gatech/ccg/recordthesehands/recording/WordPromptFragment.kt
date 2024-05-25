@@ -30,6 +30,7 @@ package edu.gatech.ccg.recordthesehands.recording
 
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -51,34 +52,47 @@ class WordPromptFragment(
   private var prompt: Prompt, @LayoutRes layout: Int,
 ) : Fragment(layout) {
 
+  companion object {
+    private val TAG = VideoPromptController::class.java.simpleName
+  }
+
+  var videoPromptController: VideoPromptController? = null
+
   /**
    * Lay out the UI for this fragment.
    */
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
 
-    // Set the heading for the UI as the word
     val textView = view.findViewById<TextView>(R.id.promptText)
     if (prompt.prompt != null) {
+      Log.d(TAG, "setting prompt to ${prompt.prompt}")
       textView.text = prompt.prompt
+      textView.visibility = View.VISIBLE
     } else {
-      textView.visibility = View.INVISIBLE
+      Log.d(TAG, "no prompt available for ${prompt.key}.")
+      textView.visibility = View.GONE
     }
 
     when (prompt.type) {
       PromptType.TEXT -> {
       }
       PromptType.IMAGE -> {
+        Log.d(TAG, "Rendering Image for ${prompt.key}.")
         if (prompt.resourcePath != null) {
+          Log.d(TAG, "resourcePath ${prompt.resourcePath}.")
           val imageView = view.findViewById<ImageView>(R.id.promptImage)
           val filepath = File(requireContext().filesDir, prompt.resourcePath)
           imageView.setImageURI(Uri.fromFile(filepath))
+          imageView.visibility = View.VISIBLE
         }
       }
       PromptType.VIDEO -> {
         if (prompt.resourcePath != null) {
           val videoView = view.findViewById<VideoView>(R.id.promptVideo)
-          VideoPromptController(requireContext(), null, videoView, prompt.resourcePath!!)
+          videoPromptController = VideoPromptController(
+              requireContext(), null, videoView, prompt.resourcePath!!, true)
+          videoView.visibility = View.VISIBLE
         }
       }
     }

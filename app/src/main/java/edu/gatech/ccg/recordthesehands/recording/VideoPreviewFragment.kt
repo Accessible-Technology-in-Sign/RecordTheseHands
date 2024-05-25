@@ -59,6 +59,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   }
 
   /**
+   * The video view in which to run the video.
+   */
+  private lateinit var videoView: VideoView
+
+  /**
    * The controller for playing back the video.
    */
   private var mediaPlayer: MediaPlayer? = null
@@ -114,9 +119,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       fileInputStream = FileInputStream(filepath)
     }
     Log.d(TAG, "Playing video from $filepath")
-    //Log.d(TAG, "file exists: " + filepath.exists().toString())
-    //Log.d(TAG, "file readable: " + filepath.canRead().toString())
-    //Log.d(TAG, "file length: " + filepath.length().toString())
 
     startTimeMs = arguments?.getLong("startTimeMs") ?: 0
     endTimeMs = arguments?.getLong("endTimeMs") ?: 0
@@ -146,18 +148,9 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     Log.d(TAG, "onViewCreated")
 
     // Set the video UI
-    val videoView = view.findViewById<VideoView>(R.id.videoPreview)
+    videoView = view.findViewById<VideoView>(R.id.videoPreview)
     videoView.holder.addCallback(this)
     videoView.visibility = View.VISIBLE
-
-    val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
-    if (landscape) {
-      layoutParams.dimensionRatio = "H,16:9"
-    } else if (isTablet) {
-      layoutParams.dimensionRatio = "H,4:3"
-    } else {
-      layoutParams.dimensionRatio = "H,3:4"
-    }
 
     if (prompt != null) {
       // Sets the title text for the video
@@ -227,6 +220,13 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     Log.d(TAG, "onPrepared")
     mp?.let {
       it.isLooping = true
+
+      val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
+      val constraint = "${layoutParams.dimensionRatio[0]},${it.videoWidth}:${it.videoHeight}"
+      Log.d(TAG, "Setting video constraint to ${constraint}")
+      layoutParams.dimensionRatio = constraint
+      videoView.requestLayout()
+
       it.seekTo(startTimeMs.toInt())
       it.start()
     }

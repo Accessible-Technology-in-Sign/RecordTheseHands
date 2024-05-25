@@ -77,7 +77,7 @@ import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordTabletBinding
+import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -190,7 +190,7 @@ suspend fun DataManager.saveClipData(clipDetails: ClipDetails) {
   val json = clipDetails.toJson()
   // Use a consistent key based on the clipId so that any changes to the clip
   // will be updated on the server.
-  addKeyValue("clipData-${clipDetails.clipId}", json)
+  addKeyValue("clipData-${clipDetails.clipId}", json, "clip")
 }
 
 fun Random.Default.nextHexId(numBytes: Int): String {
@@ -257,7 +257,7 @@ class RecordingSessionInfo(
 suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
   val json = sessionInfo.toJson()
   // Use a consistent key so that any changes will be updated on the server.
-  addKeyValue("sessionData-${sessionInfo.sessionId}", json)
+  addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session")
 }
 
 /**
@@ -287,11 +287,6 @@ class RecordingActivity : AppCompatActivity() {
     private const val RECORDING_FRAMERATE = 30
 
     private const val MAXIMUM_RESOLUTION = 6_000_000
-
-    /**
-     * Whether or not an instructional video should be shown to the user.
-     */
-    private const val SHOW_INSTRUCTION_VIDEO = false
 
     /**
      * The length of the countdown (in milliseconds), after which the recording will end
@@ -347,12 +342,6 @@ class RecordingActivity : AppCompatActivity() {
    * The recording preview.
    */
   lateinit var cameraView: SurfaceView
-
-  /**
-   * The instructional video, if [SHOW_INSTRUCTION_VIDEO] is true. If false, this value will
-   * be null.
-   */
-  private var tutorialView: VideoPromptController? = null
 
   // UI state variables
   /**
@@ -1010,7 +999,7 @@ class RecordingActivity : AppCompatActivity() {
       val json = JSONObject()
       json.put("filename", filename)
       json.put("startTimestamp", sessionStartTime)
-      dataManager.addKeyValue("recording_started-${timestamp}", json)
+      dataManager.addKeyValue("recording_started-${timestamp}", json, "recording")
     }
 
     setButtonState(recordButton, true)
@@ -1144,7 +1133,7 @@ class RecordingActivity : AppCompatActivity() {
         val json = JSONObject()
         json.put("filename", filename)
         json.put("endTimestamp", timestamp)
-        dataManager.addKeyValue("recording_stopped-${timestamp}", json)
+        dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
         dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
         prompts.savePromptIndex()
         sessionInfo.endTimestamp = now
@@ -1189,13 +1178,8 @@ class RecordingActivity : AppCompatActivity() {
     Log.i(TAG, "Computed screen size: $diagonal inches")
 
     val binding: ViewBinding
-    if (diagonal > TABLET_SIZE_THRESHOLD_INCHES) {
-      isTablet = true
-      binding = ActivityRecordTabletBinding.inflate(this.layoutInflater)
-    } else {
-      // TODO Remove the phone layout and rename tablet layout.
-      binding = ActivityRecordTabletBinding.inflate(this.layoutInflater)
-    }
+    isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
+    binding = ActivityRecordBinding.inflate(this.layoutInflater)
 
     val view = binding.root
     setContentView(view)
@@ -1255,15 +1239,6 @@ class RecordingActivity : AppCompatActivity() {
     setButtonState(finishedButton, false)
 
     sessionPager.adapter = WordPagerAdapter(this, prompts.useSummaryPage)
-
-    if (SHOW_INSTRUCTION_VIDEO) {
-      // TODO This is broken.  Add in ability to download videos and show them.
-      val videoView: VideoView = findViewById(R.id.demoVideo)
-      tutorialView = VideoPromptController(applicationContext, this, videoView, "")
-    } else {
-      val videoView: VideoView = findViewById(R.id.demoVideo)
-      videoView.visibility = View.GONE
-    }
 
     // Set up swipe handler for the word selector UI
     sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {

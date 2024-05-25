@@ -10,12 +10,12 @@
         android:id="@+id/promptView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="28dp"
-        android:layout_marginEnd="20dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="12dp"
         android:layout_marginBottom="-12dp"
         android:background="@drawable/rectangle"
-        app:layout_constraintBottom_toBottomOf="@+id/promptText"
+        app:layout_constraintBottom_toBottomOf="@+id/promptBarrier"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" >
@@ -23,35 +23,54 @@
 
     <TextView
         android:id="@+id/promptText"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="28dp"
-        android:layout_marginEnd="28dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginStart="12sp"
+        android:layout_marginEnd="12sp"
+        android:layout_marginTop="8sp"
         android:fontFamily="sans-serif-medium"
         android:text="Prompt Text."
         android:textColor="@android:color/black"
         android:textSize="34sp"
         app:layout_constraintStart_toStartOf="@+id/promptView"
+        app:layout_constraintEnd_toStartOf="@+id/rightBarrier"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
 
     <ImageView
         android:id="@+id/promptImage"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="0dp"
+        android:layout_height="100dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:scaleType="fitEnd"
+        android:adjustViewBounds="true"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
 
     <VideoView
         android:id="@+id/promptVideo"
-        android:layout_width="wrap_content"
-        android:layout_height="0dp"
-        android:layout_marginTop="0dp"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
         android:visibility="gone"
-        app:layout_constraintDimensionRatio="H,3:4"
+        app:layout_constraintDimensionRatio="W,16:9"
         app:layout_constraintEnd_toEndOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/promptBarrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="promptText,promptImage,promptVideo" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/rightBarrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="start"
+        app:constraint_referenced_ids="promptImage,promptVideo" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

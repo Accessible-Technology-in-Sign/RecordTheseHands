@@ -18,6 +18,35 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
+        android:id="@+id/versionText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginBottom="3dp"
+        android:text="v1.0"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@+id/header"
+        app:layout_constraintStart_toEndOf="@+id/header" />
+
+    <TextView
+        android:id="@+id/loadingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="Loading App Data..."
+        android:textSize="30sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@+id/header"
+        app:layout_constraintTop_toBottomOf="@+id/header" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/mainGroup"
+        android:layout_width="wrap_content"
+        android:visibility="visible"
+        app:constraint_referenced_ids="deviceIdLabel,deviceIdBox,usernameLabel,usernameBox,internetConnectionText,serverConnectionText,statisticsHeader,completedPromptsBox,completedPromptsText1,completedPromptsText2,completedPromptsText3,totalPromptsBox,recordingCountBox,recordingCountText,recordingTimeBox,recordingTimeText,sessionCounterText,sessionCounterBox,uploadButton,exitTutorialModeButton,tutorialModeText"
+        android:layout_height="wrap_content"/>
+
+    <TextView
         android:id="@+id/deviceIdLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -273,15 +302,5 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <TextView
-        android:id="@+id/versionText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:layout_marginBottom="3dp"
-        android:text="v1.0"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="@+id/header"
-        app:layout_constraintStart_toEndOf="@+id/header" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

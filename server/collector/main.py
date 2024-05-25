@@ -108,6 +108,7 @@ class User(flask_login.UserMixin):
 @login_manager.user_loader
 def user_loader(username):
   """Load the user given an id."""
+  logging.debug('user_loader {username!r}')
   if not username:
     return None
   db = firestore.Client()
@@ -125,6 +126,7 @@ def user_loader(username):
 @login_manager.request_loader
 def request_loader(request):
   """Load a request, possibly logging the user in."""
+  logging.debug('request_loader {request!r}')
   login_token = request.values.get('login_token', '')
   is_valid_login, username, allow_webapp_access = check_login_token(login_token)
   if not is_valid_login:
@@ -323,7 +325,13 @@ def resource_page():
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
     return 'path had weird characters in it or too much depth.', 400
-  download_link = get_download_link(f'resource/{path}')
+
+  # Ensure the path starts with "resource/" but don't add it if it's
+  # already there.
+  if not path.startswith('resource/'):
+    path = 'resource/' + path
+
+  download_link = get_download_link(f'{path}')
 
   return flask.redirect(download_link, code=303)
 
@@ -804,15 +812,17 @@ def save():
     key = entry.get('key')
     if not key:
       return 'json entries malformed', 400
+    partition = entry.get('partition', 'default')
+    m = re.match(r'^[a-zA-Z0-9_-]+$', partition)
+    if not m:
+      logging.error(f'partition is badly formed {partition!r}')
+      return 'partition is badly formed', 400
     tutorial_mode = entry.get('tutorialMode', False)
-    log_suffix = ''
-    if key.startswith('log-'):
-      log_suffix = '_log'
     tutorial_mode_prefix = ''
     if tutorial_mode:
       tutorial_mode_prefix = 'tutorial_'
     doc_key = (f'collector/users/{username}/{tutorial_mode_prefix}data/'
-               f'save{log_suffix}/{key}')
+               f'save_{partition}/{key}')
     save = {
         'appVersion': app_version,
         'serverTimestamp': timestamp,

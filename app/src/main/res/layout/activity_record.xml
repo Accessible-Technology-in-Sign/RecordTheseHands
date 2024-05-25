@@ -131,16 +131,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <VideoView
-        android:id="@+id/demoVideo"
-        android:layout_width="0dp"
-        android:layout_height="84dp"
-        android:layout_marginTop="48dp"
-        android:layout_marginEnd="28dp"
-        app:layout_constraintDimensionRatio="H,9:16"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <TextView
         android:id="@+id/goText"
         android:layout_width="150dp"
