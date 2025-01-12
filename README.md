@@ -66,22 +66,23 @@ data has been uploaded.
 Please be aware that data is stored in the local filesystem and uninstalling the
 app will completely erase all local data.
 
-The data collection process proceeds as follows. * Users enter the app and see a
-simple home screen showing their progress. * Generally the app would be
-configured to be in "tutorial" mode. Which has a separate set of prompts which
+The data collection process proceeds as follows:
+- Users enter the app and see a simple home screen showing their progress. 
+    - Generally the app would be configured to be in "tutorial" mode. Which has a separate set of prompts which
 can be used for training purposes and will be uploaded and stored to a separate
 part of the database. This data would generally be ignored, as it generally
 includes conversation with the researcher and any other training setup and
-mistakes which might happen. * When the user presses "Start", the camera opens
+mistakes which might happen.
+- When the user presses "Start", the camera opens
 and begins recording. Users see a prompt at the top of the screen letting them
-know what to sign. * Note that the app records continously and simply keeps
-track of the timestamp of all events such as button presses. If the participant
-wishes to end the session they can do that at any time by closing the app (at
-which point the partial session video will be saved on device). * on each prompt
-page, the participant presses "START" then signs. If a mistake is made, then
-they can press "MISTAKE RESTART" and sign again. When they are stisfied with
-what they have signed, they swipe their finger from right to left to get to the
-next prompt. * The app can be configured to send confirmation emails to an
+know what to sign. 
+- Note that the app records continously and simply keeps track of the timestamp of all events such as button presses. If the participant wishes to end the session they can do that at any time by closing the app (at
+which point the partial session video will be saved on device). 
+- On each prompt page, the participant presses "START" then signs. If a mistake is made, then
+they can press "MISTAKE RESTART" and sign again. 
+- When they are satisfied with what they have signed, they swipe their finger from right to left to get to the
+next prompt. 
+- The app can be configured to send confirmation emails to an
 observer inbox. This allows the researcher to keep track of each participant's
 progress. See the **Enabling confirmation emails** section below for more info.
 
