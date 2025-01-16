@@ -1678,6 +1678,7 @@ class DataManager(val context: Context) {
 
   suspend fun ensureResource(resourcePath: String): Boolean {
     Log.d(TAG, "ensureResource: resourcePath ${resourcePath}")
+    // Bill: Why do we need things to be in resource/? Slightly confused about this
     if (!resourcePath.startsWith("resource/")) {
       Log.e(TAG, "resource path does not start with \"resource/\" ${resourcePath}")
       return false
@@ -1712,7 +1713,7 @@ class DataManager(val context: Context) {
 
     val fileOutputStream = FileOutputStream(resource.absolutePath)
     try {
-      Log.i(TAG, "downloading resource to $resource")
+      Log.i(TAG, "downloading resource (from url: $url) to $resource")
       if (!serverGetToFileRequest(
           url,
           emptyMap(),

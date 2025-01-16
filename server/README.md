@@ -66,10 +66,25 @@ to store personal info (such that web browsing information is not revealed).
         - This will allow this new user to access the Google Cloud Console pages and use command line tools for this project.
 
 ### Integrating the DPAN Server with RecordTheseHands
-This section will all be done locally within project code
+This section will all be done locally within project code (except for the last step)
 
-1. 
-2. Create Server Config:
+1. Install Google Cloud SDK: https://cloud.google.com/sdk/docs/install-sdk
+2. Set up Google Cloud within the Terminal
+    ```
+    gcloud auth login 
+    gcloud auth application-default login
+    gcloud init
+    gcloud auth application-default set-quota-project acronym-data
+    gcloud app create
+    ```
+    - Login with the same account you'll be using to administer the gcloud account with. This can be your personal account as long as permissions have been granted.
+    - When initializing the project:
+        - Use a project name of "acronym-data"
+        - Enter the project id: "acronym-data"
+    - Set the default quota for the project. This suppresses a bunch of warnings and might help access APIs
+    - When creating the app, pick a region such as us-central
+
+3. Create Server Config:
     - In `server/collector/`, copy `example_config.py` to `config.py`:
     ```
     cd server/collector
@@ -78,7 +93,7 @@ This section will all be done locally within project code
     - Edit config.py to use the project id "acronym-data" for the prod server and either the same for the dev server, or the dev project name if you're using one ("acronym-data-dev") [This is only if you are using two projects for production and development].
     ``
 
-3. Set Parameters in credentials.xml within the app
+4. Set Parameters in credentials.xml within the app
     - Copy the example credentials to `record_these_hands/app/src/main/res/values/credentials.xml`
     ```
     cp example_credentials.xml app/src/main/res/values/credentials.xml
@@ -90,11 +105,41 @@ This section will all be done locally within project code
         
         [//]: # (It should also be possible to use an app password/access token, which you should be able to generate in "manage account" -> "security" -> ??? but this feature has yet to be implemented)
 
-4. Deploy Server Cloud 
+5. Deploy the Server to Cloud 
+    ```
+    cd server/collector
+    source setup_local_env.sh
+    deploy_dev.sh
+    ```
+    - The local environment uses the apt-package manager to download google-cloud-sdk and python3-venv. If you are not on a Debian-based operating system and have google cloud / python installed, you can set up the local environment here. The pip commands install the necessary dependencies to run the python scripts.
+        ```
+        python3 -m venv APP_ENV_DIr
+        source APP_ENV_DIR/bin/activate
+        pip install -r requirements.txt
+        pip install gunicorn
+        ```
+    - `deploy_dev.sh` will take the python scripts in collector and upload it to the app engine
+
+6. Create a Secret (locally)
+    ```
+    source setup_local_env.sh 
+    token_maker.py
+    ```
+    - For the username, specify "admin"
+    - For the password, create a simple password (this will be something you will use everytime you are setting up a user account).
+    - Store both the login_token and the login_hash (including both username:hash)
+
+7. Go to the Secret Manager under the Security Manager (within the Google Cloud Console)
+    - Create a secret
+        - name: `admin_token_hash`
+        - Secret Value: login_hash from before (of form: `admin:hash`)
+    - Create another secret
+        - name: `app_secret_key`
+        - Secret Value: Use a random string, such as the output of `openssl rand -base64 30`. The output of this does not need to be stored
+        
 
 
 
-## Usage
 
     
 
