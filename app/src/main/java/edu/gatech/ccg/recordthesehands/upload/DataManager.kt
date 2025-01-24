@@ -1678,7 +1678,7 @@ class DataManager(val context: Context) {
 
   suspend fun ensureResource(resourcePath: String): Boolean {
     Log.d(TAG, "ensureResource: resourcePath ${resourcePath}")
-    // Bill: Why do we need things to be in resource/? Slightly confused about this
+    // Explicitly enforce that all resources are in resource/ in GCP bucket
     if (!resourcePath.startsWith("resource/")) {
       Log.e(TAG, "resource path does not start with \"resource/\" ${resourcePath}")
       return false
