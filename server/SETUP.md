@@ -123,6 +123,7 @@ This section will all be done locally within project code (except for the last s
         - Secret Value: Use a random string, such as the output of `openssl rand -base64 30`. The output of this does not need to be stored
 
 1. Now that RecordTheseHands has the token hash and backend server information, it can communicate with the DPAN Server. Compile RecordTheseHands using Android Studio and refer to [USAGE.md](USAGE.md) for further use.
+<<<<<<< HEAD
 
 > For any questions, please contact the developers
 
@@ -131,6 +132,11 @@ This section will all be done locally within project code (except for the last s
 
 
     
+=======
+
+> For any questions, please contact the developers
+
+>>>>>>> 6556dc8 (Updated SETUP.md to have correct dates, attribution, and numbering. Updated Usage.md to have correct numbering and additional information)
 
 
 
