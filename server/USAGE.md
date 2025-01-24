@@ -12,13 +12,13 @@ source {APP_ENV_DIR}/bin/activate
 ```
 where APP_ENV_DIR is where you installed the virtual environment.
 
-2. Copy any images and video files to the GCP bucket if necessary:
+1. Copy any images and video files to the GCP bucket if necessary:
 ```
 gsutil cp reference_video.mp4 gs://bucket-name/resource/path/to/file
 ```
 It is crucial that the reference images and files are under `/resource` as the RecordTheseHands app will not download any files unless it is under this directory. Otherwise the prompt will fail to download and no data will be collected for that prompt.
 
-3. Create the prompt text file in the format that follows:
+1. Create the prompt text file in the format that follows:
 
 ```
 TEXT CAPTION
@@ -27,13 +27,13 @@ VIDEO PATH/TO/VIDEO CAPTION
 ```
 The first word `TEXT/IMAGE/VIDEO` is the type of prompt you are creating. The PATH is the path to the file within the GCP bucket, not on the local machine. The CAPTION is shown to the user as text at the top of the screen.
 
-4. Convert the prompt text file to a *.json file used by RecordTheseHands:
+1. Convert the prompt text file to a *.json file used by RecordTheseHands:
 ```
 python phrases_to_prompts.py PREFIX prompt.txt
 ```
 The outputted file will be in format `prompts-PREFIX-TIMESTAMP.json`, and the location of the file is included within the output.
 
-5. Upload the prompt file to the DPAN Server:
+1. Upload the prompt file to the DPAN Server:
 ```
 gsutil cp prompt-file.json gs://bucket-name/prompts/path/to/file
 ```
@@ -53,7 +53,7 @@ source {APP_ENV_DIR}/bin/activate
 ```
 where APP_ENV_DIR is where you installed the virtual environment.
 
-2. Issue a directive:
+1. Issue a directive:
 ```
 python create_directive.py USERNAME OPERATION ARGS...
 ```
@@ -66,10 +66,13 @@ Valid operations:
 - `deleteFile` – Instructs the device to delete a file from local storage.
 - `setTutorialMode` – Enables a user to enter into tutorial mode
 - `cancel` – Marks a specific directive (by ID) as canceled.
-- `deleteUser` – Deletes all a user and all associated information with that user
+- `uploadState` - Directs the app to dump its diagnostic state to firestore for inspection / debugging.
+- `deleteUser` – Deletes a user and all associated information with that user
+- `changeUser` - Update the user to use a new login (with a new login name). This creates the new user with the provided password. 
 
-[//]: # ( - `changeUser` – Not entirely sure what this does, putting it here as a TODO )
-[//]: # (- `uploadState` – ^^)
+
+> For `changeUser`: Since the login token is directly provided to the app, the password is largely irrelevant and should probably be a long randomly generated string. The user will immediately stop reading directives after this and log back in with the new username (running that user's associated directives).
+
 
 ## FAQs / Common Issues
 
@@ -88,5 +91,4 @@ Otherwise, double check that the tutorial mode prompts have uploaded and complet
 For further help and debugging, please contact the developers. 
 
 
-> Documentation made by Bill Neubauer
 

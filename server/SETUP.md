@@ -11,18 +11,18 @@ to store personal info (such that web browsing information is not revealed).
 ## Setting up the cloud project
 
 1. While logged into `acronym.server@gmail.com`, go to http://console.cloud.google.com/
-2. Create a new project
+1. Create a new project
     - Click on the active project (probably "My First Project").
     - Click on "new project"
     - Set project name such as "Acronym Data Collection"
     - Set project ID to "acronym-data". **It is important you do this step when creating the project as otherwise a project ID will be randomly generated for you.**
     - Delete the first project (to clean up the project management).
-3. Activate the free trial
+1. Activate the free trial
     - In order to ensure the project does not die after 30 days, you will want to add a credit card to the account
         - For business, add a credit card number
-        - As of January 15th, 2024, removing the credit card information from a project has been difficult, but the project is lightweight and has charged a rather small amount in my experience. You will also be given $300 of compute credits for
+        - As of January 15th, 2025, removing the credit card information from a project has been difficult, but the project is lightweight and has charged a rather small amount in my experience. You will also be given $300 of compute credits for
         free during your free 30 day trial.
-4. Enable APIs
+1. Enable APIs
     - The following services need to be enabled within the API services page
         - FireStore API
         - App Engine API
@@ -30,22 +30,22 @@ to store personal info (such that web browsing information is not revealed).
         - Secret Manager API
         - Cloud Resource Manager API
     - Add the above sections and the cloud solutions page to the pinned section (for convenient access) by clicking on the Google Cloud Solutions page.
-5. Create Firestore database. 
+1. Create Firestore database. 
     - Select Native mode for the data store (which is recommended for a mobile app like this one)
     - This database is responsible for storing all metadata associated with user recordings when interacting with the GCP server
-6. Go into the App Engine page and create an App Engine Application
+1. Go into the App Engine page and create an App Engine Application
     - Select the default service account `acronym-data@appspot.gserviceaccount.com` when creating the App Engine application
     - Creating the App Engine Application will implicitly create a bucket of form `acronym-data.appspot.com`.
         - You do not need to verify domain name ownership of the above domain.  If you are at this step, this is probably because you did not set up the app engine.
 
-7. Add Permissions to your bucket
+1. Add Permissions to your bucket
     - Find the default bucket `acronym-data.appspot.com` (after the App Engine application has been created)
     - In permissions, modify the permissions for the principal: `acronym-data@appspot.gserviceaccount.com`
         - Add the role: "Storage Legacy Bucket Owner"
         - Add the role: "Storage Legacy Object Owner"
     - Add storage legacy object owner to any editors and owners to this project as well. If you do not, you may run into permissions related issues.
 
-8. In order to administrate the project from a different Google account:
+1. In order to administrate the project from a different Google account:
     - From "IAM & Admin" in the menu, select "IAM"
     - Click "+" to grant access
     - Add the new google account with the role "Owner". 
@@ -56,7 +56,7 @@ to store personal info (such that web browsing information is not revealed).
 This section will all be done locally within project code (except for the last step)
 
 1. Install Google Cloud SDK: https://cloud.google.com/sdk/docs/install-sdk
-2. Set up Google Cloud within the Terminal
+1. Set up Google Cloud within the Terminal
     ```
     gcloud auth login 
     gcloud auth application-default login
@@ -71,14 +71,14 @@ This section will all be done locally within project code (except for the last s
     - Set the default quota for the project. This suppresses a bunch of warnings and might help access APIs
     - When creating the app, pick a region such as us-central
 
-3. Create Server Config. In `server/collector/`, copy `example_config.py` to `config.py`.
+1. Create Server Config. In `server/collector/`, copy `example_config.py` to `config.py`.
     ```
     cd server/collector
     cp example_config.py config.py
     ```
     Edit config.py to use the project id "acronym-data" for the prod server and either the same for the dev server, or the dev project name if you're using one ("acronym-data-dev") [This is only if you are using two projects for production and development].
 
-4. Set Parameters in credentials.xml within the app
+1. Set Parameters in credentials.xml within the app
     - Copy the example credentials to `record_these_hands/app/src/main/res/values/credentials.xml`
     ```
     cp example_credentials.xml app/src/main/res/values/credentials.xml
@@ -90,7 +90,7 @@ This section will all be done locally within project code (except for the last s
         
         [//]: # (It should also be possible to use an app password/access token, which you should be able to generate in "manage account" -> "security" -> ??? but this feature has yet to be implemented)
 
-5. Deploy the Server to Cloud 
+1. Deploy the Server to Cloud 
     ```
     cd server/collector
     source setup_local_env.sh
@@ -105,7 +105,7 @@ This section will all be done locally within project code (except for the last s
         ```
     - `deploy_dev.sh` will take the python scripts in collector and upload it to the app engine
 
-6. Create a Secret (locally)
+1. Create a Secret (locally)
     ```
     source setup_local_env.sh 
     token_maker.py
@@ -114,7 +114,7 @@ This section will all be done locally within project code (except for the last s
     - For the password, create a simple password (this will be something you will use everytime you are setting up a user account).
     - Store both the login_token and the login_hash (including both username:hash)
 
-7. Go to the Secret Manager under the Security Manager (within the Google Cloud Console)
+1. Go to the Secret Manager under the Security Manager (within the Google Cloud Console)
     - Create a secret
         - name: `admin_token_hash`
         - Secret Value: login_hash from before (of form: `admin:hash`)
@@ -122,9 +122,9 @@ This section will all be done locally within project code (except for the last s
         - name: `app_secret_key`
         - Secret Value: Use a random string, such as the output of `openssl rand -base64 30`. The output of this does not need to be stored
 
-8. Now that RecordTheseHands has the token hash and backend server information, it can communicate with the DPAN Server. Compile RecordTheseHands using Android Studio and refer to [USAGE.md](USAGE.md) for further use.
+1. Now that RecordTheseHands has the token hash and backend server information, it can communicate with the DPAN Server. Compile RecordTheseHands using Android Studio and refer to [USAGE.md](USAGE.md) for further use.
 
-> Documentation made by Bill Neubauer and Manfred George. For any questions please contact bill.neubauer.4@gmail.com or mgeorg@google.com
+> For any questions, please contact the developers
 
 
 
