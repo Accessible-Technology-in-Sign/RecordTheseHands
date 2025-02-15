@@ -54,13 +54,13 @@ def get_data(username):
       data = doc_dict.get('data')
       clip_id = data.get('clipId')
       assert clip_id
-      m = re.match(r'[^-]*-s(\d{3})-(\d{3})', clip_id)
+      m = re.match(r'[^-]+-s(\d{3})-(\d{3})', clip_id)
       assert m, clip_id
       session_index = int(m.group(1))
       clip_index = int(m.group(2))
       filename = data.get('filename')
       assert filename
-      m = re.match(r'^(tutorial-)?(.*[^-]+)-[^-]*-s(\d{3})-.*\.mp4$', filename) # keep tutorial prefixing -- make sure group indices are correct later
+      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename) # keep tutorial prefixing -- make sure group indices are correct later
       assert m, filename
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
