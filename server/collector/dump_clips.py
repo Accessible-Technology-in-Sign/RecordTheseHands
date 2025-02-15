@@ -36,18 +36,16 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
-# dqp data collection specific code.
-_SPLIT_DQP00 = True
-# Match these accounts (ignore test accounts).
-_MATCH_USERS = re.compile(r'^dqp\d{2}$')
+# Match these accounts.
+_MATCH_USERS = re.compile(r'^test\d{3}$')
 # stem name of the output files (json and csv).
-_DUMP_ID = 'dqp2024-02-06'
+_DUMP_ID = 'dump'
 
 
 def get_data(username):
   """Obtain the clip and session data from firestore."""
   db = firestore.Client()
-  c_ref = db.collection(f'collector/users/{username}/data/save')
+  c_ref = db.collection(f'collector/users/{username}/data/save_clip')
   clips = list()
   sessions = list()
   for doc_data in c_ref.stream():
@@ -62,18 +60,11 @@ def get_data(username):
       clip_index = int(m.group(2))
       filename = data.get('filename')
       assert filename
-      m = re.match(r'^(tutorial-)?(dqp[^-]+)-[^-]*-s(\d{3})-.*\.mp4$',
-                   filename)
+      m = re.match(r'^(tutorial-)?(.*[^-]+)-[^-]*-s(\d{3})-.*\.mp4$', filename) # keep tutorial prefixing -- make sure group indices are correct later
       assert m, filename
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
       assert session_index == int(m.group(3)), (clip_id, filename)
-      if _SPLIT_DQP00:
-        if user_id == 'dqp00':
-          if session_index == 4 or session_index >= 21:
-            user_id = 'dqp00_1'
-          else:
-            user_id = 'dqp00_2'
 
       simple_clip = {
           'userId': user_id,
