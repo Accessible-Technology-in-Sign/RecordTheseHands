@@ -15,3 +15,6 @@
 .cxx
 local.properties
 app/src/main/res/values/credentials.xml
+asl_venv/
+dump.csv
+dump.json

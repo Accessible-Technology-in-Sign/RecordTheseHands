@@ -36,7 +36,7 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
-# Match these accounts.
+# Match these accounts (with a prefix of test)
 _MATCH_USERS = re.compile(r'^test\d{3}$')
 # stem name of the output files (json and csv).
 _DUMP_ID = 'dump'
@@ -130,6 +130,7 @@ def main():
     if not m:
       continue
     retry = True
+    print(f"Getting data for user: {c_ref.id}")
     while retry:
       retry = False
       try:
