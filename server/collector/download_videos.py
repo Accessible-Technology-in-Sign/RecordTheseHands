@@ -21,14 +21,15 @@
 # SOFTWARE.
 """Script to download videos from the Google Cloud Storage Bucket"""
 
-import csv
-import datetime
-import json
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, message=".*transfer_manager.*")
+
 import os
 import re
+import hashlib
 
 import google.api_core.exceptions
-#from google.cloud.storage import Client, transfer_manager
+from google.cloud.storage import Client, transfer_manager
 from google.cloud import firestore
 
 # Static globals.
@@ -39,30 +40,66 @@ SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 # Match these accounts (with a prefix of test)
 _MATCH_USERS = re.compile(r'^test\d{3}$')
-# stem name of the output files (json and csv).
-_DUMP_ID = 'hash_dump'
+# stem name of the output video files
+_DUMP_ID = 'video_dump'
 
-# mismatch between firestore + bucket?
-# compare md5 hashes
-
-def get_md_hash(username):
-  """Obtain the clip and session data from firestore."""
-  db = firestore.Client()
+def get_video_metadata(db, username):
+  """Obtain the video hash and path metadata from firestore."""
   c_ref = db.collection(f'collector/users/{username}/data/file')
-  hashes = list()
+  hashes = []
+  paths = []
   for doc_data in c_ref.stream():
     if doc_data.id.startswith(username):
       doc_dict = doc_data.to_dict()
       hash = doc_dict.get('md5')
-      assert hash
-      hashes.append(hash)
+      path = doc_dict.get('path')
+      
+      if not hash or not path:
+        print(f"Skipping invalid data under {doc_data.id}")
+        continue
 
-  return (hashes)
+      path = f"upload/{username}/{path}"
+
+      if os.path.exists(f'{_DUMP_ID}/{path}'):
+        print(f"Skipping already downloaded file: {_DUMP_ID}/{path}")
+        continue
+      
+      hashes.append(hash)
+      paths.append(path)
+  
+  return hashes, paths
+
+def download_all_videos(bucket_name, blob_names, destination_directory="", workers=8):
+    """Download blobs in a list by name, concurrently in a process pool."""
+    storage_client = Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    results = transfer_manager.download_many_to_path(
+        bucket, blob_names, destination_directory=destination_directory, max_workers=workers
+    )
+
+    for name, result in zip(blob_names, results):
+        if isinstance(result, Exception):
+            print("Failed to download {} due to exception: {}".format(name, result))
+        else:
+            print(f"Downloaded {name} to {destination_directory + name}.")
+
+def validate_md5(file_path, external_hash, chunk_size=8192):
+    """Compute the MD5 hash of a file."""
+    md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            md5.update(chunk)
+    local_hash = md5.hexdigest()
+    
+    return local_hash == external_hash
 
 def main():
+  print("Getting metadata from firestore")
   db = firestore.Client()
   doc_ref = db.document('collector/users')
-  all_hashes = list()
+  all_hashes = []
+  all_paths = []
   for c_ref in doc_ref.collections():
     m = _MATCH_USERS.match(c_ref.id)
     if not m:
@@ -72,30 +109,28 @@ def main():
     while retry:
       retry = False
       try:
-        hashes = get_md_hash(c_ref.id)
+        hashes, paths = get_video_metadata(db, c_ref.id)
         print(f'{c_ref.id} {len(hashes)}')
         all_hashes.extend(hashes)
+        all_paths.extend(paths)
       except google.api_core.exceptions.RetryError:
         print('timed out, retrying')
         retry = True
-  with open(f'{_DUMP_ID}.json', 'w') as f:
-    f.write(json.dumps({
-        'hashes': all_hashes}, indent=2))
-    f.write('\n')
-  # Create a csv file for import into Google internal Clipping system.
-  csv_rows = list()
-  for hash in all_hashes:
-    
-    row = [
-        hash
-    ]
-    csv_rows.append(row)
-  if csv_rows:
-    csv_path = f'{_DUMP_ID}.csv'
-    print(f'Writing csv to {csv_path}')
-    with open(csv_path, 'w', newline='') as csvfile:
-      writer = csv.writer(csvfile)
-      writer.writerows(csv_rows)
+
+  
+  print(f"\nStarting download for {len(all_paths)} videos")
+  download_all_videos(BUCKET_NAME, all_paths, f'{_DUMP_ID}/')
+  print('Done downloading videos')
+  
+  print('\nValidating videos')
+  for (hash, path) in zip(all_hashes, all_paths): # Should we parallelize this?
+    file_path = f'{_DUMP_ID}/{path}'
+    if not validate_md5(file_path, hash):
+      print(f'File {file_path} failed validation')
+      os.remove(file_path)
+      print(f'Deleted {file_path}')
+    else:
+      print(f'File {file_path} passed validation')
 
 if __name__ == '__main__':
   main()
