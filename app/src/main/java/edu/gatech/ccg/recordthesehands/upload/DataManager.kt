@@ -41,6 +41,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.fromHex
@@ -693,8 +695,10 @@ class DataManager(val context: Context) {
       context.packageName
     )
     check(serverStringId != 0) {"backend_server is not defined in a resource."}
+
     return context.resources.getString(serverStringId)
   }
+
 
   /**
    * Return whether we should trust any certificate, including self signed ones.
@@ -1496,6 +1500,8 @@ class DataManager(val context: Context) {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("runDirective was interrupted.")
     }
+    // before downloading directives from server check server connection
+    checkServerConnection()
     Log.i(TAG, "Download the directives from server.")
     val url = URL(getServer() + "/directives")
     val (code, data) = serverFormPostRequest(
@@ -1621,6 +1627,7 @@ class DataManager(val context: Context) {
   }
 
   fun connectedToServer(): Boolean {
+    Log.i(TAG,"Server is connected: " + dataManagerData.connectedToServer.toString())
     return dataManagerData.connectedToServer
   }
 
@@ -1754,6 +1761,45 @@ class DataManager(val context: Context) {
       preferences[recordingCountKeyObject] = (preferences[recordingCountKeyObject] ?: 0) + 1
       preferences[recordingMsKeyObject] =
         (preferences[recordingMsKeyObject] ?: 0) + sessionLength.toMillis()
+    }
+  }
+
+  /**
+   * Store server status with LiveData
+   */
+  private val _serverStatus = MutableLiveData<Boolean>()
+  val serverStatus: LiveData<Boolean> get() = _serverStatus
+
+  /**
+   * Check server connection by pinging server
+   * method must be called whenever you want to check the server status
+   * TODO: Should the method be looped every so often or be manually called each time whenever the server is accessed?
+   * Right now it is only being called in runDirectives()
+   */
+  fun checkServerConnection() {
+    CoroutineScope(Dispatchers.IO).launch {
+      val isConnected = pingServer()
+      _serverStatus.postValue(isConnected) // Update LiveData on the main thread
+      // Debugging
+      Log.i(TAG,"Check server connection: $isConnected")
+    }
+
+  }
+
+  /**
+   * Ping server by calling server and checking connectivity
+   */
+  private fun pingServer(): Boolean {
+    return try {
+      val url = URL(getServer())
+      val connection = url.openConnection() as HttpsURLConnection
+      connection.requestMethod = "GET"
+      connection.connectTimeout = 5000
+      connection.readTimeout = 5000
+      val responseCode = connection.responseCode
+      responseCode == HttpURLConnection.HTTP_OK
+    } catch (e: Exception) {
+      false
     }
   }
 }
