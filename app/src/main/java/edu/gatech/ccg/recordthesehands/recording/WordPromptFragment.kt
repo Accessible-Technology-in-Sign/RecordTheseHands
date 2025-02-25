@@ -27,17 +27,19 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.annotation.LayoutRes
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
+import androidx.transition.Visibility
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.PromptType
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * This is the little rectangle at the top of the screen that prompts the
@@ -85,9 +87,43 @@ class WordPromptFragment(
       PromptType.VIDEO -> {
         if (prompt.resourcePath != null) {
           val videoView = view.findViewById<VideoView>(R.id.promptVideo)
+
+          // Initialize button for adjusting video size
+          val changeScreenSizeButton = view.findViewById<ImageButton>(R.id.changeScreenSizeButton)
+          val splitScreenButton = view.findViewById<ImageButton>(R.id.splitScreenButton)
+
+          // Store original video width and height
+          val origWidth = videoView.layoutParams.width
+          val origHeight = videoView.layoutParams.height
+
+          var fullScreen = false
+          var splitScreen = false
+
+          changeScreenSizeButton.setOnClickListener {
+            val videoViewParams = videoView.layoutParams
+            splitScreen = false
+            if (!fullScreen) {
+              videoViewParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+              videoViewParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+              changeScreenSizeButton.setImageResource(R.drawable.minimize_screen_button)
+              videoView.layoutParams = videoViewParams
+              fullScreen = true
+              Log.i(TAG, "Enlarging video to full screen size")
+            } else {
+              videoViewParams.width = origWidth
+              videoViewParams.height = origHeight
+              videoView.layoutParams = videoViewParams
+              changeScreenSizeButton.setImageResource(R.drawable.full_screen_button)
+              fullScreen = false
+              Log.i(TAG, "Minimizing video to original size")
+            }
+          }
+
           videoPromptController = VideoPromptController(
               requireContext(), null, videoView, prompt.resourcePath!!, true)
           videoView.visibility = View.VISIBLE
+          changeScreenSizeButton.visibility = View.VISIBLE
+//          splitScreenButton.visibility = View.VISIBLE
         }
       }
     }

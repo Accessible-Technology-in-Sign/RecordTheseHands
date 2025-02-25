@@ -18,7 +18,7 @@
         app:layout_constraintBottom_toBottomOf="@+id/promptBarrier"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" >
+        app:layout_constraintTop_toTopOf="parent">
     </View>
 
     <TextView
@@ -29,7 +29,7 @@
         android:layout_marginEnd="12sp"
         android:layout_marginTop="8sp"
         android:fontFamily="sans-serif-medium"
-        android:text="Prompt Text."
+        android:text="Prompt Text"
         android:textColor="@android:color/black"
         android:textSize="34sp"
         app:layout_constraintStart_toStartOf="@+id/promptView"
@@ -43,8 +43,8 @@
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
         android:scaleType="fitEnd"
-        android:adjustViewBounds="true"
         android:visibility="gone"
+        android:adjustViewBounds="true"
         app:layout_constraintEnd_toEndOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
 
@@ -58,6 +58,31 @@
         app:layout_constraintDimensionRatio="W,16:9"
         app:layout_constraintEnd_toEndOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
+
+    <ImageButton
+        android:id="@+id/changeScreenSizeButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:visibility="gone"
+        android:src="@drawable/full_screen_button"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintEnd_toEndOf="@id/promptVideo" />
+
+    <ImageButton
+        android:id="@+id/splitScreenButton"
+        android:layout_width="50dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:src="@drawable/split_screen_button"
+        android:rotation="90"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintStart_toStartOf="@id/promptVideo" />
 
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/promptBarrier"
