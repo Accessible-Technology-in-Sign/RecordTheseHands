@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +45,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -154,11 +157,12 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
 
-  private fun updateConnectionUi() {
+  private fun updateConnectionUi(isConnected: Boolean) {
     // TODO When reloading the app, this will generally run before dataManager.runDirectives
-    // runs.  This means, that the data will be incorrect and won't be reloaded until
-    // the upload now button is pressed or the app is restarted.  The best way to fix this
+    // runs. This means, that the data will be incorrect and won't be reloaded until
+    // the upload now button is pressed or the app is restarted. The best way to fix this
     // would be to have dataManager broadcast a message every time the server is pinged.
+    Log.i(TAG, "Updating UI with connection status: $isConnected")
     val connectivityManager =
       applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val network = connectivityManager.activeNetwork
@@ -168,7 +172,7 @@ class HomeScreenActivity : ComponentActivity() {
         internetConnectionText.visibility = View.VISIBLE
         internetConnectionText.text = "Internet Unavailable"
       } else {
-        if (dataManager.connectedToServer()) {
+        if (isConnected) {
           internetConnectionText.visibility = View.INVISIBLE
         } else {
           internetConnectionText.visibility = View.VISIBLE
@@ -177,7 +181,7 @@ class HomeScreenActivity : ComponentActivity() {
       }
 
       val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
-      if (dataManager.connectedToServer()) {
+      if (isConnected) {
         serverConnectionText.visibility = View.INVISIBLE
         serverConnectionText.text = "Connected to Server"
       } else {
@@ -186,6 +190,7 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
   }
+
 
   /**
    * Sets up the UI with a loading screen
@@ -217,8 +222,6 @@ class HomeScreenActivity : ComponentActivity() {
       val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
       exitTutorialModeButton.visibility = View.GONE
-
-      updateConnectionUi()
 
       val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
       deviceIdBox.text = deviceId!!
@@ -384,7 +387,6 @@ class HomeScreenActivity : ComponentActivity() {
         CoroutineScope(Dispatchers.IO).launch {
           UploadService.pauseUploadUntil(null)
           try {
-            updateConnectionUi()
             val uploadSucceeded = dataManager.uploadData(null)
             runOnUiThread {
               uploadButton.isEnabled = true
@@ -409,7 +411,6 @@ class HomeScreenActivity : ComponentActivity() {
               uploadButton.text = "Upload Now"
             }
           }
-          updateConnectionUi()
         }
       }
     }
@@ -428,6 +429,16 @@ class HomeScreenActivity : ComponentActivity() {
     val binding = ActivitySplashBinding.inflate(layoutInflater)
     val view = binding.root
     setContentView(view)
+
+    // Observe the connectionStatus(for server) LiveData using Observer
+    val serverObserver = Observer<Boolean> { isConnected ->
+      Log.i(TAG, "LiveData connection observed: $isConnected")
+      updateConnectionUi(isConnected)
+    }
+    dataManager.serverStatus.observe(this, serverObserver)
+
+    // Initial check for server connection
+    dataManager.checkServerConnection()
 
     fun hasResource(label: String, type: String = "string"): Boolean {
       return resources.getIdentifier(label, type, packageName) != 0
