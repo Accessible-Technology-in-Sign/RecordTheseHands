@@ -15,8 +15,13 @@
 .cxx
 local.properties
 app/src/main/res/values/credentials.xml
+
 /APP_ENV_DIR
 /asl_venv
 /video_dump
 APP_ENV_DIR/
 asl_venv/
+dump.csv
+dump.json
+video_dump/
+
