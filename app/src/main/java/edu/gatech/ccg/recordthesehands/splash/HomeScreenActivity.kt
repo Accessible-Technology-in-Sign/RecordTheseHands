@@ -33,6 +33,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -62,6 +63,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /**
@@ -209,20 +211,38 @@ class HomeScreenActivity : ComponentActivity() {
    */
   private fun setupUI() {
     lifecycleScope.launch {
+      val backArrow = findViewById<ImageButton>(R.id.backButton)
+      backArrow.setOnClickListener {
+        lifecycleScope.launch(Dispatchers.IO) {
+          dataManager.setTutorialMode(false)
+          dataManager.getPrompts()?.also {
+            it.promptIndex = 0
+            it.savePromptIndex()
+          }
+
+          withContext(Dispatchers.Main) {
+            val intent = Intent(this@HomeScreenActivity, PromptSelectActivity::class.java)
+            startActivity(intent)
+            Log.i(TAG, "Going back to prompt selection")
+            finish()
+          }
+        }
+      }
+
       val loadingText = findViewById<TextView>(R.id.loadingText)
       loadingText.visibility = View.GONE
       val mainGroup = findViewById<Group>(R.id.mainGroup)
       mainGroup.visibility = View.VISIBLE
 
       val startRecordingButton = findViewById<Button>(R.id.startButton)
-      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
+//      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
-      exitTutorialModeButton.visibility = View.GONE
+//      exitTutorialModeButton.visibility = View.GONE
 
       updateConnectionUi()
 
-      val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
-      deviceIdBox.text = deviceId!!
+      val deviceIdBox= findViewById<TextView>(R.id.deviceIdBox)
+      deviceIdBox.text = deviceId
 
       if (username != null) {
         val usernameBox = findViewById<TextView>(R.id.usernameBox)
@@ -251,39 +271,40 @@ class HomeScreenActivity : ComponentActivity() {
         .map {
           it[recordingCountKeyObject]
         }.firstOrNull() ?: 0
-      val recordingCountBox = findViewById<TextView>(R.id.recordingCountBox)
-      recordingCountBox.text = lifetimeRecordingCount.toString()
+      val recordingCountText = findViewById<TextView>(R.id.recordingCountText)
+      recordingCountText.text = lifetimeRecordingCount.toString()
       val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
       val lifetimeRecordingMs = applicationContext.prefStore.data
         .map {
           it[recordingMsKeyObject]
         }.firstOrNull() ?: 0L
-      val recordingTimeBox = findViewById<TextView>(R.id.recordingTimeBox)
-      recordingTimeBox.text = msToHMS(lifetimeRecordingMs)
+      val recordingTimeBox = findViewById<TextView>(R.id.recordingTimeParsedText)
+      recordingTimeBox.text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
       val sessionCounterBox = findViewById<TextView>(R.id.sessionCounterBox)
       sessionCounterBox.text = currentRecordingSessions.toString()
       if (prompts != null) {
-        val completedPromptsBox = findViewById<TextView>(R.id.completedPromptsBox)
-        completedPromptsBox.text = prompts!!.promptIndex.toString()
-        val totalPromptsBox = findViewById<TextView>(R.id.totalPromptsBox)
-        totalPromptsBox.text = prompts!!.array.size.toString()
+        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+        val completedPrompts = prompts!!.promptIndex.toString()
+        val totalPrompts = prompts!!.array.size.toString()
+        promptsProgressBox.text = "${completedPrompts} of ${totalPrompts}"
 
-        if (tutorialMode && (currentRecordingSessions > 0 ||
-              (promptIndex ?: 0) >= (numPrompts ?: 0))
-        ) {
-          exitTutorialModeButton.visibility = View.VISIBLE
-          exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-          exitTutorialModeButton.setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-              dataManager.setTutorialMode(false)
-              dataManager.getPrompts()?.also {
-                it.promptIndex = 0
-                it.savePromptIndex()
-              }
-              finish()
-            }
-          }
-        }
+//        if (tutorialMode && (currentRecordingSessions > 0 ||
+//              (promptIndex ?: 0) >= (numPrompts ?: 0))
+//        )
+//        {
+//          exitTutorialModeButton.visibility = View.VISIBLE
+//          exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+//          exitTutorialModeButton.setOnClickListener {
+//            CoroutineScope(Dispatchers.IO).launch {
+//              dataManager.setTutorialMode(false)
+//              dataManager.getPrompts()?.also {
+//                it.promptIndex = 0
+//                it.savePromptIndex()
+//              }
+//              finish()
+//            }
+//          }
+//        }
       }
 
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
@@ -444,6 +465,14 @@ class HomeScreenActivity : ComponentActivity() {
         }
       }
     }
+  }
+
+  fun lifetimeMSTimeFormatter(milliseconds: Long): String {
+    val min = milliseconds / 60000
+    val sec = (milliseconds % 60000) / 1000
+    val msec = milliseconds % 1000
+    val formattedTime = String.format("%02dm %02ds %03dms", min, sec, msec)
+    return formattedTime
   }
 
   /**

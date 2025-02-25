@@ -8,100 +8,150 @@
     tools:context=".splash.LoadDataActivity">
 
     <TextView
-        android:id="@+id/createAccountHeader"
+        android:id="@+id/logInTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginTop="12dp"
-        android:text="Admin Interface"
-        android:textSize="32sp"
         android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_marginTop="50dp"
+        android:text="Log In"
+        android:textSize="30sp"
+        android:textColor="@color/black"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/deviceIdLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/usernameTextField"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/logInTextView"
+        app:layout_constraintStart_toStartOf="@id/usernameTextField"
+        android:layout_marginTop="10dp"
+        android:textStyle="italic"
+        android:text="Device ID:" />
 
     <EditText
         android:id="@+id/setDeviceIdText"
-        android:layout_width="match_parent"
+        android:layout_width="350dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:hint="device_id"
-        android:inputType="text"
-        android:textSize="24sp"
-        app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
+        android:layout_gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/deviceIdLabel"
+        app:layout_constraintBottom_toTopOf="@id/usernameTextView"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:drawableStart="@drawable/device_id"
+        android:drawablePadding="5dp"
+        android:hint="Device ID"
+        android:maxLines="1"
+        android:singleLine="true" />
 
-    <Button
-        android:id="@+id/setDeviceIdButton"
+    <TextView
+        android:id="@+id/usernameTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:text="Set DeviceId"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
+        app:layout_constraintBottom_toTopOf="@id/usernameTextField"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/setDeviceIdText"
+        app:layout_constraintStart_toStartOf="@id/usernameTextField"
+        android:layout_marginTop="10dp"
+        android:textStyle="italic"
+        android:text="Username:" />
 
     <EditText
         android:id="@+id/usernameTextField"
-        android:layout_width="match_parent"
+        android:layout_width="350dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:hint="new_username"
-        android:textSize="24sp"
-        android:inputType="text"
-        app:layout_constraintStart_toStartOf="@+id/setDeviceIdButton"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton" />
+        android:layout_gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/usernameTextView"
+        app:layout_constraintBottom_toTopOf="@id/passwordTextView"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:drawableStart="@drawable/email"
+        android:drawablePadding="5dp"
+        android:hint="Enter username"
+        android:maxLines="1"
+        android:singleLine="true" />
+
+    <TextView
+        android:id="@+id/passwordTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/usernameTextField"
+        app:layout_constraintBottom_toTopOf="@id/adminPasswordTextField"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintStart_toStartOf="@id/adminPasswordTextField"
+        android:layout_marginTop="10dp"
+        android:textStyle="italic"
+        android:text="Password:" />
 
     <EditText
         android:id="@+id/adminPasswordTextField"
-        android:layout_width="match_parent"
+        android:layout_width="350dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:textSize="24sp"
-        android:hint="admin_password"
+        app:layout_constraintTop_toBottomOf="@id/passwordTextView"
+        app:layout_constraintBottom_toTopOf="@id/loginButton"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:drawableStart="@drawable/password"
+        android:drawablePadding="5dp"
+        android:hint="Enter password"
         android:inputType="textPassword"
-        app:layout_constraintStart_toStartOf="@+id/usernameTextField"
-        app:layout_constraintTop_toBottomOf="@+id/usernameTextField" />
+        android:maxLines="1"
+        android:singleLine="true" />
+
+    <Button
+        android:id="@+id/loginButton"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/cardview_dark_background"
+        app:layout_constraintTop_toBottomOf="@id/adminPasswordTextField"
+        app:layout_constraintBottom_toTopOf="@id/createAccountButton"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="20dp"
+        android:textColor="@color/white"
+        android:text="Log In"
+        android:textSize="20sp" />
 
     <Button
         android:id="@+id/createAccountButton"
-        android:layout_width="wrap_content"
+        android:layout_width="300dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:text="Create Account"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
+        android:backgroundTint="@color/cardview_dark_background"
+        app:layout_constraintTop_toBottomOf="@id/loginButton"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="10dp"
+        android:text="Create an Account"
         android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
+        android:textSize="20sp" />
 
     <Button
-        android:id="@+id/enableTutorialModeButton"
+        android:id="@+id/setDeviceIdButton"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/cardview_dark_background"
+        app:layout_constraintTop_toBottomOf="@id/createAccountButton"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="20dp"
+        android:text="Set Device ID"
+        android:textColor="@color/white"
+        android:textSize="20sp" />
+
+    <ImageButton
+        android:id="@+id/quit_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:text="Enable Tutorial Mode"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
-
+        app:cornerRadius="15dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp"
+        android:background="@null"
+        android:src="@drawable/close_button"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
