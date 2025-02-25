@@ -1781,7 +1781,7 @@ class DataManager(val context: Context) {
       val isConnected = pingServer()
       _serverStatus.postValue(isConnected) // Update LiveData on the main thread
       // Debugging
-      Log.i(TAG,"Check server connection: $isConnected")
+      Log.d(TAG,"Check server connection: $isConnected")
     }
 
   }

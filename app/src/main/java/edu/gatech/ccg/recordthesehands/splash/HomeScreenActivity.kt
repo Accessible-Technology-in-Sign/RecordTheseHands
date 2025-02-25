@@ -24,7 +24,6 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -165,7 +164,7 @@ class HomeScreenActivity : ComponentActivity() {
     // runs. This means, that the data will be incorrect and won't be reloaded until
     // the upload now button is pressed or the app is restarted. The best way to fix this
     // would be to have dataManager broadcast a message every time the server is pinged.
-    Log.i(TAG, "Updating UI with connection status: $isConnected")
+    Log.d(TAG, "Updating UI with connection status: $isConnected")
     val connectivityManager =
       applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val network = connectivityManager.activeNetwork
@@ -238,7 +237,7 @@ class HomeScreenActivity : ComponentActivity() {
       loadingText.visibility = View.GONE
       val mainGroup = findViewById<Group>(R.id.mainGroup)
       mainGroup.visibility = View.VISIBLE
-
+      updateConnectionUi(dataManager.connectedToServer())
       val startRecordingButton = findViewById<Button>(R.id.startButton)
 //      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
@@ -504,7 +503,8 @@ class HomeScreenActivity : ComponentActivity() {
 
     // Observe the connectionStatus(for server) LiveData using Observer
     val serverObserver = Observer<Boolean> { isConnected ->
-      Log.i(TAG, "LiveData connection observed: $isConnected")
+      Log.d(TAG, "LiveData connection observed: $isConnected")
+      Log.d(TAG, "Activity lifecycle state: ${lifecycle.currentState}")
       updateConnectionUi(isConnected)
     }
     dataManager.serverStatus.observe(this, serverObserver)
