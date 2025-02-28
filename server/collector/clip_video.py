@@ -29,11 +29,12 @@ completed clips to the cloud.  There is currently no equivalent script
 in this project.
 """
 
+from collections import defaultdict
 import datetime
 import json
 import pathlib
 import re
-import sys
+import csv
 
 import utils
 
@@ -241,21 +242,38 @@ def make_clip(video, packet_info,
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
+def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_dir="clip_dump"):
+  """Make clips from all the videos in the video directory."""
+  video_directory = pathlib.Path(video_directory)
+  dump_csv = pathlib.Path(dump_csv)
+  
+  clip_data = defaultdict(list)
+  clips = []
+
+  with dump_csv.open('r', encoding='utf-8') as f:
+    csv_reader = csv.reader(f)
+    
+    for row in csv_reader:
+      user_id, video, start_time, end_time = row[0], row[1], row[4], row[5]
+      video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
+      clip_data[(user_id, video)].append((start_time, end_time))
+
+  for (user_id, video), clips in clip_data.items():
+    video = video_directory.joinpath(video)
+    packet_info = ffprobe_packet_info(str(video))
+    
+    for start_time, end_time in clips:
+      output_filename = output_dir.joinpath(
+          video.stem + f'_clip_{start_time}_{end_time}.mp4')
+      
+      clip_spec = make_clip(str(video), packet_info, start_time, end_time, output_filename)
+      clips.append(clip_spec)
+
+  with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
+    f.write(json.dumps(clips, indent=2))
 
 def main():
-  # Example usage:
-  video = pathlib.Path(sys.argv[1])
-  packet_info = ffprobe_packet_info(video)
-  # print(json.dumps(packet_info, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 5.252, 11.213,
-      common.TMP_VIDEOS_DIR.joinpath('out1.mp4'))
-  print(json.dumps(clip_spec, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 12.369, 15.191,
-      common.TMP_VIDEOS_DIR.joinpath('out2.mp4'))
-  print(json.dumps(clip_spec, indent=2))
-
+  make_clips()
 
 if __name__ == '__main__':
   main()
