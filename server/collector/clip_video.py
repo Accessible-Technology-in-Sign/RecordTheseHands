@@ -29,25 +29,26 @@ completed clips to the cloud.  There is currently no equivalent script
 in this project.
 """
 
+from collections import defaultdict
 import datetime
 import json
 import pathlib
 import re
-import sys
+import csv
 
-import common
-
+import utils
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
-  probe_data = common.ffprobe([
+  cmd = [
       '-v', 'error', '-select_streams', 'v', '-show_packets',
       '-show_data_hash', 'md5',
       '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
       '-of', 'compact', video
-  ])
-  if not probe_data:
-    return None
+  ]
+
+  result = utils.run_ffmpeg(cmd, capture_output=True, check=True, text=True)
+  probe_data = result.stdout
 
   packet_info = list()
   for line in probe_data.splitlines():
@@ -70,7 +71,7 @@ def ffprobe_packet_info(video):
 
 
 def make_clip(video, packet_info,
-              annotation_start_s, annotation_end_s, output_filename):
+              annotation_start_s, annotation_end_s, output_filename, verbose=False):
   """Make a frame perfect clip at a keyframe boundary using codec copy.
 
   The clip is cut using a copy codec.  The clip is guaranteed to start
@@ -119,7 +120,7 @@ def make_clip(video, packet_info,
   # frame of the video.  So we must add the first packet's pts_time in
   # order to search for the correct clipping time.
   pts_to_video_time = -packet_info[0]['ptsTimeS']
-  if common.VERBOSE:
+  if verbose:
     print(f'pts_to_video_time {pts_to_video_time}')
 
   # ffmpeg automatically adds the first pts_time to -ss and -to values.
@@ -160,7 +161,7 @@ def make_clip(video, packet_info,
       break
   if not end_packet_in_orig:
     end_packet_in_orig = packet_info[-1]
-  if common.VERBOSE:
+  if verbose:
     print(start_packet_in_orig)
     print(end_packet_in_orig)
 
@@ -178,32 +179,27 @@ def make_clip(video, packet_info,
     i += 1
     if i == max_tries:
       break
-    if common.VERBOSE:
+    if verbose:
       print('###')
       print(f'### Cutting {start_time}')
       print('###')
-    common.ffmpeg([
-        '-v', 'error', '-y',
-        '-ss', start_time,
-        '-to', end_time,
-        '-i', video,
-        '-an', '-c:v', 'copy',
-        output_filename])
+    
+    utils.trim_video(video, start_time, end_time, output_filename)
 
     clip_data = ffprobe_packet_info(output_filename)
-    if common.VERBOSE:
+    if verbose:
       print(clip_data[0])
       print(clip_data[-1])
     if clip_data[0]['flags'][1] == 'D':
       if clip_data[0]['md5'] == start_packet_in_orig['md5']:
         # Timestamp too late, deleted first packet (but it was the correct
         # packet).
-        if common.VERBOSE:
+        if verbose:
           print('First keyframe marked deleted.')
         maximum_start_time = start_time
       else:
         # Timestamp too early, went to previous keyframe.
-        if common.VERBOSE:
+        if verbose:
           print('Included one keyframe too many.')
       minimum_start_time = start_time
       start_time = (minimum_start_time + maximum_start_time) / 2
@@ -242,25 +238,42 @@ def make_clip(video, packet_info,
       'clipStartPacketMd5': clip_data[0]['md5'],
       'clipEndPacketMd5': clip_data[-1]['md5'],
       'clipFileSize': clip_file_size,
-      'clipFileMd5': common.md5sum(output_filename),
+      'clipFileMd5': utils.compute_md5(output_filename),
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
+def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_dir="clip_dump"):
+  """Make clips from all the videos in the video directory."""
+  video_directory = pathlib.Path(video_directory)
+  dump_csv = pathlib.Path(dump_csv)
+  
+  clip_data = defaultdict(list)
+  clips = []
+
+  with dump_csv.open('r', encoding='utf-8') as f:
+    csv_reader = csv.reader(f)
+    
+    for row in csv_reader:
+      user_id, video, start_time, end_time = row[0], row[1], row[4], row[5]
+      video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
+      clip_data[(user_id, video)].append((start_time, end_time))
+
+  for (user_id, video), clips in clip_data.items():
+    video = video_directory.joinpath(video)
+    packet_info = ffprobe_packet_info(str(video))
+    
+    for start_time, end_time in clips:
+      output_filename = output_dir.joinpath(
+          video.stem + f'_clip_{start_time}_{end_time}.mp4')
+      
+      clip_spec = make_clip(str(video), packet_info, start_time, end_time, output_filename)
+      clips.append(clip_spec)
+
+  with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
+    f.write(json.dumps(clips, indent=2))
 
 def main():
-  # Example usage:
-  video = pathlib.Path(sys.argv[1])
-  packet_info = ffprobe_packet_info(video)
-  # print(json.dumps(packet_info, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 5.252, 11.213,
-      common.TMP_VIDEOS_DIR.joinpath('out1.mp4'))
-  print(json.dumps(clip_spec, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 12.369, 15.191,
-      common.TMP_VIDEOS_DIR.joinpath('out2.mp4'))
-  print(json.dumps(clip_spec, indent=2))
-
+  make_clips()
 
 if __name__ == '__main__':
   main()
