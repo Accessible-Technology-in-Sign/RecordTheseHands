@@ -26,11 +26,11 @@ warnings.filterwarnings("ignore", category=UserWarning, message=".*transfer_mana
 
 import os
 import re
-import hashlib
 
 import google.api_core.exceptions
 from google.cloud.storage import Client, transfer_manager
 from google.cloud import firestore
+from utils import compute_md5
 
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
@@ -84,16 +84,6 @@ def download_all_videos(bucket_name, blob_names, destination_directory="", worke
         else:
             print(f"Downloaded {name} to {destination_directory + name}.")
 
-def validate_md5(file_path, external_hash, chunk_size=8192):
-    """Compute the MD5 hash of a file."""
-    md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            md5.update(chunk)
-    local_hash = md5.hexdigest()
-    
-    return local_hash == external_hash
-
 def main():
   print("Getting metadata from firestore")
   db = firestore.Client()
@@ -125,7 +115,7 @@ def main():
   print('\nValidating videos')
   for (hash, path) in zip(all_hashes, all_paths): # Should we parallelize this?
     file_path = f'{_DUMP_ID}/{path}'
-    if not validate_md5(file_path, hash):
+    if compute_md5(file_path) != hash:
       print(f'File {file_path} failed validation')
       os.remove(file_path)
       print(f'Deleted {file_path}')

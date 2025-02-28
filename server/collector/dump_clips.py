@@ -160,7 +160,7 @@ def main():
     if not clip['summary']['valid']:
       continue
     row = [
-        '',  # unused
+        clip['summary']['userId'],  # user_id
         clip['summary']['filename'][:-4],  # Filename without .mp4
         '',  # unused
         '',  # unused
