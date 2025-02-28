@@ -35,19 +35,19 @@ import pathlib
 import re
 import sys
 
-import common
-
+import utils
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
-  probe_data = common.ffprobe([
+  cmd = [
       '-v', 'error', '-select_streams', 'v', '-show_packets',
       '-show_data_hash', 'md5',
       '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
       '-of', 'compact', video
-  ])
-  if not probe_data:
-    return None
+  ]
+
+  result = utils.run_ffmpeg(cmd, capture_output=True, check=True, text=True)
+  probe_data = result.stdout
 
   packet_info = list()
   for line in probe_data.splitlines():
@@ -70,7 +70,7 @@ def ffprobe_packet_info(video):
 
 
 def make_clip(video, packet_info,
-              annotation_start_s, annotation_end_s, output_filename):
+              annotation_start_s, annotation_end_s, output_filename, verbose=False):
   """Make a frame perfect clip at a keyframe boundary using codec copy.
 
   The clip is cut using a copy codec.  The clip is guaranteed to start
@@ -119,7 +119,7 @@ def make_clip(video, packet_info,
   # frame of the video.  So we must add the first packet's pts_time in
   # order to search for the correct clipping time.
   pts_to_video_time = -packet_info[0]['ptsTimeS']
-  if common.VERBOSE:
+  if verbose:
     print(f'pts_to_video_time {pts_to_video_time}')
 
   # ffmpeg automatically adds the first pts_time to -ss and -to values.
@@ -160,7 +160,7 @@ def make_clip(video, packet_info,
       break
   if not end_packet_in_orig:
     end_packet_in_orig = packet_info[-1]
-  if common.VERBOSE:
+  if verbose:
     print(start_packet_in_orig)
     print(end_packet_in_orig)
 
@@ -178,32 +178,27 @@ def make_clip(video, packet_info,
     i += 1
     if i == max_tries:
       break
-    if common.VERBOSE:
+    if verbose:
       print('###')
       print(f'### Cutting {start_time}')
       print('###')
-    common.ffmpeg([
-        '-v', 'error', '-y',
-        '-ss', start_time,
-        '-to', end_time,
-        '-i', video,
-        '-an', '-c:v', 'copy',
-        output_filename])
+    
+    utils.trim_video(video, start_time, end_time, output_filename)
 
     clip_data = ffprobe_packet_info(output_filename)
-    if common.VERBOSE:
+    if verbose:
       print(clip_data[0])
       print(clip_data[-1])
     if clip_data[0]['flags'][1] == 'D':
       if clip_data[0]['md5'] == start_packet_in_orig['md5']:
         # Timestamp too late, deleted first packet (but it was the correct
         # packet).
-        if common.VERBOSE:
+        if verbose:
           print('First keyframe marked deleted.')
         maximum_start_time = start_time
       else:
         # Timestamp too early, went to previous keyframe.
-        if common.VERBOSE:
+        if verbose:
           print('Included one keyframe too many.')
       minimum_start_time = start_time
       start_time = (minimum_start_time + maximum_start_time) / 2
@@ -242,7 +237,7 @@ def make_clip(video, packet_info,
       'clipStartPacketMd5': clip_data[0]['md5'],
       'clipEndPacketMd5': clip_data[-1]['md5'],
       'clipFileSize': clip_file_size,
-      'clipFileMd5': common.md5sum(output_filename),
+      'clipFileMd5': utils.compute_md5(output_filename),
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
