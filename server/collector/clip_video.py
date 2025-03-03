@@ -48,10 +48,6 @@ def ffprobe_packet_info(video):
       '-of', 'compact', video
   ]
 
-  """
-  ffmpeg -v error -y -ss 17.023567 -to 20.022301 -i video_dump/upload/test006/upload/test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4 -an -c:v copy PosixPath('clip_dump/test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z_clip_17.549616_19.310036.mp4')
-  """
-
   result = utils.run_ffprobe(cmd, capture_output=True, check=True, text=True)
   probe_data = result.stdout
 
