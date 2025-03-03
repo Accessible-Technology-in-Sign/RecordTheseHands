@@ -14,6 +14,19 @@ def run_ffmpeg(command_args, capture_output=True, check=True, text=True):
     except Exception as e:
         print(f"Unexpected error running ffmpeg: {e}")
 
+def run_ffprobe(command_args, capture_output=True, check=True, text=True):
+    """Runs an ffprobe command with the specified arguments."""
+    cmd = ['ffprobe'] + command_args
+    try:
+        result = subprocess.run(cmd, capture_output=capture_output, check=check, text=text)
+        if result.returncode != 0:
+            print(f"ffprobe failed with error: {result.stderr}")
+        return result
+    except subprocess.CalledProcessError as e:
+        print(f"ffprobe process error: {e}")
+    except Exception as e:
+        print(f"Unexpected error running ffprobe: {e}")
+
 def trim_video(video, start_time, end_time, output_filename):
     """Trim the video using ffmpeg."""
     command_args = [
