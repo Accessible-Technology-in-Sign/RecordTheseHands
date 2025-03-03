@@ -35,19 +35,24 @@ import json
 import pathlib
 import re
 import csv
+import os
 
 import utils
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
+
   cmd = [
       '-v', 'error', '-select_streams', 'v', '-show_packets',
-      '-show_data_hash', 'md5',
-      '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
+      '-show_data_hash', 'md5', '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
       '-of', 'compact', video
   ]
 
-  result = utils.run_ffmpeg(cmd, capture_output=True, check=True, text=True)
+  """
+  ffmpeg -v error -y -ss 17.023567 -to 20.022301 -i video_dump/upload/test006/upload/test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4 -an -c:v copy PosixPath('clip_dump/test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z_clip_17.549616_19.310036.mp4')
+  """
+
+  result = utils.run_ffprobe(cmd, capture_output=True, check=True, text=True)
   probe_data = result.stdout
 
   packet_info = list()
@@ -56,6 +61,8 @@ def ffprobe_packet_info(video):
         r'packet\|pts_time=([\d\.-]+)\|duration_time=([\d\.]+)\|'
         r'flags=(...)\|data_hash=MD5:([0-9a-f]{32})$',
         line)
+
+    #approximate duration time as difference between PTS
     assert m, line
     pts_time_s = float(m.group(1))
     duration = float(m.group(2))
@@ -134,8 +141,9 @@ def make_clip(video, packet_info,
   # video does not have any packets with drop flags at the beginning.
   # Just another reason to ensure our clips start with the first packet
   # precisely at zero.
-  search_pts_time_start = annotation_start_s - pts_to_video_time
-  search_pts_time_end = annotation_end_s - pts_to_video_time
+
+  search_pts_time_start = float(annotation_start_s) - pts_to_video_time
+  search_pts_time_end = float(annotation_end_s) - pts_to_video_time
 
   last_keyframe = None
   seek_packet = None
@@ -184,7 +192,7 @@ def make_clip(video, packet_info,
       print(f'### Cutting {start_time}')
       print('###')
     
-    utils.trim_video(video, start_time, end_time, output_filename)
+    utils.trim_video(video, str(start_time), str(end_time), output_filename)
 
     clip_data = ffprobe_packet_info(output_filename)
     if verbose:
@@ -246,6 +254,8 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_
   """Make clips from all the videos in the video directory."""
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
+
+  os.makedirs(output_dir, exist_ok=True)
   
   clip_data = defaultdict(list)
   clips = []
@@ -258,15 +268,15 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_
       video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
       clip_data[(user_id, video)].append((start_time, end_time))
 
-  for (user_id, video), clips in clip_data.items():
+  for (user_id, video), clip_times in clip_data.items():
     video = video_directory.joinpath(video)
     packet_info = ffprobe_packet_info(str(video))
-    
-    for start_time, end_time in clips:
+    for start_time, end_time in clip_times:
+      output_dir = pathlib.Path(output_dir)
       output_filename = output_dir.joinpath(
           video.stem + f'_clip_{start_time}_{end_time}.mp4')
-      
-      clip_spec = make_clip(str(video), packet_info, start_time, end_time, output_filename)
+
+      clip_spec = make_clip(str(video), packet_info, str(start_time), str(end_time), str(output_filename))
       clips.append(clip_spec)
 
   with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
