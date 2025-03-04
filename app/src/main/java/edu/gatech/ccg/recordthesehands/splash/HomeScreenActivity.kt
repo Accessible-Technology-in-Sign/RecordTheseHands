@@ -33,6 +33,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -398,39 +399,69 @@ class HomeScreenActivity : ComponentActivity() {
       val uploadButton = findViewById<Button>(R.id.uploadButton)
       uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       uploadButton.setOnClickListener {
-        Log.i(TAG, "Upload Now button clicked.")
-        uploadButton.isEnabled = false
-        uploadButton.isClickable = false
-        uploadButton.text = "Uploading..."
-        CoroutineScope(Dispatchers.IO).launch {
-          UploadService.pauseUploadUntil(null)
-          try {
-            updateConnectionUi()
-            val uploadSucceeded = dataManager.uploadData(null)
-            runOnUiThread {
-              uploadButton.isEnabled = true
-              uploadButton.isClickable = true
-              if (uploadSucceeded) {
-                uploadButton.text = "Upload Now"
-              } else {
-                uploadButton.text = "Upload Failed, Click to try again"
-                val textFinish = "Upload Failed"
-                val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-                toastFinish.show()
+        // Show a confirmation dialog before proceeding with the upload
+        val builder = AlertDialog.Builder(this@HomeScreenActivity).apply {
+          setTitle("Confirm Upload")
+          setMessage("Uploading may take 10 or more minutes and can't be interrupted. Are you sure you want to proceed?")
+
+          setPositiveButton("Yes") { dialog, _ ->
+            // User confirmed, proceed with the upload
+            Log.i(TAG, "User confirmed upload.")
+            dialog.dismiss()
+
+            // Disable the button and start the upload process
+            uploadButton.isEnabled = false
+            uploadButton.isClickable = false
+            uploadButton.text = "Uploading..."
+
+
+            CoroutineScope(Dispatchers.IO).launch {
+              UploadService.pauseUploadUntil(null)
+              try {
+                updateConnectionUi()
+
+                val uploadSucceeded = dataManager.uploadData(null)
+
+                runOnUiThread {
+                  uploadButton.isEnabled = true
+                  uploadButton.isClickable = true
+                  if (uploadSucceeded) {
+                    uploadButton.text = "Upload Now"
+                  } else {
+                    uploadButton.text = "Upload Failed, Click to try again"
+                    val textFinish = "Upload Failed"
+                    val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+                    toastFinish.show()
+                  }
+                }
+              } catch (e: InterruptedUploadException) {
+                Log.w(TAG, "Upload Data was interrupted.")
+                runOnUiThread {
+                  val textFinish = "Upload interrupted"
+                  val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+                  toastFinish.show()
+                  uploadButton.isEnabled = true
+                  uploadButton.isClickable = true
+                  uploadButton.text = "Upload Now"
+                }
               }
-            }
-          } catch (e: InterruptedUploadException) {
-            Log.w(TAG, "Upload Data was interrupted.")
-            runOnUiThread {
-              val textFinish = "Upload interrupted"
-              val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-              toastFinish.show()
-              uploadButton.isEnabled = true
-              uploadButton.isClickable = true
-              uploadButton.text = "Upload Now"
+              updateConnectionUi()
             }
           }
-          updateConnectionUi()
+
+          setNegativeButton("No") { dialog, _ ->
+            Log.i(TAG, "User canceled upload.")
+            dialog.dismiss()
+          }
+        }
+
+        val dialog = builder.create()
+        dialog.apply {
+          setCanceledOnTouchOutside(true)
+          setOnCancelListener {
+            Log.i(TAG, "User dismissed the upload confirmation dialog.")
+          }
+          show()
         }
       }
     }
