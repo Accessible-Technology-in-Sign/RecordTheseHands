@@ -399,7 +399,7 @@ class HomeScreenActivity : ComponentActivity() {
             CoroutineScope(Dispatchers.IO).launch {
               UploadService.pauseUploadUntil(null)
               try {
-                updateConnectionUi()
+                updateConnectionUi(dataManager.connectedToServer())
 
                 val uploadSucceeded = dataManager.uploadData(null)
 
@@ -426,7 +426,7 @@ class HomeScreenActivity : ComponentActivity() {
                   uploadButton.text = "Upload Now"
                 }
               }
-              updateConnectionUi()
+              updateConnectionUi(dataManager.connectedToServer())
             }
           }
           updateConnectionUi(dataManager.connectedToServer())
