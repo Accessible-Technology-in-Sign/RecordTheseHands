@@ -1155,7 +1155,7 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager?): Boolean {
+  suspend fun uploadData(notificationManager: NotificationManager? = null, progressCallback: (Int) -> Unit): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1171,6 +1171,13 @@ class DataManager(val context: Context) {
         .map {
           it.asMap().entries
         }.firstOrNull()
+
+      // Calculates total files to upload
+      val totalFileEntries = context.registerFileStore.data
+        .map { it.asMap().entries }
+        .firstOrNull()?.size ?: 0
+      var completedItems = 0
+
       if (entries == null) {
         Log.i(TAG, "entries was null")
       } else if (entries.isNotEmpty()) {
@@ -1211,6 +1218,12 @@ class DataManager(val context: Context) {
           if (!uploadSession.tryUploadFile()) {
             return false
           }
+
+          completedItems += 1
+          val progress = (completedItems * 100 / totalFileEntries).coerceIn(0, 100)
+          Log.d(TAG, "Progress after file upload: $progress%")
+          progressCallback(progress)
+
           i += 1
         }
       }
