@@ -414,13 +414,22 @@ class HomeScreenActivity : ComponentActivity() {
             uploadButton.isClickable = false
             uploadButton.text = "Uploading..."
 
+            // Progress bar appears after confirming
+            val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
+            uploadProgressBar.visibility = View.VISIBLE
+            uploadProgressBar.progress = 0
 
             CoroutineScope(Dispatchers.IO).launch {
               UploadService.pauseUploadUntil(null)
               try {
                 updateConnectionUi()
 
-                val uploadSucceeded = dataManager.uploadData(null)
+                val uploadSucceeded = dataManager.uploadData { progress ->
+                  runOnUiThread {
+                    Log.d(TAG, "Updating ProgressBar to $progress%")
+                    uploadProgressBar.progress = progress
+                  }
+                }
 
                 runOnUiThread {
                   uploadButton.isEnabled = true
@@ -455,6 +464,7 @@ class HomeScreenActivity : ComponentActivity() {
           }
         }
 
+        // Pop up dismissed when clicking outside of it
         val dialog = builder.create()
         dialog.apply {
           setCanceledOnTouchOutside(true)
