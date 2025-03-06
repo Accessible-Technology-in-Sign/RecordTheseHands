@@ -84,6 +84,12 @@ def download_all_videos(bucket_name, blob_names, destination_directory="", worke
         else:
             print(f"Downloaded {name} to {destination_directory + name}.")
 
+def clean():
+  """Remove all the videos."""
+  if os.path.exists(_DUMP_ID):
+    os.system(f'rm -rf {_DUMP_ID}')
+  print(f"Removed {_DUMP_ID}")
+
 def main():
   print("Getting metadata from firestore")
   db = firestore.Client()
@@ -113,7 +119,7 @@ def main():
   print('Done downloading videos')
   
   print('\nValidating videos')
-  for (hash, path) in zip(all_hashes, all_paths): # Should we parallelize this?
+  for (hash, path) in zip(all_hashes, all_paths):
     file_path = f'{_DUMP_ID}/{path}'
     if compute_md5(file_path) != hash:
       print(f'File {file_path} failed validation')

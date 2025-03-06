@@ -294,6 +294,13 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv"):
   with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
     f.write(json.dumps(clips, indent=2))
 
+def clean():
+  """Remove all the clips."""
+  if os.path.exists(_DUMP_ID):
+    os.system(f'rm -rf {_DUMP_ID}')
+  
+  print(f"Removed {_DUMP_ID}")
+
 def main():
   make_clips()
 
