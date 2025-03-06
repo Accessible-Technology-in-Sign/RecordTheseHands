@@ -53,18 +53,28 @@ def get_data(username):
       doc_dict = doc_data.to_dict()
       data = doc_dict.get('data')
       clip_id = data.get('clipId')
-      assert clip_id
+      if not clip_id:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       m = re.match(r'[^-]+-s(\d{3})-(\d{3})', clip_id)
-      assert m, clip_id
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       session_index = int(m.group(1))
       clip_index = int(m.group(2))
       filename = data.get('filename')
-      assert filename
-      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename) # keep tutorial prefixing -- make sure group indices are correct later
-      assert m, filename
+      if not filename:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
+      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename)
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
-      assert session_index == int(m.group(3)), (clip_id, filename)
+      if session_index != int(m.group(3)):
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
 
       simple_clip = {
           'userId': user_id,
