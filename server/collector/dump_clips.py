@@ -119,6 +119,15 @@ def get_clip_bounds_in_video(clip_data):
   end_s = (clip_end_time - video_start_time).total_seconds()
   return (start_s, end_s)
 
+def clean():
+  """Remove all the metadata."""
+  if os.path.exists(f'{_DUMP_ID}.json'):
+    os.system(f'rm -rf {_DUMP_ID}.json')
+  print(f"Removed {_DUMP_ID}.json")
+  
+  if os.path.exists(f'{_DUMP_ID}.csv'):
+    os.system(f'rm -rf {_DUMP_ID}.csv')
+  print(f"Removed {_DUMP_ID}.csv")
 
 def main():
   db = firestore.Client()
