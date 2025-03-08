@@ -237,16 +237,16 @@ class HomeScreenActivity : ComponentActivity() {
       loadingText.visibility = View.GONE
       val mainGroup = findViewById<Group>(R.id.mainGroup)
       mainGroup.visibility = View.VISIBLE
-      updateConnectionUi(dataManager.connectedToServer())
       val startRecordingButton = findViewById<Button>(R.id.startButton)
 //      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
 //      exitTutorialModeButton.visibility = View.GONE
 
-      //updateConnectionUi()
-      val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
-      deviceIdBox.text = deviceId!!
+      Log.d(TAG, "updateConnectionUi call")
+      updateConnectionUi(dataManager.connectedToServer())
 
+      val deviceIdBox= findViewById<TextView>(R.id.deviceIdBox)
+      deviceIdBox.text = deviceId
       if (username != null) {
         val usernameBox = findViewById<TextView>(R.id.usernameBox)
         usernameBox.text = username
