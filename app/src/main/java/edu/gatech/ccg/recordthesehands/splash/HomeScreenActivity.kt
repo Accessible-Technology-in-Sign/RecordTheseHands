@@ -286,7 +286,7 @@ class HomeScreenActivity : ComponentActivity() {
         val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
         val completedPrompts = prompts!!.promptIndex.toString()
         val totalPrompts = prompts!!.array.size.toString()
-        promptsProgressBox.text = "${completedPrompts} of ${totalPrompts}"
+        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
 
 //        if (tutorialMode && (currentRecordingSessions > 0 ||
 //              (promptIndex ?: 0) >= (numPrompts ?: 0))
