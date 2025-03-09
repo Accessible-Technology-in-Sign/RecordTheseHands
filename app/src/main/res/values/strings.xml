@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Record These Hands</string>
+    <string name="app_name">RecordTheseHands</string>
     <string name="version">v1.0</string>
 
     <!-- Log In Interface -->
@@ -33,7 +33,7 @@
         <string name="total_time">Total Time Spent:&#160;</string>
         <string name="total_sessions">Session Completed This Sitting:&#160;</string>
         <string name="total_uploaded">Total Uploads</string>
-        <string name="ratio">0 of 0</string>
+        <string name="ratio">%1$s of %2$s</string>
         <string name="counter">0</string>
     <string name="tutorial_mode">Tutorial Mode</string>
     <string name="start_button">Start</string>
