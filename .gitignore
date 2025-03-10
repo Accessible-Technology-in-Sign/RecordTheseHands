@@ -23,6 +23,6 @@ APP_ENV_DIR/
 asl_venv/
 dump.csv
 dump.json
-clip_dump
+clip_dump/
 video_dump/
 

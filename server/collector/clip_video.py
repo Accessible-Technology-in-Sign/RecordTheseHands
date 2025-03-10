@@ -36,8 +36,12 @@ import pathlib
 import re
 import csv
 import os
+import concurrent.futures
 
 import utils
+
+VIDEO_EDGE_SAFETY_MARGIN = 0.5
+_DUMP_ID = "clip_dump"
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
@@ -246,10 +250,11 @@ def make_clip(video, packet_info,
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
-def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_dir="clip_dump"):
+def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv"):
   """Make clips from all the videos in the video directory."""
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
+  output_dir = pathlib.Path(_DUMP_ID)
 
   os.makedirs(output_dir, exist_ok=True)
   
@@ -260,23 +265,41 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", output_
     csv_reader = csv.reader(f)
     
     for row in csv_reader:
-      user_id, video, start_time, end_time = row[0], row[1], row[4], row[5]
+      user_id, video, start_time, end_time = row[0], row[1], float(row[4]), float(row[5])
       video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
       clip_data[(user_id, video)].append((start_time, end_time))
 
   for (user_id, video), clip_times in clip_data.items():
     video = video_directory.joinpath(video)
     packet_info = ffprobe_packet_info(str(video))
+    tasks = []
     for start_time, end_time in clip_times:
-      output_dir = pathlib.Path(output_dir)
+      start_time_adjusted = max(start_time - VIDEO_EDGE_SAFETY_MARGIN, 0) # Negative would cause error
+      end_time_adjusted = end_time + VIDEO_EDGE_SAFETY_MARGIN # End time can be greater than video duration
       output_filename = output_dir.joinpath(
-          video.stem + f'_clip_{start_time}_{end_time}.mp4')
+          video.stem + f'_clip_{start_time_adjusted}_{end_time_adjusted}.mp4')
+      tasks.append((video, packet_info, str(start_time_adjusted), str(end_time_adjusted), str(output_filename)))
+    
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+      futures = {executor.submit(make_clip, *task): task for task in tasks}
 
-      clip_spec = make_clip(str(video), packet_info, str(start_time), str(end_time), str(output_filename))
-      clips.append(clip_spec)
+    for future in concurrent.futures.as_completed(futures):
+      task = futures[future]
+
+      try:
+        clips.append(future.result())
+      except Exception as e:
+        print(f"Error processing clip {task}: {e}")
 
   with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
     f.write(json.dumps(clips, indent=2))
+
+def clean():
+  """Remove all the clips."""
+  if os.path.exists(_DUMP_ID):
+    os.system(f'rm -rf {_DUMP_ID}')
+  
+  print(f"Removed {_DUMP_ID}")
 
 def main():
   make_clips()

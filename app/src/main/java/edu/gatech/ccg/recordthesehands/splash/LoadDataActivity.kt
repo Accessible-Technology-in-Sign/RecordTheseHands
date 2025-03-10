@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -44,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 class LoadDataActivity : ComponentActivity() {
@@ -84,6 +86,24 @@ class LoadDataActivity : ComponentActivity() {
       }
     }
 
+    val loginButton = findViewById<Button>(R.id.loginButton)
+    loginButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    loginButton.setOnClickListener {
+      CoroutineScope(Dispatchers.IO).launch {
+        val user = dataManager.getUsername()
+        if (user == null) {
+          Log.e(TAG, "No user provided")
+        } else {
+          withContext(Dispatchers.Main) {
+            val intent = Intent(this@LoadDataActivity, PromptSelectActivity::class.java)
+            startActivity(intent)
+            Log.i(TAG, "Moving to prompt selection from login")
+            finish()
+          }
+        }
+      }
+    }
+
     val createAccountButton = findViewById<Button>(R.id.createAccountButton)
 
     createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
@@ -91,8 +111,9 @@ class LoadDataActivity : ComponentActivity() {
       val username = usernameText.text.toString()
       createAccountButton.isEnabled = false
       createAccountButton.isClickable = false
-      createAccountButton.text = "Creating account."
-      val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
+      createAccountButton.text = "Creating Account"
+      val adminPasswordText = findViewById<EditText>(R.id.adminPasswordTextField)
+      val adminPassword = adminPasswordText.text.toString()
       lifecycleScope.launch {
         thread {  // Don't run network on UI thread.
           val result = dataManager.createAccount(username, adminPassword)
@@ -104,6 +125,8 @@ class LoadDataActivity : ComponentActivity() {
                 createAccountButton.isEnabled = true
                 createAccountButton.isClickable = true
                 createAccountButton.text = "Create account"
+                usernameText.text = null
+                adminPasswordText.text = null
               } else {
                 setTitle("Failed")
                 setMessage("Failed to Create account for \"$username\".")
@@ -119,20 +142,6 @@ class LoadDataActivity : ComponentActivity() {
         }
       }
     }
-
-    val enableTutorialModeButton = findViewById<Button>(R.id.enableTutorialModeButton)
-    enableTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    enableTutorialModeButton.setOnClickListener {
-      CoroutineScope(Dispatchers.IO).launch {
-        dataManager.setTutorialMode(true)
-        dataManager.getPrompts()?.also {
-          it.promptIndex = 0
-          it.savePromptIndex()
-        }
-        finish()
-      }
-    }
-
   }
 
   fun requestAllPermissions() {
