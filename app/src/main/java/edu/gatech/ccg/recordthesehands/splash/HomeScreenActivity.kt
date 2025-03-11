@@ -253,9 +253,9 @@ class HomeScreenActivity : ComponentActivity() {
       } else {
         tutorialModeText.visibility = View.GONE
       }
-
       val numPrompts = prompts?.array?.size
       val promptIndex = prompts?.promptIndex
+
       if (prompts != null && username != null) {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
@@ -415,7 +415,6 @@ class HomeScreenActivity : ComponentActivity() {
             setTitle("Connection Error:")
             setMessage("Please check your internet connection or try reconnecting to the server. If the issue persists, consider restarting the app or checking your network settings.")
             setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
-            show()
           }
 
           // upload if connected to server
