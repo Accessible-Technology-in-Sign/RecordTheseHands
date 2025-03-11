@@ -39,8 +39,8 @@
     <string name="start_button">Start</string>
     <string name="start_failed">Cannot Start</string>
         <!-- Upload Dialog -->
-        <string name="alert">Confirm Upload</string>
-        <string name="alert_message">Uploading may take 10 or more minutes and can\'t be interrupted. Are you sure you want to proceed?</string>
+        <string name="upload_alert">Confirm Upload</string>
+        <string name="upload_alert_message">Uploading may take 10 or more minutes and can\'t be interrupted. Are you sure you want to proceed?</string>
         <string name="no">No</string>
         <string name="yes">Yes</string>
         <!-- Upload Button Messages -->
@@ -55,4 +55,9 @@
     <string name="recording">Recording</string>
     <string name="time">15:00</string>
     <string name="go">GO!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">Permissions are required to use the app</string>
+    <string name="perm_alert_message">In order to record your data, we will need access to the camera and write functionality.</string>
+    <string name="ok">OK</string>
 </resources>

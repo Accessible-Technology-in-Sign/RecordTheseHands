@@ -41,8 +41,8 @@
     <string name="start_button">शुरू करें</string>
     <string name="start_failed">शुरू नहीं कर सकते</string>
         <!-- Upload Dialog -->
-        <string name="alert">अपलोड की पुष्टि करें</string>
-        <string name="alert_message">अपलोड करने में 10 या अधिक मिनट लग सकते हैं और इसे रोका नहीं जा सकता। क्या आप निश्चित रूप से जारी रखना चाहते हैं?</string>
+        <string name="upload_alert">अपलोड की पुष्टि करें</string>
+        <string name="upload_alert_message">अपलोड करने में 10 या अधिक मिनट लग सकते हैं और इसे रोका नहीं जा सकता। क्या आप निश्चित रूप से जारी रखना चाहते हैं?</string>
         <string name="no">नहीं</string>
         <string name="yes">हाँ</string>
         <!-- Upload Button Messages -->
@@ -50,11 +50,16 @@
         <string name="upload_failed">अपलोड विफल, पुनः प्रयास करने के लिए क्लिक करें</string>
         <string name="upload_successful">अपलोड हो रहा है…</string>
 
-    <!-- Recording Session Page-->
+    <!-- Recording Session Page -->
     <string name="record">शुरू करें</string>
     <string name="restart">गलती\nपुनः प्रारंभ करें</string>
     <string name="finish">समाप्त</string>
     <string name="recording">रिकॉर्डिंग</string>
     <string name="time">15:00</string>
     <string name="go">चलो!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">ऐप का उपयोग करने के लिए अनुमतियाँ आवश्यक हैं</string>
+    <string name="perm_alert_message">आपका डेटा रिकॉर्ड करने के लिए, हमें कैमरा और लेखन कार्यक्षमता तक पहुँच की आवश्यकता होगी।</string>
+    <string name="ok">ठीक है</string>
 </resources>
