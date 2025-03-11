@@ -253,10 +253,15 @@ class HomeScreenActivity : ComponentActivity() {
       } else {
         tutorialModeText.visibility = View.GONE
       }
+
       val numPrompts = prompts?.array?.size
       val promptIndex = prompts?.promptIndex
 
-      if (prompts != null && username != null) {
+      if (prompts == null) {
+        startRecordingButton.isEnabled = true
+        startRecordingButton.isClickable = true
+        startRecordingButton.text = "Cannot Start"
+      } else if (prompts != null && username != null) {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
@@ -311,7 +316,7 @@ class HomeScreenActivity : ComponentActivity() {
         if (prompts == null) {
           AlertDialog.Builder(this@HomeScreenActivity)
             .setTitle("No Prompts Available")
-            .setMessage("No prompts have been assigned. Please assign prompts before starting.")
+            .setMessage("No prompts have been downloaded. Please download prompts before starting.")
             .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
             .show()
         } else {
