@@ -1773,8 +1773,6 @@ class DataManager(val context: Context) {
   /**
    * Check server connection by pinging server
    * method must be called whenever you want to check the server status
-   * TODO: Should the method be looped every so often or be manually called each time whenever the server is accessed?
-   * Right now it is only being called in runDirectives()
    */
   fun checkServerConnection() {
     CoroutineScope(Dispatchers.IO).launch {

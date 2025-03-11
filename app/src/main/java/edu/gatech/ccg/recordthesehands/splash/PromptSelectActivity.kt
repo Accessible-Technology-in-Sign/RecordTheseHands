@@ -38,10 +38,6 @@ class PromptSelectActivity : ComponentActivity() {
       backArrow.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
           dataManager.setTutorialMode(false)
-          dataManager.getPrompts()?.also {
-            it.promptIndex = 0
-            it.savePromptIndex()
-          }
 
           // startActivity is configured so that it will not run on anything but the main thread. So, this will create the intent and start it on the main thread.
           withContext(Dispatchers.Main) {
@@ -60,10 +56,6 @@ class PromptSelectActivity : ComponentActivity() {
       loadedPrompts.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
             dataManager.setTutorialMode(false)
-            dataManager.getPrompts()?.also {
-              it.promptIndex = 0
-              it.savePromptIndex()
-          }
           withContext(Dispatchers.Main) {
             val intent = Intent(this@PromptSelectActivity, HomeScreenActivity::class.java)
             startActivity(intent)
@@ -78,10 +70,6 @@ class PromptSelectActivity : ComponentActivity() {
       tutorialPrompts.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
           dataManager.setTutorialMode(true)
-          dataManager.getPrompts()?.also {
-            it.promptIndex = 0
-            it.savePromptIndex()
-          }
           withContext(Dispatchers.Main) {
             val intent = Intent(this@PromptSelectActivity, HomeScreenActivity::class.java)
             startActivity(intent)
