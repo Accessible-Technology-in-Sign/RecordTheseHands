@@ -43,8 +43,8 @@
     <string name="start_button">開始</string>
     <string name="start_failed">開始できません</string>
         <!-- Upload Dialog -->
-        <string name="alert">アップロードの確認</string>
-        <string name="alert_message">アップロードには10分以上かかる場合があり、中断できません。本当に続行しますか？</string>
+        <string name="upload_alert">アップロードの確認</string>
+        <string name="upload_alert_message">アップロードには10分以上かかる場合があり、中断できません。本当に続行しますか？</string>
         <string name="no">いいえ</string>
         <string name="yes">はい</string>
         <!-- Upload Button Messages -->
@@ -59,4 +59,9 @@
     <string name="recording">録音中</string>
     <string name="time">15:00</string>
     <string name="go">スタート!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">アプリを使用するには許可が必要です</string>
+    <string name="perm_alert_message">データを記録するために、カメラと書き込み機能へのアクセスが必要です。</string>
+    <string name="ok">OK</string>
 </resources>
