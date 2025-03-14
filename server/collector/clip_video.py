@@ -40,7 +40,7 @@ import concurrent.futures
 
 import utils
 
-VIDEO_EDGE_SAFETY_MARGIN = 0.5
+VIDEO_EDGE_SAFETY_BUFFER = 0.5
 _DUMP_ID = "clip_dump"
 
 def ffprobe_packet_info(video):
@@ -250,7 +250,7 @@ def make_clip(video, packet_info,
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
-def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv"):
+def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", user_buffers={}):
   """Make clips from all the videos in the video directory."""
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
@@ -273,9 +273,12 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv"):
     video = video_directory.joinpath(video)
     packet_info = ffprobe_packet_info(str(video))
     tasks = []
+    buffers = user_buffers.get(user_id, {})
+    safety_buffer_start = buffers.get("start", VIDEO_EDGE_SAFETY_BUFFER)
+    safety_buffer_end = buffers.get("end", VIDEO_EDGE_SAFETY_BUFFER)
     for start_time, end_time in clip_times:
-      start_time_adjusted = max(start_time - VIDEO_EDGE_SAFETY_MARGIN, 0) # Negative would cause error
-      end_time_adjusted = end_time + VIDEO_EDGE_SAFETY_MARGIN # End time can be greater than video duration
+      start_time_adjusted = max(start_time - safety_buffer_start, 0) # Negative would cause error
+      end_time_adjusted = end_time + safety_buffer_end # End time can be greater than video duration
       output_filename = output_dir.joinpath(
           video.stem + f'_clip_{start_time_adjusted}_{end_time_adjusted}.mp4')
       tasks.append((video, packet_info, str(start_time_adjusted), str(end_time_adjusted), str(output_filename)))
@@ -301,8 +304,14 @@ def clean():
   
   print(f"Removed {_DUMP_ID}")
 
-def main():
-  make_clips()
+def main(buffer_config=None):
+  """Make all the clips."""
+  user_buffers = {}
+  if buffer_config:
+    with open(buffer_config, 'r', encoding='utf-8') as f:
+      user_buffers = json.load(f)
+  
+  make_clips(user_buffers=user_buffers)
 
 if __name__ == '__main__':
   main()
