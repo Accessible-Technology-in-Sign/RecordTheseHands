@@ -37,7 +37,7 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 # Match these accounts (with a prefix of test)
-_MATCH_USERS = re.compile(r'^test\d{3}$')
+_MATCH_USERS = re.compile(r'^dqp\d{2}$') # Changed from testNNN -> dqpNN
 # stem name of the output files (json and csv).
 _DUMP_ID = 'dump'
 
@@ -45,7 +45,7 @@ _DUMP_ID = 'dump'
 def get_data(username):
   """Obtain the clip and session data from firestore."""
   db = firestore.Client()
-  c_ref = db.collection(f'collector/users/{username}/data/save_clip')
+  c_ref = db.collection(f'collector/users/{username}/data/save') # Changed from save_clip -> save in DPAN data
   clips = list()
   sessions = list()
   for doc_data in c_ref.stream():
