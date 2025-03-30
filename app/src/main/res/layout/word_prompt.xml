@@ -33,8 +33,8 @@
         android:textColor="@android:color/black"
         android:textSize="34sp"
         app:layout_constraintStart_toStartOf="@+id/promptView"
-        app:layout_constraintEnd_toStartOf="@+id/rightBarrier"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
+<!--        app:layout_constraintEnd_toStartOf="@+id/rightBarrier"-->
 
     <ImageView
         android:id="@+id/promptImage"
@@ -51,16 +51,13 @@
     <VideoView
         android:id="@+id/promptVideo"
         android:layout_width="0dp"
-        android:layout_height="100dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:visibility="gone"
-        app:layout_constraintDimensionRatio="W,16:9"
-        app:layout_constraintEnd_toEndOf="@+id/promptView"
-        app:layout_constraintTop_toTopOf="@+id/promptView" />
+        android:layout_height="0dp"
+        android:visibility="visible"
+        app:layout_constraintDimensionRatio="H,16:9"
+        tools:ignore="MissingConstraints" />
 
     <ImageButton
-        android:id="@+id/changeScreenSizeButton"
+        android:id="@+id/fullScreenButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_marginEnd="4dp"
@@ -68,6 +65,18 @@
         android:backgroundTint="@android:color/transparent"
         android:visibility="gone"
         android:src="@drawable/full_screen_button"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintEnd_toEndOf="@id/promptVideo" />
+
+    <ImageButton
+        android:id="@+id/originalScreenButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:visibility="gone"
+        android:src="@drawable/minimize_screen_button"
         app:layout_constraintBottom_toBottomOf="@id/promptVideo"
         app:layout_constraintEnd_toEndOf="@id/promptVideo" />
 
@@ -84,18 +93,30 @@
         app:layout_constraintBottom_toBottomOf="@id/promptVideo"
         app:layout_constraintStart_toStartOf="@id/promptVideo" />
 
+    <ImageButton
+        android:id="@+id/disableSplitScreenButton"
+        android:layout_width="50dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:src="@drawable/disable_split_screen_button"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintStart_toStartOf="@id/promptVideo" />
+
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/promptBarrier"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:barrierDirection="bottom"
-        app:constraint_referenced_ids="promptText,promptImage,promptVideo" />
+        app:constraint_referenced_ids="promptText,promptImage" />
 
-    <androidx.constraintlayout.widget.Barrier
-        android:id="@+id/rightBarrier"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:barrierDirection="start"
-        app:constraint_referenced_ids="promptImage,promptVideo" />
+<!--    <androidx.constraintlayout.widget.Barrier-->
+<!--        android:id="@+id/rightBarrier"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        app:barrierDirection="start"-->
+<!--        app:constraint_referenced_ids="promptImage" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
