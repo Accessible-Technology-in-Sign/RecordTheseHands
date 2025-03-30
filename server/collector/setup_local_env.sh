@@ -131,3 +131,4 @@ curl https://localhost:8050/
 export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
 
 EndOfMessage
+

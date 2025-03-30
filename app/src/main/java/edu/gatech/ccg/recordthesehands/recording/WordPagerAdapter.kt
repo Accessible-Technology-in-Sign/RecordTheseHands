@@ -24,10 +24,16 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.util.Log
+import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
+import edu.gatech.ccg.recordthesehands.upload.Prompt
+import edu.gatech.ccg.recordthesehands.upload.Prompts
+import java.io.IOException
+import java.util.*
+import kotlin.collections.HashMap
 
 /**
  * The Adapter for swiping through the prompts.  The name "Word" is in
@@ -49,11 +55,11 @@ class WordPagerAdapter(
   override fun createFragment(position: Int): Fragment {
     Log.d("WordPagerAdapter", "Page changed to {$position}")
     if (position < numPromptPages) {
-      val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
       // TODO Add the videos back in.
+      val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
       return WordPromptFragment(prompt, R.layout.word_prompt)
     } else if (position == numPromptPages) {
-      return SaveRecordingFragment(recordingActivity.prompts.array, R.layout.save_record)
+      return SaveRecordingFragment(R.layout.save_record)
     } else {
       return RecordingListFragment(
         recordingActivity, R.layout.recording_list
