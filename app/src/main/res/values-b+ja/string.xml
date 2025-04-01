@@ -15,6 +15,11 @@
     <string name="signup_button">アカウントを作成</string>
     <string name="id_button">デバイスIDを設定</string>
 
+    <!-- Prompt Page -->
+    <string name="select_prompt">プロンプトを選択</string>
+    <string name="downloaded_prompts">ダウンロード済みのプロンプト</string>
+    <string name="tutorial_prompts">チュートリアルモード</string>
+
     <!-- Main Page -->
         <!-- Information -->
         <string name="loading">アプリデータを読み込み中…</string>
