@@ -13,6 +13,12 @@
     <string name="signup_button">Create an Account</string>
     <string name="id_button">Set Device ID</string>
 
+
+    <!-- Prompt Page -->
+    <string name="select_prompt">Select a Prompt</string>
+    <string name="downloaded_prompts">Downloaded Prompts</string>
+    <string name="tutorial_prompts">Tutorial Mode</string>
+
     <!-- Main Page -->
         <!-- Information -->
         <string name="loading">Loading App Data…</string>
