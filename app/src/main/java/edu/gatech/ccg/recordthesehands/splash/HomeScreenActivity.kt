@@ -169,23 +169,23 @@ class HomeScreenActivity : ComponentActivity() {
       val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
       if (network == null) {
         internetConnectionText.visibility = View.VISIBLE
-        internetConnectionText.text = "Internet Unavailable"
+        internetConnectionText.text = getString(R.string.internet_failed)
       } else {
         if (dataManager.connectedToServer()) {
           internetConnectionText.visibility = View.INVISIBLE
         } else {
           internetConnectionText.visibility = View.VISIBLE
         }
-        internetConnectionText.text = "Internet Connected"
+        internetConnectionText.text = getString(R.string.internet_success)
       }
 
       val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
       if (dataManager.connectedToServer()) {
         serverConnectionText.visibility = View.INVISIBLE
-        serverConnectionText.text = "Connected to Server"
+        serverConnectionText.text = getString(R.string.server_success)
       } else {
         serverConnectionText.visibility = View.VISIBLE
-        serverConnectionText.text = "Unable to connect to Server"
+        serverConnectionText.text = getString(R.string.server_failed)
       }
     }
   }
@@ -197,7 +197,7 @@ class HomeScreenActivity : ComponentActivity() {
     val startRecordingButton = findViewById<Button>(R.id.startButton)
     startRecordingButton.isEnabled = false
     startRecordingButton.isClickable = false
-    startRecordingButton.text = "Cannot Start"
+    startRecordingButton.text = getString(R.string.start_failed)
     val versionText = findViewById<TextView>(R.id.versionText)
     versionText.text = "v$APP_VERSION"
     val loadingText = findViewById<TextView>(R.id.loadingText)
@@ -261,7 +261,7 @@ class HomeScreenActivity : ComponentActivity() {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
-          startRecordingButton.text = "Start"
+          startRecordingButton.text = getString(R.string.start_button)
         } else {
           startRecordingButton.visibility = View.GONE
         }
@@ -286,7 +286,7 @@ class HomeScreenActivity : ComponentActivity() {
         val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
         val completedPrompts = prompts!!.promptIndex.toString()
         val totalPrompts = prompts!!.array.size.toString()
-        promptsProgressBox.text = "${completedPrompts} of ${totalPrompts}"
+        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
 
 //        if (tutorialMode && (currentRecordingSessions > 0 ||
 //              (promptIndex ?: 0) >= (numPrompts ?: 0))
@@ -356,13 +356,10 @@ class HomeScreenActivity : ComponentActivity() {
 
           // Send an alert prompting the user that they need to grant permissions
           val builder = AlertDialog.Builder(applicationContext).apply {
-            setTitle("Permissions are required to use the app")
-            setMessage(
-              "In order to record your data, we will need access to " +
-                  "the camera and write functionality."
-            )
+            setTitle(getString(R.string.perm_alert))
+            setMessage(getString(R.string.perm_alert_message))
 
-            setPositiveButton("OK") { dialog, _ ->
+            setPositiveButton(getString(R.string.ok)) { dialog, _ ->
               requestRecordingPermissions.launch(
                 arrayOf(CAMERA)
               )
@@ -401,10 +398,10 @@ class HomeScreenActivity : ComponentActivity() {
       uploadButton.setOnClickListener {
         // Show a confirmation dialog before proceeding with the upload
         val builder = AlertDialog.Builder(this@HomeScreenActivity).apply {
-          setTitle("Confirm Upload")
-          setMessage("Uploading may take 10 or more minutes and can't be interrupted. Are you sure you want to proceed?")
+          setTitle(getString(R.string.upload_alert))
+          setMessage(getString(R.string.upload_alert_message))
 
-          setPositiveButton("Yes") { dialog, _ ->
+          setPositiveButton(getString(R.string.yes)) { dialog, _ ->
             // User confirmed, proceed with the upload
             Log.i(TAG, "User confirmed upload.")
             dialog.dismiss()
@@ -412,7 +409,7 @@ class HomeScreenActivity : ComponentActivity() {
             // Disable the button and start the upload process
             uploadButton.isEnabled = false
             uploadButton.isClickable = false
-            uploadButton.text = "Uploading..."
+            uploadButton.text = getString(R.string.upload_successful)
 
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -426,9 +423,9 @@ class HomeScreenActivity : ComponentActivity() {
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
                   if (uploadSucceeded) {
-                    uploadButton.text = "Upload Now"
+                    uploadButton.text = getString(R.string.upload_button)
                   } else {
-                    uploadButton.text = "Upload Failed, Click to try again"
+                    uploadButton.text = getString(R.string.upload_failed)
                     val textFinish = "Upload Failed"
                     val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
                     toastFinish.show()
@@ -442,14 +439,14 @@ class HomeScreenActivity : ComponentActivity() {
                   toastFinish.show()
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
-                  uploadButton.text = "Upload Now"
+                  uploadButton.text = getString(R.string.upload_button)
                 }
               }
               updateConnectionUi()
             }
           }
 
-          setNegativeButton("No") { dialog, _ ->
+          setNegativeButton(getString(R.string.no)) { dialog, _ ->
             Log.i(TAG, "User canceled upload.")
             dialog.dismiss()
           }
