@@ -15,6 +15,12 @@
     <string name="signup_button">खाता बनाएं</string>
     <string name="id_button">डिवाइस आईडी सेट करें</string>
 
+
+    <!-- Prompt Page -->
+    <string name="select_prompt">प्रॉम्प्ट चुनें</string>
+    <string name="downloaded_prompts">डाउनलोड किए गए प्रॉम्प्ट</string>
+    <string name="tutorial_prompts">ट्यूटोरियल मोड</string>
+
     <!-- Main Page -->
         <!-- Information -->
         <string name="loading">ऐप डेटा लोड हो रहा है…</string>

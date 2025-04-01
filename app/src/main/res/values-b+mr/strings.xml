@@ -14,6 +14,11 @@
     <string name="signup_button">खाते तयार करा</string>
     <string name="id_button">डिव्हाइस आयडी सेट करा</string>
 
+    <!-- Prompt Page -->
+    <string name="select_prompt">प्रॉम्प्ट निवडा</string>
+    <string name="downloaded_prompts">डाऊनलोड केलेले प्रॉम्प्ट</string>
+    <string name="tutorial_prompts">ट्युटोरियल मोड</string>
+
     <!-- Main Page -->
         <!-- Information -->
         <string name="loading">अॅप डेटा लोड करत आहे…</string>
