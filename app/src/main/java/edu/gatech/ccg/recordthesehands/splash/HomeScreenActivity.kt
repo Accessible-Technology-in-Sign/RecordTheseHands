@@ -309,11 +309,20 @@ class HomeScreenActivity : ComponentActivity() {
 //            }
 //          }
 //        }
+      } else {
+        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+        promptsProgressBox.text = getString(R.string.ratio, "0", "0")
+        prompts = dataManager.getPrompts()
+        if (prompts == null) {
+          Log.w(TAG, "Prompts is still null")
+        }
       }
 
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
         if (prompts == null) {
+          val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+          promptsProgressBox.text = getString(R.string.ratio, "0", "0")
           AlertDialog.Builder(this@HomeScreenActivity)
             .setTitle("No Prompts Available")
             .setMessage("No prompts have been downloaded. Please download prompts before starting.")
@@ -619,9 +628,15 @@ class HomeScreenActivity : ComponentActivity() {
       runBlocking {
         username = dataManager.getUsername()
         prompts = dataManager.getPrompts()
+
+
         if (username == null) {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
           startActivity(intent)
+        }
+
+        if (prompts == null) {
+          Log.w(TAG, "Prompts is null")
         }
         deviceId = dataManager.getDeviceId()
         val numPrompts = prompts?.array?.size
@@ -630,7 +645,10 @@ class HomeScreenActivity : ComponentActivity() {
           "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )
 
-        setupUI()
+        //setupUI()
+        runOnUiThread {
+          setupUI()
+        }
       }
     }
   }

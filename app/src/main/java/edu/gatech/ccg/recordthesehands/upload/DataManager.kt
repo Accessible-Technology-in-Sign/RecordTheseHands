@@ -1632,6 +1632,7 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPrompts(): Prompts? {
+    Log.d(TAG, "getPrompts() called")
     val tutorialMode = getTutorialMode()
     if (tutorialMode) {
       return getTutorialPrompts()
@@ -1650,10 +1651,17 @@ class DataManager(val context: Context) {
       }
       val newPromptsData = Prompts(
           context, "tutorialPromptsFilename", "promptIndex")
-      if (!newPromptsData.initialize()) {
+      val initialized = newPromptsData.initialize()
+      Log.d(TAG, "Tutorial prompts initialized: $initialized")
+
+      if (!initialized) {
         return null
       }
-      if (!ensureResources(newPromptsData)) {
+
+      val resourcesEnsured = ensureResources(newPromptsData)
+      Log.d(TAG, "Tutorial prompt resources ensured: $resourcesEnsured")
+
+      if (!resourcesEnsured) {
         return null
       }
       dataManagerData.tutorialPromptsData = newPromptsData
@@ -1845,6 +1853,7 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
     }.firstOrNull() ?: return false
     val promptsRelativePath = promptsData.first ?: return false
     promptIndex = promptsData.second ?: return false
+    Log.d(TAG, "Prefs: path=$promptsRelativePath, index=$promptIndex")
     try {
       val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
       val promptsJsonArray = promptsJson.getJSONArray("prompts")
