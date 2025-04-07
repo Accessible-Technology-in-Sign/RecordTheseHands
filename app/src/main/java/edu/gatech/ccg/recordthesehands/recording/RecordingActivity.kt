@@ -571,7 +571,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   /**
    * Experimental scaling factor for the record button.
    */
-  private val recordButtonScaleFactor = 0.4f
+//  private val recordButtonScaleFactor = 0.4f
 
   /**
    * A function to initialize a new thread for camera-related code to run on.
