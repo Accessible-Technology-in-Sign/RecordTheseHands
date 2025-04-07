@@ -21,38 +21,38 @@
         android:id="@+id/header"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select a Prompt"
+        android:text="@string/select_prompt"
         android:textSize="50sp"
         android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/backButton" />
 
     <Button
         android:id="@+id/loadedPrompts"
         android:layout_width="300dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:backgroundTint="@color/cardview_dark_background"
-        app:layout_constraintTop_toBottomOf="@id/header"
+        android:text="@string/downloaded_prompts"
+        android:textColor="@color/white"
+        android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@id/tutorialModePrompts"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginTop="20dp"
-        android:textColor="@color/white"
-        android:text="Downloaded Prompts"
-        android:textSize="20sp" />
+        app:layout_constraintTop_toBottomOf="@id/header" />
 
     <Button
         android:id="@+id/tutorialModePrompts"
         android:layout_width="300dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:backgroundTint="@color/cardview_dark_background"
-        app:layout_constraintTop_toBottomOf="@id/loadedPrompts"
+        android:text="@string/tutorial_mode"
+        android:textColor="@color/white"
+        android:textSize="20sp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginTop="20dp"
-        android:text="Tutorial Mode"
-        android:textColor="@color/white"
-        android:textSize="20sp" />
+        app:layout_constraintTop_toBottomOf="@id/loadedPrompts" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

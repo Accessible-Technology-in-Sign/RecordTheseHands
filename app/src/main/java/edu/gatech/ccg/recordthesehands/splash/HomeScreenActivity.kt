@@ -32,8 +32,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.ProgressBar
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -46,6 +46,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.*
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -157,11 +159,8 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
 
-  private fun updateConnectionUi() {
-    // TODO When reloading the app, this will generally run before dataManager.runDirectives
-    // runs.  This means, that the data will be incorrect and won't be reloaded until
-    // the upload now button is pressed or the app is restarted.  The best way to fix this
-    // would be to have dataManager broadcast a message every time the server is pinged.
+  private fun updateConnectionUi(isConnected: Boolean) {
+    Log.d(TAG, "Updating UI with connection status: $isConnected")
     val connectivityManager =
       applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val network = connectivityManager.activeNetwork
@@ -169,26 +168,27 @@ class HomeScreenActivity : ComponentActivity() {
       val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
       if (network == null) {
         internetConnectionText.visibility = View.VISIBLE
-        internetConnectionText.text = "Internet Unavailable"
+        internetConnectionText.text = getString(R.string.internet_failed)
       } else {
-        if (dataManager.connectedToServer()) {
+        if (isConnected) {
           internetConnectionText.visibility = View.INVISIBLE
         } else {
           internetConnectionText.visibility = View.VISIBLE
         }
-        internetConnectionText.text = "Internet Connected"
+        internetConnectionText.text = getString(R.string.internet_success)
       }
 
       val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
-      if (dataManager.connectedToServer()) {
+      if (isConnected) {
         serverConnectionText.visibility = View.INVISIBLE
-        serverConnectionText.text = "Connected to Server"
+        serverConnectionText.text = getString(R.string.server_success)
       } else {
         serverConnectionText.visibility = View.VISIBLE
-        serverConnectionText.text = "Unable to connect to Server"
+        serverConnectionText.text = getString(R.string.server_failed)
       }
     }
   }
+
 
   /**
    * Sets up the UI with a loading screen
@@ -197,7 +197,7 @@ class HomeScreenActivity : ComponentActivity() {
     val startRecordingButton = findViewById<Button>(R.id.startButton)
     startRecordingButton.isEnabled = false
     startRecordingButton.isClickable = false
-    startRecordingButton.text = "Cannot Start"
+    startRecordingButton.text = getString(R.string.start_failed)
     val versionText = findViewById<TextView>(R.id.versionText)
     versionText.text = "v$APP_VERSION"
     val loadingText = findViewById<TextView>(R.id.loadingText)
@@ -233,17 +233,16 @@ class HomeScreenActivity : ComponentActivity() {
       loadingText.visibility = View.GONE
       val mainGroup = findViewById<Group>(R.id.mainGroup)
       mainGroup.visibility = View.VISIBLE
-
       val startRecordingButton = findViewById<Button>(R.id.startButton)
 //      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
 //      exitTutorialModeButton.visibility = View.GONE
 
-      updateConnectionUi()
+      Log.d(TAG, "updateConnectionUi call")
+      updateConnectionUi(dataManager.connectedToServer())
 
       val deviceIdBox= findViewById<TextView>(R.id.deviceIdBox)
       deviceIdBox.text = deviceId
-
       if (username != null) {
         val usernameBox = findViewById<TextView>(R.id.usernameBox)
         usernameBox.text = username
@@ -257,11 +256,16 @@ class HomeScreenActivity : ComponentActivity() {
 
       val numPrompts = prompts?.array?.size
       val promptIndex = prompts?.promptIndex
-      if (prompts != null && username != null) {
+
+      if (prompts == null) {
+        startRecordingButton.isEnabled = true
+        startRecordingButton.isClickable = true
+        startRecordingButton.text = "Cannot Start"
+      } else if (prompts != null && username != null) {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
-          startRecordingButton.text = "Start"
+          startRecordingButton.text = getString(R.string.start_button)
         } else {
           startRecordingButton.visibility = View.GONE
         }
@@ -286,7 +290,7 @@ class HomeScreenActivity : ComponentActivity() {
         val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
         val completedPrompts = prompts!!.promptIndex.toString()
         val totalPrompts = prompts!!.array.size.toString()
-        promptsProgressBox.text = "${completedPrompts} of ${totalPrompts}"
+        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
 
 //        if (tutorialMode && (currentRecordingSessions > 0 ||
 //              (promptIndex ?: 0) >= (numPrompts ?: 0))
@@ -305,133 +309,174 @@ class HomeScreenActivity : ComponentActivity() {
 //            }
 //          }
 //        }
+      } else {
+        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+        promptsProgressBox.text = getString(R.string.ratio, "0", "0")
+        prompts = dataManager.getPrompts()
+        if (prompts == null) {
+          Log.w(TAG, "Prompts is still null")
+        }
       }
 
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
-        fun checkPermission(perm: String): Boolean {
-          return ContextCompat.checkSelfPermission(applicationContext, perm) ==
-              PackageManager.PERMISSION_GRANTED
-        }
-
-        fun shouldAsk(perm: String): Boolean {
-          return shouldShowRequestPermissionRationale(perm)
-        }
-
-        fun cannotGetPermission(perm: String): Boolean {
-          return !checkPermission(perm) && !shouldAsk(perm)
-        }
-
-        Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
-        Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
-
-        if (checkPermission(CAMERA)) {
-          lifecycleScope.launch {
-            // You can use the API that requires the permission.
-            val intent = Intent(
-              this@HomeScreenActivity, RecordingActivity::class.java
-            ).also {
-              it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
-            }
-            UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-            Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
-            dataManager.waitForDataLock()
-            Log.d(TAG, "Data lock was available.")
-
-            handleRecordingResult.launch(intent)
-          }
-        } else if (!permissionRequestedPreviously) {
-          // No permissions, and we haven't asked for permissions before
-          permissionRequestedPreviously = true
-          CoroutineScope(Dispatchers.IO).launch {
-            val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
-            applicationContext.prefStore.edit {
-              it[keyObject] = true
-            }
-          }
-          requestRecordingPermissions.launch(arrayOf(CAMERA))
-        } else if (permissionRequestedPreviously && shouldAsk(CAMERA)) {
-          // We've asked the user for permissions before, and the prior `when` case failed,
-          // so we are allowed to ask for at least one of the required permissions
-
-          // Send an alert prompting the user that they need to grant permissions
-          val builder = AlertDialog.Builder(applicationContext).apply {
-            setTitle("Permissions are required to use the app")
-            setMessage(
-              "In order to record your data, we will need access to " +
-                  "the camera and write functionality."
-            )
-
-            setPositiveButton("OK") { dialog, _ ->
-              requestRecordingPermissions.launch(
-                arrayOf(CAMERA)
-              )
-              dialog.dismiss()
-            }
-          }
-
-          val dialog = builder.create()
-          dialog.apply {
-            setCanceledOnTouchOutside(true)
-            setOnCancelListener {
-              requestRecordingPermissions.launch(
-                arrayOf(CAMERA)
-              )
-            }
-            show()
-          }
-        } else if (permissionRequestedPreviously && cannotGetPermission(CAMERA)) {
-          // We've asked the user for permissions before, they haven't been granted,
-          // and we cannot ask the user for either camera or storage permissions (we already
-          // asked them before)
-          val text = "Please enable camera access in Settings"
-          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-          toast.show()
+        if (prompts == null) {
+          val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+          promptsProgressBox.text = getString(R.string.ratio, "0", "0")
+          AlertDialog.Builder(this@HomeScreenActivity)
+            .setTitle("No Prompts Available")
+            .setMessage("No prompts have been downloaded. Please download prompts before starting.")
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .show()
         } else {
-          Log.e(TAG, "Invalid permission state.")
-          val text =
-            "The app is in a bad state, you likely need to enable camera access in Settings."
-          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-          toast.show()
+
+          fun checkPermission(perm: String): Boolean {
+            return ContextCompat.checkSelfPermission(applicationContext, perm) ==
+                PackageManager.PERMISSION_GRANTED
+          }
+
+          fun shouldAsk(perm: String): Boolean {
+            return shouldShowRequestPermissionRationale(perm)
+          }
+
+          fun cannotGetPermission(perm: String): Boolean {
+            return !checkPermission(perm) && !shouldAsk(perm)
+          }
+
+          Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
+          Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
+
+          if (checkPermission(CAMERA)) {
+            lifecycleScope.launch {
+              // You can use the API that requires the permission.
+              val intent = Intent(
+                this@HomeScreenActivity, RecordingActivity::class.java
+              ).also {
+                it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
+              }
+              UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+              Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
+              dataManager.waitForDataLock()
+              Log.d(TAG, "Data lock was available.")
+
+              handleRecordingResult.launch(intent)
+            }
+          } else if (!permissionRequestedPreviously) {
+            // No permissions, and we haven't asked for permissions before
+            permissionRequestedPreviously = true
+            CoroutineScope(Dispatchers.IO).launch {
+              val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
+              applicationContext.prefStore.edit {
+                it[keyObject] = true
+              }
+            }
+            requestRecordingPermissions.launch(arrayOf(CAMERA))
+          } else if (permissionRequestedPreviously && shouldAsk(CAMERA)) {
+            // We've asked the user for permissions before, and the prior `when` case failed,
+            // so we are allowed to ask for at least one of the required permissions
+
+            // Send an alert prompting the user that they need to grant permissions
+            val builder = AlertDialog.Builder(applicationContext).apply {
+              setTitle("Permissions are required to use the app")
+              setMessage(
+                "In order to record your data, we will need access to " +
+                    "the camera and write functionality."
+              )
+
+              setPositiveButton("OK") { dialog, _ ->
+                requestRecordingPermissions.launch(
+                  arrayOf(CAMERA)
+                )
+                dialog.dismiss()
+              }
+            }
+
+            val dialog = builder.create()
+            dialog.apply {
+              setCanceledOnTouchOutside(true)
+              setOnCancelListener {
+                requestRecordingPermissions.launch(
+                  arrayOf(CAMERA)
+                )
+              }
+              show()
+            }
+          } else if (permissionRequestedPreviously && cannotGetPermission(CAMERA)) {
+            // We've asked the user for permissions before, they haven't been granted,
+            // and we cannot ask the user for either camera or storage permissions (we already
+            // asked them before)
+            val text = "Please enable camera access in Settings"
+            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+            toast.show()
+          } else {
+            Log.e(TAG, "Invalid permission state.")
+            val text =
+              "The app is in a bad state, you likely need to enable camera access in Settings."
+            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+            toast.show()
+          }
         }
       } // setRecordingButton.onClickListener
 
       val uploadButton = findViewById<Button>(R.id.uploadButton)
       uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       uploadButton.setOnClickListener {
+
         // Show a confirmation dialog before proceeding with the upload
         val builder = AlertDialog.Builder(this@HomeScreenActivity).apply {
-          setTitle("Confirm Upload")
-          setMessage("Uploading may take 10 or more minutes and can't be interrupted. Are you sure you want to proceed?")
-
-          setPositiveButton("Yes") { dialog, _ ->
-            // User confirmed, proceed with the upload
-            Log.i(TAG, "User confirmed upload.")
-            dialog.dismiss()
-
-            // Disable the button and start the upload process
-            uploadButton.isEnabled = false
-            uploadButton.isClickable = false
-            uploadButton.text = "Uploading..."
 
 
-            CoroutineScope(Dispatchers.IO).launch {
-              UploadService.pauseUploadUntil(null)
-              try {
-                updateConnectionUi()
+          // check if connected to server before uploading
+          if (!dataManager.connectedToServer()) {
+            setTitle("Connection Error:")
+            setMessage("Please check your internet connection or try reconnecting to the server. If the issue persists, consider restarting the app or checking your network settings.")
+            setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+          }
+          else {
+            setTitle(getString(R.string.upload_alert))
+            setMessage(getString(R.string.upload_alert_message))
 
-                val uploadSucceeded = dataManager.uploadData(null)
+            setPositiveButton(getString(R.string.yes)) { dialog, _ ->
+              // User confirmed, proceed with the upload
+              Log.i(TAG, "User confirmed upload.")
+              dialog.dismiss()
+
+              // Disable the button and start the upload process
+              Log.i(TAG, "Upload Now button clicked.")
+              uploadButton.isEnabled = false
+              uploadButton.isClickable = false
+              uploadButton.text = getString(R.string.upload_successful)
+
+              // Progress bar appears after confirming
+              val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
+              uploadProgressBar.visibility = View.VISIBLE
+              uploadProgressBar.progress = 0
+
+              CoroutineScope(Dispatchers.IO).launch {
+                UploadService.pauseUploadUntil(null)
+                try {
+                  updateConnectionUi(dataManager.connectedToServer())
+
+                val uploadSucceeded = dataManager.uploadData { progress ->
+                  runOnUiThread {
+                    Log.d(TAG, "Updating ProgressBar to $progress%")
+                    uploadProgressBar.progress = progress
+                  }
+                }
 
                 runOnUiThread {
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
                   if (uploadSucceeded) {
-                    uploadButton.text = "Upload Now"
+                    uploadButton.text = getString(R.string.upload_button)
                   } else {
-                    uploadButton.text = "Upload Failed, Click to try again"
+                    uploadButton.text = getString(R.string.upload_failed)
                     val textFinish = "Upload Failed"
                     val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
                     toastFinish.show()
+                    uploadButton.isEnabled = true
+                    uploadButton.isClickable = true
+                    uploadButton.text = "Upload Now"
                   }
                 }
               } catch (e: InterruptedUploadException) {
@@ -442,19 +487,28 @@ class HomeScreenActivity : ComponentActivity() {
                   toastFinish.show()
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
-                  uploadButton.text = "Upload Now"
+                  uploadButton.text = getString(R.string.upload_button)
                 }
+                updateConnectionUi(dataManager.connectedToServer())
               }
-              updateConnectionUi()
+            }
+            updateConnectionUi(dataManager.connectedToServer())
+
+            setNegativeButton("No") { dialog, _ ->
+              Log.i(TAG, "User canceled upload.")
+              dialog.dismiss()
             }
           }
+          updateConnectionUi(dataManager.connectedToServer())
 
-          setNegativeButton("No") { dialog, _ ->
+          setNegativeButton(getString(R.string.no)) { dialog, _ ->
             Log.i(TAG, "User canceled upload.")
             dialog.dismiss()
           }
         }
 
+        }
+        // Pop up dismissed when clicking outside of it
         val dialog = builder.create()
         dialog.apply {
           setCanceledOnTouchOutside(true)
@@ -488,6 +542,17 @@ class HomeScreenActivity : ComponentActivity() {
     val binding = ActivitySplashBinding.inflate(layoutInflater)
     val view = binding.root
     setContentView(view)
+
+    // Observe the connectionStatus(for server) LiveData using Observer
+    val serverObserver = Observer<Boolean> { isConnected ->
+      Log.d(TAG, "LiveData connection observed: $isConnected")
+      Log.d(TAG, "Activity lifecycle state: ${lifecycle.currentState}")
+      updateConnectionUi(isConnected)
+    }
+    dataManager.serverStatus.observe(this, serverObserver)
+
+    // Initial check for server connection
+    dataManager.checkServerConnection()
 
     fun hasResource(label: String, type: String = "string"): Boolean {
       return resources.getIdentifier(label, type, packageName) != 0
@@ -563,9 +628,15 @@ class HomeScreenActivity : ComponentActivity() {
       runBlocking {
         username = dataManager.getUsername()
         prompts = dataManager.getPrompts()
-        if (username == null || prompts == null) {
+
+
+        if (username == null) {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
           startActivity(intent)
+        }
+
+        if (prompts == null) {
+          Log.w(TAG, "Prompts is null")
         }
         deviceId = dataManager.getDeviceId()
         val numPrompts = prompts?.array?.size
@@ -574,7 +645,10 @@ class HomeScreenActivity : ComponentActivity() {
           "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )
 
-        setupUI()
+        //setupUI()
+        runOnUiThread {
+          setupUI()
+        }
       }
     }
   }

@@ -105,6 +105,31 @@
         app:layout_constraintBottom_toBottomOf="@id/promptVideo"
         app:layout_constraintStart_toStartOf="@id/promptVideo" />
 
+    <ImageButton
+        android:id="@+id/changeScreenSizeButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:visibility="gone"
+        android:src="@drawable/full_screen_button"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintEnd_toEndOf="@id/promptVideo" />
+
+    <ImageButton
+        android:id="@+id/splitScreenButton"
+        android:layout_width="50dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="2dp"
+        android:backgroundTint="@android:color/transparent"
+        android:src="@drawable/split_screen_button"
+        android:rotation="90"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/promptVideo"
+        app:layout_constraintStart_toStartOf="@id/promptVideo" />
+
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/promptBarrier"
         android:layout_width="wrap_content"
