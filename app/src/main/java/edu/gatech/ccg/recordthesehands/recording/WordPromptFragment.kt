@@ -41,12 +41,14 @@ import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
+import androidx.transition.Visibility
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.PromptType
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlin.math.roundToInt
 
 /**
  * This is the little rectangle at the top of the screen that prompts the
@@ -237,7 +239,14 @@ class WordPromptFragment(
 
           disableSplitScreenButton.setOnClickListener {
             resetPromptTypeConstraint()
-            undoSplitScreen(videoView, videoViewParams, currentOrientation, lastDisplayMode, screenWidth, pixelDensity)
+            undoSplitScreen(
+              videoView,
+              videoViewParams,
+              currentOrientation,
+              lastDisplayMode,
+              screenWidth,
+              pixelDensity
+            )
             if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
               minimizeScreenButton.visibility = View.GONE
               fullScreenButton.visibility = View.VISIBLE
@@ -266,7 +275,6 @@ class WordPromptFragment(
           fullScreenButton.visibility = View.VISIBLE
           minimizeScreenButton.visibility = View.GONE
           splitScreenButton.visibility = View.VISIBLE
-        }
       }
     }
     // if (!hasVideo) {
@@ -290,6 +298,7 @@ class WordPromptFragment(
     //  textView.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
     //  textView.textSize = 18.0f
     // }
+    }
   }
 
   /**

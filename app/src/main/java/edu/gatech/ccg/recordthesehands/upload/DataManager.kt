@@ -41,6 +41,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.fromHex
@@ -693,8 +695,10 @@ class DataManager(val context: Context) {
       context.packageName
     )
     check(serverStringId != 0) {"backend_server is not defined in a resource."}
+
     return context.resources.getString(serverStringId)
   }
+
 
   /**
    * Return whether we should trust any certificate, including self signed ones.
@@ -1155,7 +1159,7 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager?): Boolean {
+  suspend fun uploadData(notificationManager: NotificationManager? = null, progressCallback: (Int) -> Unit): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1171,6 +1175,13 @@ class DataManager(val context: Context) {
         .map {
           it.asMap().entries
         }.firstOrNull()
+
+      // Calculates total files to upload
+      val totalFileEntries = context.registerFileStore.data
+        .map { it.asMap().entries }
+        .firstOrNull()?.size ?: 0
+      var completedItems = 0
+
       if (entries == null) {
         Log.i(TAG, "entries was null")
       } else if (entries.isNotEmpty()) {
@@ -1211,6 +1222,12 @@ class DataManager(val context: Context) {
           if (!uploadSession.tryUploadFile()) {
             return false
           }
+
+          completedItems += 1
+          val progress = (completedItems * 100 / totalFileEntries).coerceIn(0, 100)
+          Log.d(TAG, "Progress after file upload: $progress%")
+          progressCallback(progress)
+
           i += 1
         }
       }
@@ -1483,6 +1500,8 @@ class DataManager(val context: Context) {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("runDirective was interrupted.")
     }
+    // before downloading directives from server check server connection
+    checkServerConnection()
     Log.i(TAG, "Download the directives from server.")
     val url = URL(getServer() + "/directives")
     val (code, data) = serverFormPostRequest(
@@ -1608,10 +1627,12 @@ class DataManager(val context: Context) {
   }
 
   fun connectedToServer(): Boolean {
+    Log.i(TAG,"Server is connected: " + dataManagerData.connectedToServer.toString())
     return dataManagerData.connectedToServer
   }
 
   suspend fun getPrompts(): Prompts? {
+    Log.d(TAG, "getPrompts() called")
     val tutorialMode = getTutorialMode()
     if (tutorialMode) {
       return getTutorialPrompts()
@@ -1630,10 +1651,17 @@ class DataManager(val context: Context) {
       }
       val newPromptsData = Prompts(
           context, "tutorialPromptsFilename", "promptIndex")
-      if (!newPromptsData.initialize()) {
+      val initialized = newPromptsData.initialize()
+      Log.d(TAG, "Tutorial prompts initialized: $initialized")
+
+      if (!initialized) {
         return null
       }
-      if (!ensureResources(newPromptsData)) {
+
+      val resourcesEnsured = ensureResources(newPromptsData)
+      Log.d(TAG, "Tutorial prompt resources ensured: $resourcesEnsured")
+
+      if (!resourcesEnsured) {
         return null
       }
       dataManagerData.tutorialPromptsData = newPromptsData
@@ -1743,6 +1771,43 @@ class DataManager(val context: Context) {
         (preferences[recordingMsKeyObject] ?: 0) + sessionLength.toMillis()
     }
   }
+
+  /**
+   * Store server status with LiveData
+   */
+  private val _serverStatus = MutableLiveData<Boolean>()
+  val serverStatus: LiveData<Boolean> get() = _serverStatus
+
+  /**
+   * Check server connection by pinging server
+   * method must be called whenever you want to check the server status
+   */
+  fun checkServerConnection() {
+    CoroutineScope(Dispatchers.IO).launch {
+      val isConnected = pingServer()
+      _serverStatus.postValue(isConnected) // Update LiveData on the main thread
+      // Debugging
+      Log.d(TAG,"Check server connection: $isConnected")
+    }
+
+  }
+
+  /**
+   * Ping server by calling server and checking connectivity
+   */
+  private fun pingServer(): Boolean {
+    return try {
+      val url = URL(getServer())
+      val connection = url.openConnection() as HttpsURLConnection
+      connection.requestMethod = "GET"
+      connection.connectTimeout = 5000
+      connection.readTimeout = 5000
+      val responseCode = connection.responseCode
+      responseCode == HttpURLConnection.HTTP_OK
+    } catch (e: Exception) {
+      false
+    }
+  }
 }
 
 enum class PromptType {
@@ -1788,6 +1853,7 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
     }.firstOrNull() ?: return false
     val promptsRelativePath = promptsData.first ?: return false
     promptIndex = promptsData.second ?: return false
+    Log.d(TAG, "Prefs: path=$promptsRelativePath, index=$promptIndex")
     try {
       val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
       val promptsJsonArray = promptsJson.getJSONArray("prompts")
