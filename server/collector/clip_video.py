@@ -235,12 +235,7 @@ def make_clip(video, packet_info,
   clip_c_time = datetime.datetime.fromtimestamp(
       output_stat.st_ctime, tz=datetime.timezone.utc)
   clip_file_size = output_stat.st_size
-  
-  #print("Buffered timestamp from CSV: " + annotation_start_s + "Clip:" + str(output_filename))
-  #print("Keyframe adjusted timestamp: " + str(start_time) + "Clip:" + str(output_filename))
-  #print("Buffered end timestamp from CSV: " + annotation_end_s + "Clip:" + str(output_filename))
-  #print("Keyframe end adjusted timestamp: " + str(end_time) + "Clip:" + str(output_filename))
-  
+ 
   return {
       'clipFilename': str(output_filename),
       'fullVideoFilename': str(video),
