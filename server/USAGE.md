@@ -79,6 +79,35 @@ Valid operations:
 
 > For `changeUser`: Since the login token is directly provided to the app, the password is largely irrelevant and should probably be a long randomly generated string. The user will immediately stop reading directives after this and log back in with the new username (running that user's associated directives).
 
+## Producing clips
+The following scripts are used to create individual clips for each sign after uploading videos and metadata to a Google Cloud Project.
+
+- `dump_clips.py` - Retrieve all video metadata, including start and end times for sign clips, from Firestore in the Google Cloud Project. This creates the files `metadata_dump.csv` and `metadata_dump.json` with the requisite data.
+- `download_videos.py` - Locally download all videos from the buckets in the Google Cloud Project to the `video_dump` directory.
+- `clip_video.py` - Produce clips for each video by using the start and end times from `metadata_dump.csv` or `metadata_dump.json`, depending on which is configured. Clips are uploaded to the `clip_dump` directory.
+- `local_video_pipeline.py` - Runs the full post-processing pipeline, which consists of the above scripts.
+    - Adding the `--clean` argument automatically cleans all existing output directories. 
+    - To use configured buffers, use `--buffer <filename>`.
+
+The output directories listed above are also configurable in the `constant.py` file. To use configurable buffers, format the configurable JSON file as shown below:
+
+```
+{ 
+    "user_name": { 
+        "start": 1, 
+        "end": 1.5 
+    },
+    "test006": { 
+        "start": 1, 
+        "end": 1.5 
+    },
+    "test007": {
+        "start": 0, 
+        "end": 0
+    }
+}
+```
+
 
 ## FAQs / Common Issues
 
