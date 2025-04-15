@@ -1,0 +1,45 @@
+name: Auto Black Formatter
+
+on:
+  pull_request:
+    paths:
+      - "**.py"
+
+jobs:
+  black-format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Run Black
+        run: black . --check --diff || black .
+
+      - name: Commit formatted code
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b black-formatting || git checkout black-formatting
+          git add .
+          git commit -m "Apply Black code formatting" || echo "No changes to commit"
+
+      - name: Push and create PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Apply Black code formatting
+          branch: black-formatting
+          title: "Format code with Black"
+          body: "This PR auto-formats the code using [Black](https://github.com/psf/black)."
+          base: ${{ github.ref_name }}
