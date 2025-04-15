@@ -13,6 +13,11 @@
     <string name="login_button">लॉग इन</string>
     <string name="signup_button">खाते तयार करा</string>
     <string name="id_button">डिव्हाइस आयडी सेट करा</string>
+    <string name="success">यश</string>
+    <string name="failed">अपयश</string>
+    <string name="success_message">खाते तयार केले गेले आणि माहिती जतन केली:</string>
+    <string name="failed_message">खाते तयार करण्यात अयशस्वी:</string>
+    <string name="failed_button">खाते तयार करणे अयशस्वी, पुन्हा प्रयत्न करा</string>
 
     <!-- Prompt Page -->
     <string name="select_prompt">प्रॉम्प्ट निवडा</string>

@@ -19,11 +19,14 @@
 
     <TextView
         android:id="@+id/header"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="100sp"
         android:text="@string/select_prompt"
-        android:textSize="50sp"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMaxTextSize="50sp"
+        android:autoSizeMinTextSize="10sp"
         android:textStyle="bold"
+        android:gravity="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/backButton" />
@@ -48,7 +51,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:backgroundTint="@color/cardview_dark_background"
-        android:text="@string/tutorial_mode"
+        android:text="@string/tutorial_prompts"
         android:textColor="@color/white"
         android:textSize="20sp"
         app:layout_constraintLeft_toLeftOf="parent"

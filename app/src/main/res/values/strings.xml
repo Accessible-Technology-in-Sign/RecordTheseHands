@@ -12,6 +12,11 @@
     <string name="login_button">Log In</string>
     <string name="signup_button">Create an Account</string>
     <string name="id_button">Set Device ID</string>
+    <string name="success">Success</string>
+    <string name="failed">Failed</string>
+    <string name="success_message">Created account and stored credentials for:</string>
+    <string name="failed_message">Failed to create account for:</string>
+    <string name="failed_button">Create account failed, try again</string>
 
 
     <!-- Prompt Page -->
