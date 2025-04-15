@@ -39,9 +39,12 @@ import os
 import concurrent.futures
 
 import utils
+from constants import _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID, VIDEO_EDGE_SAFETY_BUFFER
 
-VIDEO_EDGE_SAFETY_BUFFER = 0.5
-_DUMP_ID = "clip_dump"
+PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
+assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
+BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
+SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
@@ -250,11 +253,11 @@ def make_clip(video, packet_info,
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
-def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", user_buffers={}):
+def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA_DUMP_ID}.csv", user_buffers={}):
   """Make clips from all the videos in the video directory."""
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
-  output_dir = pathlib.Path(_DUMP_ID)
+  output_dir = pathlib.Path(_CLIP_DUMP_ID)
 
   os.makedirs(output_dir, exist_ok=True)
   
@@ -299,10 +302,10 @@ def make_clips(video_directory="video_dump/upload", dump_csv="dump.csv", user_bu
 
 def clean():
   """Remove all the clips."""
-  if os.path.exists(_DUMP_ID):
-    os.system(f'rm -rf {_DUMP_ID}')
+  if os.path.exists(_CLIP_DUMP_ID):
+    os.system(f'rm -rf {_CLIP_DUMP_ID}')
   
-  print(f"Removed {_DUMP_ID}")
+  print(f"Removed {_CLIP_DUMP_ID}")
 
 def main(buffer_config=None):
   """Make all the clips."""
