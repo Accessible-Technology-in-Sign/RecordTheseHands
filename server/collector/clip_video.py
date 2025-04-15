@@ -235,7 +235,7 @@ def make_clip(video, packet_info,
   clip_c_time = datetime.datetime.fromtimestamp(
       output_stat.st_ctime, tz=datetime.timezone.utc)
   clip_file_size = output_stat.st_size
-  
+ 
   return {
       'clipFilename': str(output_filename),
       'fullVideoFilename': str(video),
