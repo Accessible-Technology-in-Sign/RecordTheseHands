@@ -37,7 +37,7 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 # Match these accounts (with a prefix of test)
-_MATCH_USERS = re.compile(r'^test\d{3}$')
+_MATCH_USERS = re.compile(r'^dqp\d{2}$') # Changed from testNNN -> dqpNN
 # stem name of the output files (json and csv).
 _DUMP_ID = 'dump'
 
@@ -45,7 +45,7 @@ _DUMP_ID = 'dump'
 def get_data(username):
   """Obtain the clip and session data from firestore."""
   db = firestore.Client()
-  c_ref = db.collection(f'collector/users/{username}/data/save_clip')
+  c_ref = db.collection(f'collector/users/{username}/data/save') # Changed from save_clip -> save in DPAN data
   clips = list()
   sessions = list()
   for doc_data in c_ref.stream():
@@ -53,18 +53,28 @@ def get_data(username):
       doc_dict = doc_data.to_dict()
       data = doc_dict.get('data')
       clip_id = data.get('clipId')
-      assert clip_id
+      if not clip_id:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       m = re.match(r'[^-]+-s(\d{3})-(\d{3})', clip_id)
-      assert m, clip_id
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       session_index = int(m.group(1))
       clip_index = int(m.group(2))
       filename = data.get('filename')
-      assert filename
-      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename) # keep tutorial prefixing -- make sure group indices are correct later
-      assert m, filename
+      if not filename:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
+      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename)
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
-      assert session_index == int(m.group(3)), (clip_id, filename)
+      if session_index != int(m.group(3)):
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
 
       simple_clip = {
           'userId': user_id,
@@ -119,6 +129,15 @@ def get_clip_bounds_in_video(clip_data):
   end_s = (clip_end_time - video_start_time).total_seconds()
   return (start_s, end_s)
 
+def clean():
+  """Remove all the metadata."""
+  if os.path.exists(f'{_DUMP_ID}.json'):
+    os.system(f'rm -rf {_DUMP_ID}.json')
+  print(f"Removed {_DUMP_ID}.json")
+  
+  if os.path.exists(f'{_DUMP_ID}.csv'):
+    os.system(f'rm -rf {_DUMP_ID}.csv')
+  print(f"Removed {_DUMP_ID}.csv")
 
 def main():
   db = firestore.Client()
@@ -160,7 +179,7 @@ def main():
     if not clip['summary']['valid']:
       continue
     row = [
-        '',  # unused
+        clip['summary']['userId'],  # user_id
         clip['summary']['filename'][:-4],  # Filename without .mp4
         '',  # unused
         '',  # unused

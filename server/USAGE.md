@@ -53,6 +53,12 @@ source {APP_ENV_DIR}/bin/activate
 ```
 where APP_ENV_DIR is where you installed the virtual environment.
 
+1. Set the environment variables for the Google Cloud Project:
+
+```
+export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\''"]\([^'\''"]*\)['\''"].*/\1/')
+```
+
 1. Issue a directive:
 ```
 python create_directive.py USERNAME OPERATION ARGS...

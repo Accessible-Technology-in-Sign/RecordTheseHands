@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RecordTheseHands</string>
+    <string name="version">v1.0</string>
+
+    <!-- Log In Interface -->
+    <string name="admin_title">लॉग इन</string>
+    <string name="id_label">डिव्हाइस आयडी:&#160;</string>
+    <string name="username_label">वापरकर्तानाव:&#160;</string>
+    <string name="username_input">वापरकर्तानाव टाका</string>
+    <string name="password_label">पासवर्ड:&#160;</string>
+    <string name="password_input">पासवर्ड टाका</string>
+    <string name="login_button">लॉग इन</string>
+    <string name="signup_button">खाते तयार करा</string>
+    <string name="id_button">डिव्हाइस आयडी सेट करा</string>
+
+    <!-- Prompt Page -->
+    <string name="select_prompt">प्रॉम्प्ट निवडा</string>
+    <string name="downloaded_prompts">डाऊनलोड केलेले प्रॉम्प्ट</string>
+    <string name="tutorial_prompts">ट्युटोरियल मोड</string>
+
+    <!-- Main Page -->
+        <!-- Information -->
+        <string name="loading">अॅप डेटा लोड करत आहे…</string>
+        <string name="id_error">डिव्हाइस आयडी सेट केलेले नाही</string>
+        <string name="username_error">वापरकर्तानाव सेट केलेले नाही</string>
+        <!-- Status Information -->
+        <string name="status_header">स्थिती माहिती</string>
+        <string name="internet_status">इंटरनेट कनेक्शन तपासत आहे…</string>
+        <string name="internet_failed">इंटरनेट उपलब्ध नाही</string>
+        <string name="internet_success">इंटरनेट कनेक्ट झाले</string>
+        <string name="server_status">सर्व्हर कनेक्शन तपासत आहे…</string>
+        <string name="server_failed">सर्व्हरशी कनेक्ट होऊ शकत नाही</string>
+        <string name="server_success">सर्व्हरशी कनेक्ट झाले</string>
+    <!-- Statistics -->
+        <string name="statistics_header">सांख्यिकी माहिती</string>
+        <string name="prompts_completed">पूर्ण केलेले संकेत:&#160;</string>
+        <string name="total_recordings">एकूण रेकॉर्डिंग्स:&#160;</string>
+        <string name="total_time">एकूण वेळ खर्च:&#160;</string>
+        <string name="total_sessions">या सत्रात पूर्ण केलेले सत्र:&#160;</string>
+        <string name="total_uploaded">एकूण अपलोड</string>
+        <string name="ratio">%1$s पैकी %2$s</string>
+        <string name="counter">0</string>
+    <string name="tutorial_mode">ट्युटोरियल मोड</string>
+    <string name="start_button">प्रारंभ</string>
+    <string name="start_failed">प्रारंभ करू शकत नाही</string>
+        <!-- Upload Dialog -->
+        <string name="upload_alert">अपलोडची पुष्टी करा</string>
+        <string name="upload_alert_message">अपलोड करण्यास १० किंवा त्याहून अधिक मिनिटे लागू शकतात आणि प्रक्रिया अडथळा आणता येणार नाही. आपण पुढे जाण्यास खात्री आहे का?</string>
+        <string name="no">नाही</string>
+        <string name="yes">होय</string>
+        <!-- Upload Button Messages -->
+        <string name="upload_button">आता अपलोड करा</string>
+        <string name="upload_failed">अपलोड अयशस्वी, पुन्हा प्रयत्न करण्यासाठी क्लिक करा</string>
+        <string name="upload_successful">अपलोड होत आहे…</string>
+
+    <!-- Recording Session Page -->
+    <string name="record">प्रारंभ</string>
+    <string name="restart">चूक\nपुन्हा सुरू करा</string>
+    <string name="finish">समाप्त</string>
+    <string name="recording">रेकॉर्डिंग</string>
+    <string name="time">15:00</string>
+    <string name="go">जा!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">अॅप वापरण्यासाठी परवानगी आवश्यक आहेत</string>
+    <string name="perm_alert_message">तुमचा डेटा रेकॉर्ड करण्यासाठी, आम्हाला कॅमेरा आणि लेखन कार्यक्षमतेसाठी प्रवेश आवश्यक आहे.</string>
+    <string name="ok">ठीक आहे</string>
+</resources>
