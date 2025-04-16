@@ -25,10 +25,14 @@ import download_videos
 import dump_clips
 import clip_video
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--clean', action='store_true', default=False, help='Clean all existing files')
-    parser.add_argument('--buffers', type=str, default=None, help='Config file for user buffers')
+    parser.add_argument(
+        "--clean", action="store_true", default=False, help="Clean all existing files"
+    )
+    parser.add_argument(
+        "--buffers", type=str, default=None, help="Config file for user buffers"
+    )
     args = parser.parse_args()
 
     if args.clean:
