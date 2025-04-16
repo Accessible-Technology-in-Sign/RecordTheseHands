@@ -73,6 +73,9 @@ def get_data(username):
             if session_index != int(m.group(3)):
                 print(f"Skipping invalid data from user {username} under {doc_data.id}")
                 continue
+# this is not formamtted
+
+
 
             simple_clip = {
                 "userId": user_id,
