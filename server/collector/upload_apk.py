@@ -31,38 +31,36 @@ import sys
 from google.cloud import firestore
 
 # Static globals.
-PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
-assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
-BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
-SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
+PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT")
+assert PROJECT_ID, "must specify the environment variable GOOGLE_CLOUD_PROJECT"
+BUCKET_NAME = f"{PROJECT_ID}.appspot.com"
+SERVICE_ACCOUNT_EMAIL = f"{PROJECT_ID}@appspot.gserviceaccount.com"
 
 
-if __name__ == '__main__':
-  local_filepath = sys.argv[1]
-  print(f'apk: {local_filepath}')
-  db = firestore.Client()
-  timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-  with open(local_filepath, 'rb') as f:
-    digest = hashlib.file_digest(f, 'md5')
-  md5 = digest.hexdigest()
+if __name__ == "__main__":
+    local_filepath = sys.argv[1]
+    print(f"apk: {local_filepath}")
+    db = firestore.Client()
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with open(local_filepath, "rb") as f:
+        digest = hashlib.file_digest(f, "md5")
+    md5 = digest.hexdigest()
 
-  filename = f'{md5}.apk'
-  apk_data = {
-      'md5': md5,
-      'filename': filename,
-      'timestamp': timestamp,
-  }
-  doc_ref = db.document(f'collector/apk/all/{md5}')
-  doc_ref.set(apk_data)
-  doc_ref = db.document('collector/apk')
-  doc_ref.set(apk_data)
-  print(json.dumps(apk_data, indent=2))
-  command = ['gsutil', 'cp', local_filepath,
-             f'gs://{BUCKET_NAME}/apk/{filename}']
-  print(' '.join(command))
-  p = subprocess.Popen(command)
-  p.communicate()
-  assert p.returncode == 0, (
-      'upload of apk FAILED, do not send update operation to phones!')
-
-
+    filename = f"{md5}.apk"
+    apk_data = {
+        "md5": md5,
+        "filename": filename,
+        "timestamp": timestamp,
+    }
+    doc_ref = db.document(f"collector/apk/all/{md5}")
+    doc_ref.set(apk_data)
+    doc_ref = db.document("collector/apk")
+    doc_ref.set(apk_data)
+    print(json.dumps(apk_data, indent=2))
+    command = ["gsutil", "cp", local_filepath, f"gs://{BUCKET_NAME}/apk/{filename}"]
+    print(" ".join(command))
+    p = subprocess.Popen(command)
+    p.communicate()
+    assert (
+        p.returncode == 0
+    ), "upload of apk FAILED, do not send update operation to phones!"
