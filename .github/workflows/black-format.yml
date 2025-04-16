@@ -35,7 +35,7 @@ jobs:
           git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
           git add .
           git commit -m "Apply Black code formatting" || echo "No changes to commit"
-          git push --set-upstream origin "$BRANCH_NAME"
+          git push --set-upstream --force origin "$BRANCH_NAME"
           git checkout ${{ github.head_ref }}
 
       - name: Push and create PR
