@@ -3,7 +3,7 @@ name: Auto Black Formatter
 on:
   pull_request:
     paths:
-      - '**/*.py'
+      - "**.py"
 
 jobs:
   black-format:
@@ -12,11 +12,6 @@ jobs:
       contents: write
       pull-requests: write
 
-    env:
-      BRANCH_NAME: black-formatting-pr-${{ github.event.pull_request.number }}
-      GIT_COMMITER_NAME: github-actions[bot]
-      GIT_COMMITER_EMAIL: github-actions[bot]@users.noreply.github.com
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,42 +19,29 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Black
         run: pip install black
 
-      - name: Format with Black
-        run: |
-          black . --check --diff || black .
+      - name: Run Black
+        run: black . --check --diff || black .
 
       - name: Commit formatted code
-        id: commit
         run: |
-          git config user.name "${{ env.GIT_COMMITER_NAME }}"
-          git config user.email "${{ env.GIT_COMMITER_EMAIL }}"
-          git checkout -B "${{ env.BRANCH_NAME }}"
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
-            git commit -m "Apply Black code formatting"
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME=black-formatting-pr-${{ github.event.pull_request.number }}
+          git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
+          git add .
+          git commit -m "Apply Black code formatting" || echo "No changes to commit"
+          git push --set-upstream origin "$BRANCH_NAME"
 
       - name: Push and create PR
-        if: steps.commit.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: Apply Black code formatting
-          branch: ${{ env.BRANCH_NAME }}
-          title: Format code with Black
-          body: |
-            This PR auto-formats the code using [Black](https://github.com/psf/black).
+          branch: black-formatting-pr-${{ github.event.pull_request.number }}
+          title: "Format code with Black"
+          body: "This PR auto-formats the code using [Black](https://github.com/psf/black)."
           base: ${{ github.ref_name }}
-          committer: GitHub <noreply@github.com>
-          author: rishiso <rishiso@users.noreply.github.com>
-          signoff: false
-          delete-branch: false
-          draft: false
