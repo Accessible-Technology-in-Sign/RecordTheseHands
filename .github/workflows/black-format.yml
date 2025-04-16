@@ -31,7 +31,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b black-formatting || git checkout black-formatting
+          BRANCH_NAME=black-formatting-pr-${{ github.event.pull_request.number }}
+          git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
           git add .
           git commit -m "Apply Black code formatting" || echo "No changes to commit"
 
@@ -39,7 +40,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           commit-message: Apply Black code formatting
-          branch: black-formatting
+          branch: black-formatting-pr-${{ github.event.pull_request.number }}
           title: "Format code with Black"
           body: "This PR auto-formats the code using [Black](https://github.com/psf/black)."
           base: ${{ github.ref_name }}
