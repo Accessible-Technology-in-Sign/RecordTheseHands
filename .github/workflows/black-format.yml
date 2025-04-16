@@ -36,7 +36,6 @@ jobs:
           git add .
           git commit -m "Apply Black code formatting" || echo "No changes to commit"
           git push --set-upstream origin "$BRANCH_NAME"
-          git checkout ${{ github.ref_name }}
 
       - name: Push and create PR
         uses: peter-evans/create-pull-request@v5
@@ -45,3 +44,4 @@ jobs:
           branch: black-formatting-pr-${{ github.event.pull_request.number }}
           title: "Format code with Black"
           body: "This PR auto-formats the code using [Black](https://github.com/psf/black)."
+          base: ${{ github.head_ref }}
