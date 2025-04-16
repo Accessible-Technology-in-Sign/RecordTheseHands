@@ -29,7 +29,6 @@ jobs:
 
       - name: Commit formatted code
         run: |
-          git pull
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH_NAME=black-formatting-pr-${{ github.event.pull_request.number }}
@@ -37,6 +36,7 @@ jobs:
           git add .
           git commit -m "Apply Black code formatting" || echo "No changes to commit"
           git push --set-upstream --force origin "$BRANCH_NAME"
+          git pull
           git checkout ${{ github.head_ref }}
 
       - name: Push and create PR
