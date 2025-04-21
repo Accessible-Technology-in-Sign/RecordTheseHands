@@ -39,7 +39,7 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 # Match these accounts (with a prefix of test)
-_MATCH_USERS = re.compile(r'^test\d{3}$')
+_MATCH_USERS = re.compile(r'^dpq\d{2}$') # changed from testNNN to dpqNN
 # stem name of the output video files
 _DUMP_ID = 'video_dump'
 
