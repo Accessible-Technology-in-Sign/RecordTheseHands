@@ -21,8 +21,8 @@ app/src/main/res/values/credentials.xml
 /video_dump
 APP_ENV_DIR/
 asl_venv/
-dump.csv
-dump.json
+metadata_dump.csv
+metadata_dump.json
 clip_dump/
 video_dump/
 

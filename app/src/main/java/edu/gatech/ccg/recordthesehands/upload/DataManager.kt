@@ -1159,7 +1159,7 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager?): Boolean {
+  suspend fun uploadData(notificationManager: NotificationManager? = null, progressCallback: (Int) -> Unit): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1175,6 +1175,13 @@ class DataManager(val context: Context) {
         .map {
           it.asMap().entries
         }.firstOrNull()
+
+      // Calculates total files to upload
+      val totalFileEntries = context.registerFileStore.data
+        .map { it.asMap().entries }
+        .firstOrNull()?.size ?: 0
+      var completedItems = 0
+
       if (entries == null) {
         Log.i(TAG, "entries was null")
       } else if (entries.isNotEmpty()) {
@@ -1215,6 +1222,12 @@ class DataManager(val context: Context) {
           if (!uploadSession.tryUploadFile()) {
             return false
           }
+
+          completedItems += 1
+          val progress = (completedItems * 100 / totalFileEntries).coerceIn(0, 100)
+          Log.d(TAG, "Progress after file upload: $progress%")
+          progressCallback(progress)
+
           i += 1
         }
       }
@@ -1619,6 +1632,7 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPrompts(): Prompts? {
+    Log.d(TAG, "getPrompts() called")
     val tutorialMode = getTutorialMode()
     if (tutorialMode) {
       return getTutorialPrompts()
@@ -1637,10 +1651,17 @@ class DataManager(val context: Context) {
       }
       val newPromptsData = Prompts(
           context, "tutorialPromptsFilename", "promptIndex")
-      if (!newPromptsData.initialize()) {
+      val initialized = newPromptsData.initialize()
+      Log.d(TAG, "Tutorial prompts initialized: $initialized")
+
+      if (!initialized) {
         return null
       }
-      if (!ensureResources(newPromptsData)) {
+
+      val resourcesEnsured = ensureResources(newPromptsData)
+      Log.d(TAG, "Tutorial prompt resources ensured: $resourcesEnsured")
+
+      if (!resourcesEnsured) {
         return null
       }
       dataManagerData.tutorialPromptsData = newPromptsData
@@ -1832,6 +1853,7 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
     }.firstOrNull() ?: return false
     val promptsRelativePath = promptsData.first ?: return false
     promptIndex = promptsData.second ?: return false
+    Log.d(TAG, "Prefs: path=$promptsRelativePath, index=$promptIndex")
     try {
       val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
       val promptsJsonArray = promptsJson.getJSONArray("prompts")

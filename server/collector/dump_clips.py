@@ -29,18 +29,13 @@ import re
 
 import google.api_core.exceptions
 from google.cloud import firestore
+from constants import _MATCH_USERS, _METADATA_DUMP_ID
 
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
-
-# Match these accounts (with a prefix of test)
-_MATCH_USERS = re.compile(r'^dqp\d{2}$') # Changed from testNNN -> dqpNN
-# stem name of the output files (json and csv).
-_DUMP_ID = 'dump'
-
 
 def get_data(username):
   """Obtain the clip and session data from firestore."""
@@ -131,13 +126,13 @@ def get_clip_bounds_in_video(clip_data):
 
 def clean():
   """Remove all the metadata."""
-  if os.path.exists(f'{_DUMP_ID}.json'):
-    os.system(f'rm -rf {_DUMP_ID}.json')
-  print(f"Removed {_DUMP_ID}.json")
+  if os.path.exists(f'{_METADATA_DUMP_ID}.json'):
+    os.system(f'rm -rf {_METADATA_DUMP_ID}.json')
+  print(f"Removed {_METADATA_DUMP_ID}.json")
   
-  if os.path.exists(f'{_DUMP_ID}.csv'):
-    os.system(f'rm -rf {_DUMP_ID}.csv')
-  print(f"Removed {_DUMP_ID}.csv")
+  if os.path.exists(f'{_METADATA_DUMP_ID}.csv'):
+    os.system(f'rm -rf {_METADATA_DUMP_ID}.csv')
+  print(f"Removed {_METADATA_DUMP_ID}.csv")
 
 def main():
   db = firestore.Client()
@@ -162,7 +157,7 @@ def main():
         retry = True
   all_clips.sort(key=lambda x: (x.get('filename', ''), x.get('clipId', '')))
   all_sessions.sort(key=lambda x: (x.get('filename', ''),))
-  with open(f'{_DUMP_ID}.json', 'w') as f:
+  with open(f'{_METADATA_DUMP_ID}.json', 'w') as f:
     f.write(json.dumps({
         'clips': all_clips,
         'sessions': all_sessions}, indent=2))
@@ -188,12 +183,11 @@ def main():
         clip['summary']['promptText'],  # Phrase
     ]
     csv_rows.append(row)
-  if csv_rows:
-    csv_path = f'{_DUMP_ID}.csv'
-    print(f'Writing csv to {csv_path}')
-    with open(csv_path, 'w', newline='') as csvfile:
-      writer = csv.writer(csvfile)
-      writer.writerows(csv_rows)
+  csv_path = f'{_METADATA_DUMP_ID}.csv'
+  print(f'Writing csv to {csv_path}')
+  with open(csv_path, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerows(csv_rows)
 
 
 if __name__ == '__main__':
