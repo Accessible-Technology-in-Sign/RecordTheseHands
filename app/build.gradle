@@ -104,5 +104,7 @@ dependencies {
     def auto_value_version = "1.8.1"
     implementation "com.google.auto.value:auto-value-annotations:$auto_value_version"
     annotationProcessor "com.google.auto.value:auto-value:$auto_value_version"
+    implementation 'com.auth0.android:jwtdecode:2.0.2'
+
 
 }

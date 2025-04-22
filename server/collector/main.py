@@ -35,10 +35,15 @@ import pathlib
 import re
 import sys
 import urllib.request
+from operator import truediv
+
+import jwt
+from functools import wraps
 
 import flask
 import flask_paranoid
 import flask_login
+from flask import request
 
 import google.auth
 import google.auth.iam
@@ -52,6 +57,9 @@ import config
 import generate_signed_url
 import token_maker
 
+ACCESS_TOKEN_EXP = 15  # minutes
+REFRESH_TOKEN_EXP = 7 * 24 * 60  # minutes (7 days)
+
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
@@ -62,6 +70,8 @@ IS_LOCAL_ENV = os.environ.get('GAE_ENV', 'localdev') == 'localdev'
 APP_VERSIONS = {
     'collector': 1,
 }
+
+key = "Totally-Insecure-Key"
 
 _BANNED_USERNAMES = frozenset([
   'apk',
@@ -105,9 +115,113 @@ class User(flask_login.UserMixin):
     self.allow_webapp_access = False
 
 
+def token_required(f):
+  @wraps(f)
+  def decorated(*args, **kwargs):
+    token = None
+    print("Authorization header:", request.headers.get("Authorization"))
+    if 'Authorization' in request.headers:
+      auth_header = request.headers['Authorization']
+      if auth_header.startswith('Bearer '):
+        token = auth_header.split(" ")[1]
+
+    if not token:
+      return flask.jsonify({'msg': 'Missing token'}), 401
+
+    try:
+      payload = jwt.decode(token, key, algorithms=['HS256'])
+      current_user = payload['sub']
+    except jwt.ExpiredSignatureError:
+      return flask.jsonify({'msg': 'Token expired'}), 401
+    except jwt.InvalidTokenError:
+      return flask.jsonify({'msg': 'Invalid token'}), 401
+
+    return f(current_user, *args, **kwargs)
+
+  return decorated
+
+import hashlib
+
+def hash_token(username, password, iterations=1000):
+    iterated_token = f"{username}:{password}"
+
+    for _ in range(iterations):
+        data = iterated_token.encode('utf-8')
+        hash_bytes = hashlib.sha256(data).digest()
+        hash_hex = hash_bytes.hex()
+        iterated_token = f"{username}:{hash_hex}"
+
+    return iterated_token
+
+@app.route('/api/refresh', methods=['POST'])
+def refresh():
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+
+    if not refresh_token:
+        return flask.jsonify({"msg": "Missing refresh token"}), 400
+
+    try:
+        payload = jwt.decode(refresh_token, key, algorithms=['HS256'])
+        if payload.get("type") != "refresh":
+            return flask.jsonify({"msg": "Invalid token type"}), 401
+
+        username = payload["sub"]
+        access_token, refresh_token = generate_tokens(username)
+        return flask.jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+
+    except jwt.ExpiredSignatureError:
+        return flask.jsonify({"msg": "Refresh token expired"}), 401
+    except jwt.InvalidTokenError:
+        return flask.jsonify({"msg": "Invalid refresh token"}), 401
+
+
+def generate_tokens(username):
+  now = datetime.datetime.now(datetime.UTC)
+
+  access_token = jwt.encode({
+    'sub': username,
+    'exp': now + datetime.timedelta(minutes=ACCESS_TOKEN_EXP)
+  }, key, algorithm='HS256')
+
+  refresh_token = jwt.encode({
+    'sub': username,
+    'exp': now + datetime.timedelta(minutes=REFRESH_TOKEN_EXP),
+    'type': 'refresh'
+  }, key, algorithm='HS256')
+
+  return access_token, refresh_token
+
+@app.route('/api/login', methods=['GET', 'POST'])
+def login(username, password):
+    if not username or not password:
+        return {'msg': 'Username and password required'}
+
+    db = firestore.Client()
+    doc_ref = db.document(f'collector/users/{username}/login_hash')
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        return {'msg': 'User not found'}
+
+    doc_data = doc.to_dict()
+
+    expected_hash = doc_data.get('login_hash')
+
+    test_hash = hash_token(username, password)
+    actual_hash = token_maker.get_login_hash(username, test_hash)
+
+    if expected_hash != actual_hash:
+        return {'msg': 'Invalid credentials'}
+
+    access_token, refresh_token = generate_tokens(username)
+    return {'access_token': access_token, 'refresh_token': refresh_token}
+
+
 @login_manager.user_loader
 def user_loader(username):
   """Load the user given an id."""
+  print("USER LOADER")
   logging.debug('user_loader {username!r}')
   if not username:
     return None
@@ -126,6 +240,7 @@ def user_loader(username):
 @login_manager.request_loader
 def request_loader(request):
   """Load a request, possibly logging the user in."""
+  print("REQUEST LOADER")
   logging.debug('request_loader {request!r}')
   login_token = request.values.get('login_token', '')
   is_valid_login, username, allow_webapp_access = check_login_token(login_token)
@@ -137,7 +252,7 @@ def request_loader(request):
   user.allow_webapp_access = allow_webapp_access
   # Anytime a login_token is provided in a form request we automatically
   # log the user in, regardless of which page they're on.
-  #   
+  #
   # Be very careful logging a user in on a subapplication,
   # If you create two session cookies things can get very messed up.
   # So, make sure the session cookies and app secret have the same settings
@@ -298,17 +413,44 @@ def get_upload_link(object_name):
   )
 
 
-@app.route('/', methods=['GET', 'POST'])
+
+@app.route('/login', methods=['GET', 'POST'])
 def home_page():
   """The homepage."""
-  if flask_login.current_user.is_authenticated:
-    return flask.render_template('index.html')
+  incorrect_password = True
   
   # If we're using POST and get this far, then the password was incorrect.
-  incorrect_password = flask.request.method != 'GET'
+  if flask.request.method == 'POST':
+    username = flask.request.get_json().get('username')
+    password = flask.request.get_json().get('password')
+    return_dict = login(username, password)
+    print(return_dict)
+    print("CHECK home_page")
 
-  return flask.render_template(
-      'login.html', incorrect_password=incorrect_password)
+    if 'msg' not in return_dict:
+      print("Success")
+      db = firestore.Client()
+      doc_ref = db.document(f'collector/users/{username}/login_hash').get()
+      if not doc_ref.exists:
+        return None
+      allow_webapp_access = doc_ref.to_dict().get('allow_webapp_access', False)
+      user = User()
+      user.id = username
+      user.allow_webapp_access = allow_webapp_access
+      flask_login.login_user(user, remember=True)
+      return return_dict
+  return flask.render_template('login.html', incorrect_password=incorrect_password)
+
+@app.route('/index', methods=['GET', 'POST'])
+def index():
+  return flask.render_template('index.html')
+
+@app.route('/api/index-data')
+@token_required
+def protected_index_data(current_user):
+    return flask.jsonify({
+        'msg': f'Welcome {current_user}, you’re authenticated!'
+    })
 
 
 @app.route('/resource', methods=['GET', 'POST'])
@@ -403,6 +545,7 @@ def apk_page():
 
 
 @app.route('/upload', methods=['POST'])
+# @token_required
 def upload():
   """Upload an item."""
   login_token = flask.request.values.get('login_token', '')
@@ -565,15 +708,17 @@ def logout():
 
 
 @app.route('/users', methods=['GET', 'POST'])
-@flask_login.login_required
 def users_page():
-  if not flask_login.current_user.allow_webapp_access:
-    return 'User does not have access to the webapp.', 403
+  users = getUserList()
+  print(users)
+  return flask.render_template('users.html', users=users)
+
+
+@token_required
+def getUserList():
+  current_time = datetime.datetime.now(datetime.timezone.utc)
   db = firestore.Client()
   doc_ref = db.document(f'collector/users')
-
-  current_time = datetime.datetime.now(datetime.timezone.utc)
-
   users = list()
   for c_ref in doc_ref.collections():
     users.append({'username': c_ref.id})
@@ -585,16 +730,15 @@ def users_page():
       if timestamp:
         users[-1]['heartbeat'] = timestamp
         t = datetime.datetime.fromisoformat(timestamp)
-        users[-1]['heartbeatFromNow'] = (
-            current_time - t) / datetime.timedelta(seconds=1)
+        users[-1]['heartbeatFromNow'] = (current_time - t) / datetime.timedelta(seconds=1)
     doc_ref = c_ref.document('data/heartbeat/max_prompt')
     doc_data = doc_ref.get()
     if doc_data.exists:
       doc_dict = doc_data.to_dict()
       users[-1]['maxPrompt'] = doc_dict.get('maxPrompt')
-      
+
   users.sort(key=lambda x: x.get('username'))
-  return flask.render_template('users.html', users=users)
+  return users
 
 
 @app.route('/user', methods=['GET', 'POST'])

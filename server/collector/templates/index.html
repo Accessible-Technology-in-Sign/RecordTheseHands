@@ -24,9 +24,94 @@ SOFTWARE.
 <link href="{{favicon}}" rel="shortcut icon" type="image/x-icon" />
 </head>
 <body>
+
+
+
 {{dev_header|safe}}
 
 <p>You are logged in as {{ current_user.id }} you can log out <a href="{{url_for('logout')}}">here</a></p>
+<div id="welcome-message"></div>
+
+<script>
+  async function getProtectedData() {
+    let token = localStorage.getItem("access_token");
+    console.log("Access token:", token);
+
+    if (!token) {
+      console.log("No access token found");
+      return redirectToLogin();
+    }
+
+    let res = await fetch("/api/index-data", {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
+
+    console.log("Initial fetch status:", res.status);
+
+    // If access token expired, try to refresh
+    if (res.status === 401) {
+      console.log("Access token expired. Attempting refresh...");
+
+      const refresh_token = localStorage.getItem("refresh_token");
+      console.log("Refresh token:", refresh_token);
+
+      if (!refresh_token) {
+        console.log("No refresh token found.");
+        return redirectToLogin();
+      }
+
+      const refreshRes = await fetch("/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ refresh_token })
+      });
+
+      console.log("Refresh status:", refreshRes.status);
+
+      if (!refreshRes.ok) {
+        console.log("Refresh failed.");
+        return redirectToLogin();
+      }
+
+      const refreshData = await refreshRes.json();
+      console.log("New access token:", refreshData.access_token);
+
+      localStorage.setItem("access_token", refreshData.access_token);
+      localStorage.setItem("refresh_token", refreshData.refresh_token);
+      return getProtectedData(); // Retry
+    }
+
+    if (!res.ok) {
+      console.log("API call failed:", res.status);
+      return redirectToLogin();
+    }
+
+    const data = await res.json();
+    console.log("Protected data:", data);
+
+    const msgElement = document.getElementById("welcome-message");
+    msgElement.textContent = data.msg;
+  }
+
+  function redirectToLogin() {
+    console.log("Redirecting to login...");
+    localStorage.clear();
+     setTimeout(() => {
+    window.location.href = "/login";
+  }, 15000);
+  }
+
+  // Start it off
+  getProtectedData();
+</script>
+
+
+
+
 
 {% if current_user.allow_webapp_access %}
 <p>
