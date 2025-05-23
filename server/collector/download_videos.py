@@ -32,16 +32,13 @@ from google.cloud.storage import Client, transfer_manager
 from google.cloud import firestore
 from utils import compute_md5
 
+from constants import _MATCH_USERS, _VIDEO_DUMP_ID
+
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
-
-# Match these accounts (with a prefix of test)
-_MATCH_USERS = re.compile(r'^test\d{3}$')
-# stem name of the output video files
-_DUMP_ID = 'video_dump'
 
 def get_video_metadata(db, username):
   """Obtain the video hash and path metadata from firestore."""
@@ -60,8 +57,8 @@ def get_video_metadata(db, username):
 
       path = f"upload/{username}/{path}"
 
-      if os.path.exists(f'{_DUMP_ID}/{path}'):
-        print(f"Skipping already downloaded file: {_DUMP_ID}/{path}")
+      if os.path.exists(f'{_VIDEO_DUMP_ID}/{path}'):
+        print(f"Skipping already downloaded file: {_VIDEO_DUMP_ID}/{path}")
         continue
       
       hashes.append(hash)
@@ -86,9 +83,9 @@ def download_all_videos(bucket_name, blob_names, destination_directory="", worke
 
 def clean():
   """Remove all the videos."""
-  if os.path.exists(_DUMP_ID):
-    os.system(f'rm -rf {_DUMP_ID}')
-  print(f"Removed {_DUMP_ID}")
+  if os.path.exists(_VIDEO_DUMP_ID):
+    os.system(f'rm -rf {_VIDEO_DUMP_ID}')
+  print(f"Removed {_VIDEO_DUMP_ID}")
 
 def main():
   print("Getting metadata from firestore")
@@ -115,12 +112,12 @@ def main():
 
   
   print(f"\nStarting download for {len(all_paths)} videos")
-  download_all_videos(BUCKET_NAME, all_paths, f'{_DUMP_ID}/')
+  download_all_videos(BUCKET_NAME, all_paths, f'{_VIDEO_DUMP_ID}/')
   print('Done downloading videos')
   
   print('\nValidating videos')
   for (hash, path) in zip(all_hashes, all_paths):
-    file_path = f'{_DUMP_ID}/{path}'
+    file_path = f'{_VIDEO_DUMP_ID}/{path}'
     if compute_md5(file_path) != hash:
       print(f'File {file_path} failed validation')
       os.remove(file_path)

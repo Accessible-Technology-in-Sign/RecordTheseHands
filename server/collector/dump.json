@@ -1,0 +1,766 @@
+{
+  "clips": [
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 0,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "RED",
+        "valid": true,
+        "start_s": 4.715419,
+        "end_s": 7.201784
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-000",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:06.000792Z",
+          "promptData": {
+            "prompt": "RED",
+            "key": "demo0",
+            "type": "TEXT",
+            "index": 0
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:03.601100Z",
+          "clipId": "3e3a42ff-s002-000",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:06.000792Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:03.514427Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 1,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "YELLOW",
+        "valid": false,
+        "start_s": 8.221524,
+        "end_s": 9.930273
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-001",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "promptData": {
+            "prompt": "YELLOW",
+            "key": "demo1",
+            "type": "TEXT",
+            "index": 1
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:07.122505Z",
+          "restartButtonDownTimestamp": "2025-01-11T23:03:08.729281Z",
+          "clipId": "3e3a42ff-s002-001",
+          "valid": false,
+          "lastModifiedTimestamp": "2025-01-11T23:03:08.729281Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:07.020532Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 2,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "YELLOW",
+        "valid": true,
+        "start_s": 9.930273,
+        "end_s": 12.108251
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-002",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:10.907259Z",
+          "promptData": {
+            "prompt": "YELLOW",
+            "key": "demo1",
+            "type": "TEXT",
+            "index": 1
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:08.843Z",
+          "clipId": "3e3a42ff-s002-002",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:10.907259Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:08.729281Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 3,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "BLUE",
+        "valid": true,
+        "start_s": 12.927586,
+        "end_s": 15.335867
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-003",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:14.134875Z",
+          "promptData": {
+            "prompt": "BLUE",
+            "key": "demo2",
+            "type": "TEXT",
+            "index": 2
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:11.862301Z",
+          "clipId": "3e3a42ff-s002-003",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:14.134875Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:11.726594Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 4,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "GREEN",
+        "valid": true,
+        "start_s": 16.187887,
+        "end_s": 18.44588
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-004",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:17.244888Z",
+          "promptData": {
+            "prompt": "GREEN",
+            "key": "demo3",
+            "type": "TEXT",
+            "index": 3
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:15.089843Z",
+          "clipId": "3e3a42ff-s002-004",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:17.244888Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:14.986895Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 5,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "ORANGE (COLOR)",
+        "valid": true,
+        "start_s": 19.721125,
+        "end_s": 21.989617
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-005",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:20.788625Z",
+          "promptData": {
+            "prompt": "ORANGE (COLOR)",
+            "key": "demo4",
+            "type": "TEXT",
+            "index": 4
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:18.650801Z",
+          "clipId": "3e3a42ff-s002-005",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:20.788625Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:18.520133Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 6,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "PURPLE",
+        "valid": true,
+        "start_s": 22.790102,
+        "end_s": 25.250254
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-006",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:24.049262Z",
+          "promptData": {
+            "prompt": "PURPLE",
+            "key": "demo5",
+            "type": "TEXT",
+            "index": 5
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:21.711480Z",
+          "clipId": "3e3a42ff-s002-006",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:24.049262Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:21.589110Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 7,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "BLACK (COLOR)",
+        "valid": true,
+        "start_s": 26.256622,
+        "end_s": 28.626413
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-007",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:27.425421Z",
+          "promptData": {
+            "prompt": "BLACK (COLOR)",
+            "key": "demo6",
+            "type": "TEXT",
+            "index": 6
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:25.162554Z",
+          "clipId": "3e3a42ff-s002-007",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:27.425421Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:25.055630Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 2,
+        "clipIndex": 8,
+        "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+        "promptText": "WHITE",
+        "valid": true,
+        "start_s": 29.519678,
+        "end_s": 32.385713
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s002-008",
+        "serverTimestamp": "2025-01-11T23:04:37.571637+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-11T23:03:31.184721Z",
+          "promptData": {
+            "prompt": "WHITE",
+            "key": "demo7",
+            "type": "TEXT",
+            "index": 7
+          },
+          "startButtonUpTimestamp": "2025-01-11T23:03:28.451302Z",
+          "clipId": "3e3a42ff-s002-008",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-11T23:03:31.184721Z",
+          "filename": "test006-3e3a42ff-s002-2025-01-11T23:02:58.610993Z.mp4",
+          "startButtonDownTimestamp": "2025-01-11T23:03:28.318686Z",
+          "sessionId": "3e3a42ff-s002",
+          "videoStart": "2025-01-11T23:02:58.799008Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 7,
+        "clipIndex": 0,
+        "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+        "promptText": "HELLO",
+        "valid": true,
+        "start_s": 17.549616,
+        "end_s": 19.310036
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s007-000",
+        "serverTimestamp": "2025-01-14T21:11:32.303962+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:11:18.047967Z",
+          "promptData": {
+            "prompt": "HELLO",
+            "key": "demo0",
+            "type": "VIDEO",
+            "index": 0,
+            "resourcePath": "resource/reference_videos/hello.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:11:16.401374Z",
+          "clipId": "3e3a42ff-s007-000",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:11:18.047967Z",
+          "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:11:16.287547Z",
+          "sessionId": "3e3a42ff-s007",
+          "videoStart": "2025-01-14T21:10:58.737931Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 7,
+        "clipIndex": 1,
+        "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+        "promptText": "NICE",
+        "valid": true,
+        "start_s": 20.403883,
+        "end_s": 22.272948
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s007-001",
+        "serverTimestamp": "2025-01-14T21:11:32.303962+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:11:21.010879Z",
+          "promptData": {
+            "prompt": "NICE",
+            "key": "demo1",
+            "type": "VIDEO",
+            "index": 1,
+            "resourcePath": "resource/reference_videos/nice.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:11:19.235580Z",
+          "clipId": "3e3a42ff-s007-001",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:11:21.010879Z",
+          "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:11:19.141814Z",
+          "sessionId": "3e3a42ff-s007",
+          "videoStart": "2025-01-14T21:10:58.737931Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 7,
+        "clipIndex": 2,
+        "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+        "promptText": "BOOK",
+        "valid": true,
+        "start_s": 24.878927,
+        "end_s": 26.802415
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s007-002",
+        "serverTimestamp": "2025-01-14T21:11:32.303962+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:11:25.540346Z",
+          "promptData": {
+            "prompt": "BOOK",
+            "key": "demo2",
+            "type": "IMAGE",
+            "index": 2,
+            "resourcePath": "resource/reference_images/book.png"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:11:23.715910Z",
+          "clipId": "3e3a42ff-s007-002",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:11:25.540346Z",
+          "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:11:23.616858Z",
+          "sessionId": "3e3a42ff-s007",
+          "videoStart": "2025-01-14T21:10:58.737931Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test006",
+        "sessionIndex": 7,
+        "clipIndex": 3,
+        "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+        "promptText": "BYE",
+        "valid": true,
+        "start_s": 28.170437,
+        "end_s": 29.640334
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-3e3a42ff-s007-003",
+        "serverTimestamp": "2025-01-14T21:11:32.303962+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:11:28.378265Z",
+          "promptData": {
+            "prompt": "BYE",
+            "key": "demo3",
+            "type": "VIDEO",
+            "index": 3,
+            "resourcePath": "resource/reference_videos/bye.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:11:27.038857Z",
+          "clipId": "3e3a42ff-s007-003",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:11:28.378265Z",
+          "filename": "test006-3e3a42ff-s007-2025-01-14T21:10:58.575099Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:11:26.908368Z",
+          "sessionId": "3e3a42ff-s007",
+          "videoStart": "2025-01-14T21:10:58.737931Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test007",
+        "sessionIndex": 2,
+        "clipIndex": 0,
+        "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+        "promptText": "HELLO",
+        "valid": true,
+        "start_s": 5.536147,
+        "end_s": 7.456233
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-52c45ea0-s002-000",
+        "serverTimestamp": "2025-01-14T21:32:38.817067+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:32:21.187029Z",
+          "promptData": {
+            "prompt": "HELLO",
+            "key": "demo0",
+            "type": "VIDEO",
+            "index": 0,
+            "resourcePath": "resource/reference_videos/hello.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:32:19.364088Z",
+          "clipId": "52c45ea0-s002-000",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:32:21.187029Z",
+          "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:32:19.266943Z",
+          "sessionId": "52c45ea0-s002",
+          "videoStart": "2025-01-14T21:32:13.730796Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test007",
+        "sessionIndex": 2,
+        "clipIndex": 1,
+        "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+        "promptText": "NICE",
+        "valid": true,
+        "start_s": 9.761396,
+        "end_s": 11.42099
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-52c45ea0-s002-001",
+        "serverTimestamp": "2025-01-14T21:32:38.817067+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:32:25.151786Z",
+          "promptData": {
+            "prompt": "NICE",
+            "key": "demo1",
+            "type": "VIDEO",
+            "index": 1,
+            "resourcePath": "resource/reference_videos/nice.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:32:23.549798Z",
+          "clipId": "52c45ea0-s002-001",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:32:25.151786Z",
+          "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:32:23.492192Z",
+          "sessionId": "52c45ea0-s002",
+          "videoStart": "2025-01-14T21:32:13.730796Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test007",
+        "sessionIndex": 2,
+        "clipIndex": 2,
+        "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+        "promptText": "BOOK",
+        "valid": true,
+        "start_s": 12.465788,
+        "end_s": 14.717118
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-52c45ea0-s002-002",
+        "serverTimestamp": "2025-01-14T21:32:38.817067+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:32:28.447914Z",
+          "promptData": {
+            "prompt": "BOOK",
+            "key": "demo2",
+            "type": "IMAGE",
+            "index": 2,
+            "resourcePath": "resource/reference_images/book.png"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:32:26.288593Z",
+          "clipId": "52c45ea0-s002-002",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:32:28.447914Z",
+          "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:32:26.196584Z",
+          "sessionId": "52c45ea0-s002",
+          "videoStart": "2025-01-14T21:32:13.730796Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test007",
+        "sessionIndex": 2,
+        "clipIndex": 3,
+        "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+        "promptText": "BYE",
+        "valid": true,
+        "start_s": 16.211424,
+        "end_s": 17.78702
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-52c45ea0-s002-003",
+        "serverTimestamp": "2025-01-14T21:32:38.817067+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-01-14T21:32:31.517816Z",
+          "promptData": {
+            "prompt": "BYE",
+            "key": "demo3",
+            "type": "VIDEO",
+            "index": 3,
+            "resourcePath": "resource/reference_videos/bye.mp4"
+          },
+          "startButtonUpTimestamp": "2025-01-14T21:32:30.025829Z",
+          "clipId": "52c45ea0-s002-003",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-01-14T21:32:31.517816Z",
+          "filename": "test007-52c45ea0-s002-2025-01-14T21:32:13.560263Z.mp4",
+          "startButtonDownTimestamp": "2025-01-14T21:32:29.942220Z",
+          "sessionId": "52c45ea0-s002",
+          "videoStart": "2025-01-14T21:32:13.730796Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test009",
+        "sessionIndex": 8,
+        "clipIndex": 0,
+        "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+        "promptText": "HELLO",
+        "valid": true,
+        "start_s": 0.121073,
+        "end_s": 98.817914
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-7423078a-s008-000",
+        "serverTimestamp": "2025-02-04T23:39:59.384172+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-02-04T23:39:54.234376Z",
+          "promptData": {
+            "prompt": "HELLO",
+            "key": "demo0",
+            "type": "VIDEO",
+            "index": 0,
+            "resourcePath": "resource/reference_videos/hello.mp4"
+          },
+          "startButtonUpTimestamp": "2025-02-04T23:38:15.616228Z",
+          "clipId": "7423078a-s008-000",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-02-04T23:39:54.234376Z",
+          "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+          "startButtonDownTimestamp": "2025-02-04T23:38:15.537535Z",
+          "sessionId": "7423078a-s008",
+          "videoStart": "2025-02-04T23:38:15.416462Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test009",
+        "sessionIndex": 8,
+        "clipIndex": 1,
+        "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+        "promptText": "NICE",
+        "valid": true,
+        "start_s": 100.924901,
+        "end_s": 102.801998
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-7423078a-s008-001",
+        "serverTimestamp": "2025-02-04T23:39:59.384172+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-02-04T23:39:58.218460Z",
+          "promptData": {
+            "prompt": "NICE",
+            "key": "demo1",
+            "type": "VIDEO",
+            "index": 1,
+            "resourcePath": "resource/reference_videos/nice.mp4"
+          },
+          "startButtonUpTimestamp": "2025-02-04T23:39:56.423320Z",
+          "clipId": "7423078a-s008-001",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-02-04T23:39:58.218460Z",
+          "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+          "startButtonDownTimestamp": "2025-02-04T23:39:56.341363Z",
+          "sessionId": "7423078a-s008",
+          "videoStart": "2025-02-04T23:38:15.416462Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test009",
+        "sessionIndex": 8,
+        "clipIndex": 2,
+        "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+        "promptText": "BOOK",
+        "valid": false,
+        "start_s": 103.638807,
+        "end_s": 105.457872
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-7423078a-s008-002",
+        "serverTimestamp": "2025-02-04T23:39:59.384172+00:00",
+        "data": {
+          "promptData": {
+            "prompt": "BOOK",
+            "key": "demo2",
+            "type": "IMAGE",
+            "index": 2,
+            "resourcePath": "resource/reference_images/book.png"
+          },
+          "startButtonUpTimestamp": "2025-02-04T23:39:59.159208Z",
+          "restartButtonDownTimestamp": "2025-02-04T23:40:00.874334Z",
+          "clipId": "7423078a-s008-002",
+          "valid": false,
+          "lastModifiedTimestamp": "2025-02-04T23:40:00.874334Z",
+          "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+          "startButtonDownTimestamp": "2025-02-04T23:39:59.055269Z",
+          "sessionId": "7423078a-s008",
+          "videoStart": "2025-02-04T23:38:15.416462Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test009",
+        "sessionIndex": 8,
+        "clipIndex": 3,
+        "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+        "promptText": "BOOK",
+        "valid": true,
+        "start_s": 105.457872,
+        "end_s": 107.694728
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-7423078a-s008-003",
+        "serverTimestamp": "2025-02-04T23:39:59.384172+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-02-04T23:40:03.111190Z",
+          "promptData": {
+            "prompt": "BOOK",
+            "key": "demo2",
+            "type": "IMAGE",
+            "index": 2,
+            "resourcePath": "resource/reference_images/book.png"
+          },
+          "startButtonUpTimestamp": "2025-02-04T23:40:00.990280Z",
+          "clipId": "7423078a-s008-003",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-02-04T23:40:03.111190Z",
+          "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+          "startButtonDownTimestamp": "2025-02-04T23:40:00.874334Z",
+          "sessionId": "7423078a-s008",
+          "videoStart": "2025-02-04T23:38:15.416462Z"
+        }
+      }
+    },
+    {
+      "summary": {
+        "userId": "test009",
+        "sessionIndex": 8,
+        "clipIndex": 4,
+        "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+        "promptText": "BYE",
+        "valid": true,
+        "start_s": 108.508654,
+        "end_s": 110.113294
+      },
+      "full": {
+        "appVersion": "2.1.0",
+        "key": "clipData-7423078a-s008-004",
+        "serverTimestamp": "2025-02-04T23:39:59.384172+00:00",
+        "data": {
+          "swipeForwardTimestamp": "2025-02-04T23:40:05.529756Z",
+          "promptData": {
+            "prompt": "BYE",
+            "key": "demo3",
+            "type": "VIDEO",
+            "index": 3,
+            "resourcePath": "resource/reference_videos/bye.mp4"
+          },
+          "startButtonUpTimestamp": "2025-02-04T23:40:03.993875Z",
+          "clipId": "7423078a-s008-004",
+          "valid": true,
+          "lastModifiedTimestamp": "2025-02-04T23:40:05.529756Z",
+          "filename": "test009-7423078a-s008-2025-02-04T23:38:15.186429Z.mp4",
+          "startButtonDownTimestamp": "2025-02-04T23:40:03.925116Z",
+          "sessionId": "7423078a-s008",
+          "videoStart": "2025-02-04T23:38:15.416462Z"
+        }
+      }
+    }
+  ],
+  "sessions": []
+}

@@ -257,7 +257,12 @@ class HomeScreenActivity : ComponentActivity() {
 
       val numPrompts = prompts?.array?.size
       val promptIndex = prompts?.promptIndex
-      if (prompts != null && username != null) {
+
+      if (prompts == null) {
+        startRecordingButton.isEnabled = true
+        startRecordingButton.isClickable = true
+        startRecordingButton.text = "Cannot Start"
+      } else if (username != null) {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
@@ -309,87 +314,95 @@ class HomeScreenActivity : ComponentActivity() {
 
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
-        fun checkPermission(perm: String): Boolean {
-          return ContextCompat.checkSelfPermission(applicationContext, perm) ==
-              PackageManager.PERMISSION_GRANTED
-        }
-
-        fun shouldAsk(perm: String): Boolean {
-          return shouldShowRequestPermissionRationale(perm)
-        }
-
-        fun cannotGetPermission(perm: String): Boolean {
-          return !checkPermission(perm) && !shouldAsk(perm)
-        }
-
-        Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
-        Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
-
-        if (checkPermission(CAMERA)) {
-          lifecycleScope.launch {
-            // You can use the API that requires the permission.
-            val intent = Intent(
-              this@HomeScreenActivity, RecordingActivity::class.java
-            ).also {
-              it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
-            }
-            UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-            Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
-            dataManager.waitForDataLock()
-            Log.d(TAG, "Data lock was available.")
-
-            handleRecordingResult.launch(intent)
-          }
-        } else if (!permissionRequestedPreviously) {
-          // No permissions, and we haven't asked for permissions before
-          permissionRequestedPreviously = true
-          CoroutineScope(Dispatchers.IO).launch {
-            val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
-            applicationContext.prefStore.edit {
-              it[keyObject] = true
-            }
-          }
-          requestRecordingPermissions.launch(arrayOf(CAMERA))
-        } else if (permissionRequestedPreviously && shouldAsk(CAMERA)) {
-          // We've asked the user for permissions before, and the prior `when` case failed,
-          // so we are allowed to ask for at least one of the required permissions
-
-          // Send an alert prompting the user that they need to grant permissions
-          val builder = AlertDialog.Builder(applicationContext).apply {
-            setTitle(getString(R.string.perm_alert))
-            setMessage(getString(R.string.perm_alert_message))
-
-            setPositiveButton(getString(R.string.ok)) { dialog, _ ->
-              requestRecordingPermissions.launch(
-                arrayOf(CAMERA)
-              )
-              dialog.dismiss()
-            }
-          }
-
-          val dialog = builder.create()
-          dialog.apply {
-            setCanceledOnTouchOutside(true)
-            setOnCancelListener {
-              requestRecordingPermissions.launch(
-                arrayOf(CAMERA)
-              )
-            }
-            show()
-          }
-        } else if (permissionRequestedPreviously && cannotGetPermission(CAMERA)) {
-          // We've asked the user for permissions before, they haven't been granted,
-          // and we cannot ask the user for either camera or storage permissions (we already
-          // asked them before)
-          val text = "Please enable camera access in Settings"
-          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-          toast.show()
+        if (prompts == null) {
+          AlertDialog.Builder(this@HomeScreenActivity)
+            .setTitle("No Prompts Available")
+            .setMessage("No prompts have been downloaded. Please download prompts before starting.")
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .show()
         } else {
-          Log.e(TAG, "Invalid permission state.")
-          val text =
-            "The app is in a bad state, you likely need to enable camera access in Settings."
-          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-          toast.show()
+          fun checkPermission(perm: String): Boolean {
+            return ContextCompat.checkSelfPermission(applicationContext, perm) ==
+                PackageManager.PERMISSION_GRANTED
+          }
+
+          fun shouldAsk(perm: String): Boolean {
+            return shouldShowRequestPermissionRationale(perm)
+          }
+
+          fun cannotGetPermission(perm: String): Boolean {
+            return !checkPermission(perm) && !shouldAsk(perm)
+          }
+
+          Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
+          Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
+
+          if (checkPermission(CAMERA)) {
+            lifecycleScope.launch {
+              // You can use the API that requires the permission.
+              val intent = Intent(
+                this@HomeScreenActivity, RecordingActivity::class.java
+              ).also {
+                it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
+              }
+              UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+              Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
+              dataManager.waitForDataLock()
+              Log.d(TAG, "Data lock was available.")
+
+              handleRecordingResult.launch(intent)
+            }
+          } else if (!permissionRequestedPreviously) {
+            // No permissions, and we haven't asked for permissions before
+            permissionRequestedPreviously = true
+            CoroutineScope(Dispatchers.IO).launch {
+              val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
+              applicationContext.prefStore.edit {
+                it[keyObject] = true
+              }
+            }
+            requestRecordingPermissions.launch(arrayOf(CAMERA))
+          } else if (permissionRequestedPreviously && shouldAsk(CAMERA)) {
+            // We've asked the user for permissions before, and the prior `when` case failed,
+            // so we are allowed to ask for at least one of the required permissions
+
+            // Send an alert prompting the user that they need to grant permissions
+            val builder = AlertDialog.Builder(applicationContext).apply {
+              setTitle(getString(R.string.perm_alert))
+              setMessage(getString(R.string.perm_alert_message))
+
+              setPositiveButton(getString(R.string.ok)) { dialog, _ ->
+                requestRecordingPermissions.launch(
+                  arrayOf(CAMERA)
+                )
+                dialog.dismiss()
+              }
+            }
+
+            val dialog = builder.create()
+            dialog.apply {
+              setCanceledOnTouchOutside(true)
+              setOnCancelListener {
+                requestRecordingPermissions.launch(
+                  arrayOf(CAMERA)
+                )
+              }
+              show()
+            }
+          } else if (permissionRequestedPreviously && cannotGetPermission(CAMERA)) {
+            // We've asked the user for permissions before, they haven't been granted,
+            // and we cannot ask the user for either camera or storage permissions (we already
+            // asked them before)
+            val text = "Please enable camera access in Settings"
+            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+            toast.show()
+          } else {
+            Log.e(TAG, "Invalid permission state.")
+            val text =
+              "The app is in a bad state, you likely need to enable camera access in Settings."
+            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+            toast.show()
+          }
         }
       } // setRecordingButton.onClickListener
 
@@ -411,13 +424,22 @@ class HomeScreenActivity : ComponentActivity() {
             uploadButton.isClickable = false
             uploadButton.text = getString(R.string.upload_successful)
 
+            // Progress bar appears after confirming
+            val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
+            uploadProgressBar.visibility = View.VISIBLE
+            uploadProgressBar.progress = 0
 
             CoroutineScope(Dispatchers.IO).launch {
               UploadService.pauseUploadUntil(null)
               try {
                 updateConnectionUi()
 
-                val uploadSucceeded = dataManager.uploadData(null)
+                val uploadSucceeded = dataManager.uploadData { progress ->
+                  runOnUiThread {
+                    Log.d(TAG, "Updating ProgressBar to $progress%")
+                    uploadProgressBar.progress = progress
+                  }
+                }
 
                 runOnUiThread {
                   uploadButton.isEnabled = true
@@ -560,7 +582,7 @@ class HomeScreenActivity : ComponentActivity() {
       runBlocking {
         username = dataManager.getUsername()
         prompts = dataManager.getPrompts()
-        if (username == null || prompts == null) {
+        if (username == null) {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
           startActivity(intent)
         }
