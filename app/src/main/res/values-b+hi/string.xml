@@ -14,6 +14,11 @@
     <string name="login_button">लॉग इन</string>
     <string name="signup_button">खाता बनाएं</string>
     <string name="id_button">डिवाइस आईडी सेट करें</string>
+    <string name="success">सफलता</string>
+    <string name="failed">विफल</string>
+    <string name="success_message">खाता सफलतापूर्वक बनाया गया और साख संग्रहित की गई:</string>
+    <string name="failed_message">खाता बनाने में विफल:</string>
+    <string name="failed_button">खाता बनाना विफल, पुनः प्रयास करें</string>
 
 
     <!-- Prompt Page -->

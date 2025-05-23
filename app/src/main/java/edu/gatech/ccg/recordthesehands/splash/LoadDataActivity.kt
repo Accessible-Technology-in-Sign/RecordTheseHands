@@ -120,21 +120,21 @@ class LoadDataActivity : ComponentActivity() {
           runOnUiThread {
             AlertDialog.Builder(this@LoadDataActivity).apply {
               if (result) {
-                setTitle("Success")
-                setMessage("Created account for \"$username\" and stored credentials.")
+                setTitle(getString(R.string.success))
+                setMessage(getString(R.string.signup_button) + " \"$username\"")
                 createAccountButton.isEnabled = true
                 createAccountButton.isClickable = true
-                createAccountButton.text = "Create account"
+                createAccountButton.text = getString(R.string.signup_button)
                 usernameText.text = null
                 adminPasswordText.text = null
               } else {
-                setTitle("Failed")
-                setMessage("Failed to Create account for \"$username\".")
+                setTitle(getString(R.string.failed))
+                setMessage(getString(R.string.failed_button) + " \"$username\"")
                 createAccountButton.isEnabled = true
                 createAccountButton.isClickable = true
-                createAccountButton.text = "Create account failed, try again"
+                createAccountButton.text = getString(R.string.failed_message)
               }
-              setPositiveButton("OK") { _, _ -> }
+              setPositiveButton(getString(R.string.ok)) { _, _ -> }
               create()
               show()
             }

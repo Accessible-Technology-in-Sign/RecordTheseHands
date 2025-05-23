@@ -39,12 +39,16 @@ import os
 import concurrent.futures
 
 import utils
+
 from constants import _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID, VIDEO_EDGE_SAFETY_BUFFER
 
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
+
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
+
+VIDEO_EDGE_SAFETY_BUFFER = 0.5
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""

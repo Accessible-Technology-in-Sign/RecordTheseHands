@@ -14,6 +14,11 @@
     <string name="login_button">ログイン</string>
     <string name="signup_button">アカウントを作成</string>
     <string name="id_button">デバイスIDを設定</string>
+    <string name="success">成功</string>
+    <string name="failed">失敗</string>
+    <string name="success_message">アカウントが作成され、認証情報が保存されました:</string>
+    <string name="failed_message">アカウントの作成に失敗しました:</string>
+    <string name="failed_button">アカウント作成に失敗しました。再試行してください</string>
 
     <!-- Prompt Page -->
     <string name="select_prompt">プロンプトを選択</string>
