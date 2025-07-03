@@ -29,6 +29,7 @@ import re
 
 import google.api_core.exceptions
 from google.cloud import firestore
+from constants import _MATCH_USERS, _METADATA_DUMP_ID
 
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
@@ -36,18 +37,10 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
-# dqp data collection specific code.
-_SPLIT_DQP00 = True
-# Match these accounts (ignore test accounts).
-_MATCH_USERS = re.compile(r'^dqp\d{2}$')
-# stem name of the output files (json and csv).
-_DUMP_ID = 'dqp2024-02-06'
-
-
 def get_data(username):
   """Obtain the clip and session data from firestore."""
   db = firestore.Client()
-  c_ref = db.collection(f'collector/users/{username}/data/save')
+  c_ref = db.collection(f'collector/users/{username}/data/save') # Changed from save_clip -> save in DPAN data
   clips = list()
   sessions = list()
   for doc_data in c_ref.stream():
@@ -55,25 +48,28 @@ def get_data(username):
       doc_dict = doc_data.to_dict()
       data = doc_dict.get('data')
       clip_id = data.get('clipId')
-      assert clip_id
-      m = re.match(r'[^-]*-s(\d{3})-(\d{3})', clip_id)
-      assert m, clip_id
+      if not clip_id:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
+      m = re.match(r'[^-]+-s(\d{3})-(\d{3})', clip_id)
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       session_index = int(m.group(1))
       clip_index = int(m.group(2))
       filename = data.get('filename')
-      assert filename
-      m = re.match(r'^(tutorial-)?(dqp[^-]+)-[^-]*-s(\d{3})-.*\.mp4$',
-                   filename)
-      assert m, filename
+      if not filename:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
+      m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename)
+      if not m:
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
-      assert session_index == int(m.group(3)), (clip_id, filename)
-      if _SPLIT_DQP00:
-        if user_id == 'dqp00':
-          if session_index == 4 or session_index >= 21:
-            user_id = 'dqp00_1'
-          else:
-            user_id = 'dqp00_2'
+      if session_index != int(m.group(3)):
+        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        continue
 
       simple_clip = {
           'userId': user_id,
@@ -128,6 +124,15 @@ def get_clip_bounds_in_video(clip_data):
   end_s = (clip_end_time - video_start_time).total_seconds()
   return (start_s, end_s)
 
+def clean():
+  """Remove all the metadata."""
+  if os.path.exists(f'{_METADATA_DUMP_ID}.json'):
+    os.system(f'rm -rf {_METADATA_DUMP_ID}.json')
+  print(f"Removed {_METADATA_DUMP_ID}.json")
+
+  if os.path.exists(f'{_METADATA_DUMP_ID}.csv'):
+    os.system(f'rm -rf {_METADATA_DUMP_ID}.csv')
+  print(f"Removed {_METADATA_DUMP_ID}.csv")
 
 def main():
   db = firestore.Client()
@@ -139,6 +144,7 @@ def main():
     if not m:
       continue
     retry = True
+    print(f"Getting data for user: {c_ref.id}")
     while retry:
       retry = False
       try:
@@ -151,7 +157,7 @@ def main():
         retry = True
   all_clips.sort(key=lambda x: (x.get('filename', ''), x.get('clipId', '')))
   all_sessions.sort(key=lambda x: (x.get('filename', ''),))
-  with open(f'{_DUMP_ID}.json', 'w') as f:
+  with open(f'{_METADATA_DUMP_ID}.json', 'w') as f:
     f.write(json.dumps({
         'clips': all_clips,
         'sessions': all_sessions}, indent=2))
@@ -168,7 +174,7 @@ def main():
     if not clip['summary']['valid']:
       continue
     row = [
-        '',  # unused
+        clip['summary']['userId'],  # user_id
         clip['summary']['filename'][:-4],  # Filename without .mp4
         '',  # unused
         '',  # unused
@@ -177,12 +183,11 @@ def main():
         clip['summary']['promptText'],  # Phrase
     ]
     csv_rows.append(row)
-  if csv_rows:
-    csv_path = f'{_DUMP_ID}.csv'
-    print(f'Writing csv to {csv_path}')
-    with open(csv_path, 'w', newline='') as csvfile:
-      writer = csv.writer(csvfile)
-      writer.writerows(csv_rows)
+  csv_path = f'{_METADATA_DUMP_ID}.csv'
+  print(f'Writing csv to {csv_path}')
+  with open(csv_path, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerows(csv_rows)
 
 
 if __name__ == '__main__':

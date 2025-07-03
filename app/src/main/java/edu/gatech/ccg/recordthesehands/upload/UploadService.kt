@@ -143,7 +143,10 @@ class UploadService : Service() {
           if (!isPaused()) {
             Log.i(TAG, "Upload loop is running.")
             try {
-              if (dataManager.uploadData(notificationManager!!)) {
+              if (dataManager.uploadData(notificationManager!!) {
+                  progress ->
+                    Log.d(TAG, "Upload progress: $progress%")
+                }) {
                 if (!notifiedOfCompletion) {
                   notificationManager!!.notify(
                     NOTIFICATION_ID,

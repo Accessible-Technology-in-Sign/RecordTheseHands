@@ -29,25 +29,38 @@ completed clips to the cloud.  There is currently no equivalent script
 in this project.
 """
 
+from collections import defaultdict
 import datetime
 import json
 import pathlib
 import re
-import sys
+import csv
+import os
+import concurrent.futures
 
-import common
+import utils
 
+from constants import _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID, VIDEO_EDGE_SAFETY_BUFFER
+
+PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
+assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
+
+BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
+SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
+
+VIDEO_EDGE_SAFETY_BUFFER = 0.5
 
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
-  probe_data = common.ffprobe([
+
+  cmd = [
       '-v', 'error', '-select_streams', 'v', '-show_packets',
-      '-show_data_hash', 'md5',
-      '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
+      '-show_data_hash', 'md5', '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
       '-of', 'compact', video
-  ])
-  if not probe_data:
-    return None
+  ]
+
+  result = utils.run_ffprobe(cmd, capture_output=True, check=True, text=True)
+  probe_data = result.stdout
 
   packet_info = list()
   for line in probe_data.splitlines():
@@ -55,6 +68,8 @@ def ffprobe_packet_info(video):
         r'packet\|pts_time=([\d\.-]+)\|duration_time=([\d\.]+)\|'
         r'flags=(...)\|data_hash=MD5:([0-9a-f]{32})$',
         line)
+
+    #approximate duration time as difference between PTS
     assert m, line
     pts_time_s = float(m.group(1))
     duration = float(m.group(2))
@@ -70,7 +85,7 @@ def ffprobe_packet_info(video):
 
 
 def make_clip(video, packet_info,
-              annotation_start_s, annotation_end_s, output_filename):
+              annotation_start_s, annotation_end_s, output_filename, verbose=False):
   """Make a frame perfect clip at a keyframe boundary using codec copy.
 
   The clip is cut using a copy codec.  The clip is guaranteed to start
@@ -119,7 +134,7 @@ def make_clip(video, packet_info,
   # frame of the video.  So we must add the first packet's pts_time in
   # order to search for the correct clipping time.
   pts_to_video_time = -packet_info[0]['ptsTimeS']
-  if common.VERBOSE:
+  if verbose:
     print(f'pts_to_video_time {pts_to_video_time}')
 
   # ffmpeg automatically adds the first pts_time to -ss and -to values.
@@ -133,8 +148,9 @@ def make_clip(video, packet_info,
   # video does not have any packets with drop flags at the beginning.
   # Just another reason to ensure our clips start with the first packet
   # precisely at zero.
-  search_pts_time_start = annotation_start_s - pts_to_video_time
-  search_pts_time_end = annotation_end_s - pts_to_video_time
+
+  search_pts_time_start = float(annotation_start_s) - pts_to_video_time
+  search_pts_time_end = float(annotation_end_s) - pts_to_video_time
 
   last_keyframe = None
   seek_packet = None
@@ -160,7 +176,7 @@ def make_clip(video, packet_info,
       break
   if not end_packet_in_orig:
     end_packet_in_orig = packet_info[-1]
-  if common.VERBOSE:
+  if verbose:
     print(start_packet_in_orig)
     print(end_packet_in_orig)
 
@@ -178,32 +194,27 @@ def make_clip(video, packet_info,
     i += 1
     if i == max_tries:
       break
-    if common.VERBOSE:
+    if verbose:
       print('###')
       print(f'### Cutting {start_time}')
       print('###')
-    common.ffmpeg([
-        '-v', 'error', '-y',
-        '-ss', start_time,
-        '-to', end_time,
-        '-i', video,
-        '-an', '-c:v', 'copy',
-        output_filename])
+
+    utils.trim_video(video, str(start_time), str(end_time), output_filename)
 
     clip_data = ffprobe_packet_info(output_filename)
-    if common.VERBOSE:
+    if verbose:
       print(clip_data[0])
       print(clip_data[-1])
     if clip_data[0]['flags'][1] == 'D':
       if clip_data[0]['md5'] == start_packet_in_orig['md5']:
         # Timestamp too late, deleted first packet (but it was the correct
         # packet).
-        if common.VERBOSE:
+        if verbose:
           print('First keyframe marked deleted.')
         maximum_start_time = start_time
       else:
         # Timestamp too early, went to previous keyframe.
-        if common.VERBOSE:
+        if verbose:
           print('Included one keyframe too many.')
       minimum_start_time = start_time
       start_time = (minimum_start_time + maximum_start_time) / 2
@@ -231,6 +242,7 @@ def make_clip(video, packet_info,
   clip_c_time = datetime.datetime.fromtimestamp(
       output_stat.st_ctime, tz=datetime.timezone.utc)
   clip_file_size = output_stat.st_size
+
   return {
       'clipFilename': str(output_filename),
       'fullVideoFilename': str(video),
@@ -242,25 +254,72 @@ def make_clip(video, packet_info,
       'clipStartPacketMd5': clip_data[0]['md5'],
       'clipEndPacketMd5': clip_data[-1]['md5'],
       'clipFileSize': clip_file_size,
-      'clipFileMd5': common.md5sum(output_filename),
+      'clipFileMd5': utils.compute_md5(output_filename),
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
+def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA_DUMP_ID}.csv", user_buffers={}):
+  """Make clips from all the videos in the video directory."""
+  video_directory = pathlib.Path(video_directory)
+  dump_csv = pathlib.Path(dump_csv)
+  output_dir = pathlib.Path(_CLIP_DUMP_ID)
 
-def main():
-  # Example usage:
-  video = pathlib.Path(sys.argv[1])
-  packet_info = ffprobe_packet_info(video)
-  # print(json.dumps(packet_info, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 5.252, 11.213,
-      common.TMP_VIDEOS_DIR.joinpath('out1.mp4'))
-  print(json.dumps(clip_spec, indent=2))
-  clip_spec = make_clip(
-      video, packet_info, 12.369, 15.191,
-      common.TMP_VIDEOS_DIR.joinpath('out2.mp4'))
-  print(json.dumps(clip_spec, indent=2))
+  os.makedirs(output_dir, exist_ok=True)
 
+  clip_data = defaultdict(list)
+  clips = []
+
+  with dump_csv.open('r', encoding='utf-8') as f:
+    csv_reader = csv.reader(f)
+
+    for row in csv_reader:
+      user_id, video, start_time, end_time = row[0], row[1], float(row[4]), float(row[5])
+      video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
+      clip_data[(user_id, video)].append((start_time, end_time))
+
+  for (user_id, video), clip_times in clip_data.items():
+    video = video_directory.joinpath(video)
+    packet_info = ffprobe_packet_info(str(video))
+    tasks = []
+    buffers = user_buffers.get(user_id, {})
+    safety_buffer_start = buffers.get("start", VIDEO_EDGE_SAFETY_BUFFER)
+    safety_buffer_end = buffers.get("end", VIDEO_EDGE_SAFETY_BUFFER)
+    for start_time, end_time in clip_times:
+      start_time_adjusted = max(start_time - safety_buffer_start, 0) # Negative would cause error
+      end_time_adjusted = end_time + safety_buffer_end # End time can be greater than video duration
+      output_filename = output_dir.joinpath(
+          video.stem + f'_clip_{start_time_adjusted}_{end_time_adjusted}.mp4')
+      tasks.append((video, packet_info, str(start_time_adjusted), str(end_time_adjusted), str(output_filename)))
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+      futures = {executor.submit(make_clip, *task): task for task in tasks}
+
+    for future in concurrent.futures.as_completed(futures):
+      task = futures[future]
+
+      try:
+        clips.append(future.result())
+      except Exception as e:
+        print(f"Error processing clip {task}: {e}")
+
+  with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
+    f.write(json.dumps(clips, indent=2))
+
+def clean():
+  """Remove all the clips."""
+  if os.path.exists(_CLIP_DUMP_ID):
+    os.system(f'rm -rf {_CLIP_DUMP_ID}')
+
+  print(f"Removed {_CLIP_DUMP_ID}")
+
+def main(buffer_config=None):
+  """Make all the clips."""
+  user_buffers = {}
+  if buffer_config:
+    with open(buffer_config, 'r', encoding='utf-8') as f:
+      user_buffers = json.load(f)
+
+  make_clips(user_buffers=user_buffers)
 
 if __name__ == '__main__':
   main()

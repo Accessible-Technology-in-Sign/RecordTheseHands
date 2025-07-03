@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Translations were made with ChatGPT, feel free to fix any incorrect translations. -->
+    <string name="app_name">RecordTheseHands!</string>
+    <string name="version">v1.0</string>
+
+    <!-- Log In Interface -->
+    <string name="admin_title">ログイン</string>
+    <string name="id_label">デバイスID:&#160;</string>
+    <string name="username_label">ユーザー名:&#160;</string>
+    <string name="username_input">ユーザー名を入力</string>
+    <string name="password_label">パスワード:&#160;</string>
+    <string name="password_input">パスワードを入力</string>
+    <string name="login_button">ログイン</string>
+    <string name="signup_button">アカウントを作成</string>
+    <string name="id_button">デバイスIDを設定</string>
+    <string name="success">成功</string>
+    <string name="failed">失敗</string>
+    <string name="success_message">アカウントが作成され、認証情報が保存されました:</string>
+    <string name="failed_message">アカウントの作成に失敗しました:</string>
+    <string name="failed_button">アカウント作成に失敗しました。再試行してください</string>
+
+    <!-- Prompt Page -->
+    <string name="select_prompt">プロンプトを選択</string>
+    <string name="downloaded_prompts">ダウンロード済みのプロンプト</string>
+    <string name="tutorial_prompts">チュートリアルモード</string>
+
+    <!-- Main Page -->
+    <!-- Information -->
+    <string name="loading">アプリデータを読み込み中…</string>
+    <string name="id_error">デバイスIDが設定されていません</string>
+    <string name="username_error">ユーザー名が設定されていません</string>
+
+    <!-- Status Information -->
+    <string name="status_header">ステータス情報</string>
+    <string name="internet_status">インターネット接続を確認中…</string>
+    <string name="internet_failed">インターネットが利用できません</string>
+    <string name="internet_success">インターネットに接続済み</string>
+    <string name="server_status">サーバー接続を確認中…</string>
+    <string name="server_failed">サーバーに接続できません</string>
+    <string name="server_success">サーバーに接続済み</string>
+
+    <!-- Statistics -->
+    <string name="statistics_header">統計</string>
+    <string name="prompts_completed">完了したプロンプト:&#160;</string>
+    <string name="total_recordings">録音合計:&#160;</string>
+    <string name="total_time">合計時間:&#160;</string>
+    <string name="total_sessions">このセッションで完了した回数:&#160;</string>
+    <string name="total_uploaded">アップロード合計</string>
+    <string name="ratio">%1$s の %2$s</string>
+    <string name="counter">0</string>
+    <string name="tutorial_mode">チュートリアルモード</string>
+    <string name="start_button">開始</string>
+    <string name="start_failed">開始できません</string>
+    <!-- Upload Dialog -->
+    <string name="upload_alert">アップロードの確認</string>
+    <string name="upload_alert_message">アップロードには10分以上かかる場合があり、中断できません。本当に続行しますか？</string>
+    <string name="no">いいえ</string>
+    <string name="yes">はい</string>
+    <!-- Upload Button Messages -->
+    <string name="upload_button">今すぐアップロード</string>
+    <string name="upload_failed">アップロードに失敗しました。クリックして再試行</string>
+    <string name="upload_successful">アップロード中…</string>
+
+    <!-- Recording Session Page -->
+    <string name="record">開始</string>
+    <string name="restart">ミス\nリスタート</string>
+    <string name="finish">完了</string>
+    <string name="recording">録音中</string>
+    <string name="time">15:00</string>
+    <string name="go">スタート!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">アプリを使用するには許可が必要です</string>
+    <string name="perm_alert_message">データを記録するために、カメラと書き込み機能へのアクセスが必要です。</string>
+    <string name="ok">OK</string>
+    <string name="words_signed">手話した単語</string>
+</resources>

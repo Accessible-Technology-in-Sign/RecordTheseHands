@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Translations were made with ChatGPT, feel free to fix any incorrect translations. -->
+    <string name="app_name">RecordTheseHands!</string>
+    <string name="version">v1.0</string>
+
+    <!-- Log In Interface -->
+    <string name="admin_title">लॉग इन</string>
+    <string name="id_label">डिवाइस आईडी:&#160;</string>
+    <string name="username_label">उपयोगकर्ता नाम:&#160;</string>
+    <string name="username_input">उपयोगकर्ता नाम दर्ज करें</string>
+    <string name="password_label">पासवर्ड:&#160;</string>
+    <string name="password_input">पासवर्ड दर्ज करें</string>
+    <string name="login_button">लॉग इन</string>
+    <string name="signup_button">खाता बनाएं</string>
+    <string name="id_button">डिवाइस आईडी सेट करें</string>
+    <string name="success">सफलता</string>
+    <string name="failed">विफल</string>
+    <string name="success_message">खाता सफलतापूर्वक बनाया गया और साख संग्रहित की गई:</string>
+    <string name="failed_message">खाता बनाने में विफल:</string>
+    <string name="failed_button">खाता बनाना विफल, पुनः प्रयास करें</string>
+
+
+    <!-- Prompt Page -->
+    <string name="select_prompt">प्रॉम्प्ट चुनें</string>
+    <string name="downloaded_prompts">डाउनलोड किए गए प्रॉम्प्ट</string>
+    <string name="tutorial_prompts">ट्यूटोरियल मोड</string>
+
+    <!-- Main Page -->
+    <!-- Information -->
+    <string name="loading">ऐप डेटा लोड हो रहा है…</string>
+    <string name="id_error">डिवाइस आईडी सेट नहीं है</string>
+    <string name="username_error">उपयोगकर्ता नाम सेट नहीं है</string>
+    <!-- Status Information -->
+    <string name="status_header">स्थिति जानकारी</string>
+    <string name="internet_status">इंटरनेट कनेक्शन की जांच हो रही है…</string>
+    <string name="internet_failed">इंटरनेट उपलब्ध नहीं</string>
+    <string name="internet_success">इंटरनेट कनेक्टेड</string>
+    <string name="server_status">सर्वर कनेक्शन की जांच हो रही है…</string>
+    <string name="server_failed">सर्वर से कनेक्ट नहीं हो सका</string>
+    <string name="server_success">सर्वर से कनेक्टेड</string>
+    <!-- Statistics -->
+    <string name="statistics_header">सांख्यिकी</string>
+    <string name="prompts_completed">पूरा किए गए प्रॉम्प्ट्स:&#160;</string>
+    <string name="total_recordings">कुल रिकॉर्डिंग:&#160;</string>
+    <string name="total_time">कुल समय व्यतीत:&#160;</string>
+    <string name="total_sessions">इस सत्र में पूर्ण सत्र:&#160;</string>
+    <string name="total_uploaded">कुल अपलोड</string>
+    <string name="ratio">%1$s में से %2$s</string>
+    <string name="counter">0</string>
+    <string name="tutorial_mode">ट्यूटोरियल मोड</string>
+    <string name="start_button">शुरू करें</string>
+    <string name="start_failed">शुरू नहीं कर सकते</string>
+    <!-- Upload Dialog -->
+    <string name="upload_alert">अपलोड की पुष्टि करें</string>
+    <string name="upload_alert_message">अपलोड करने में 10 या अधिक मिनट लग सकते हैं और इसे रोका नहीं जा सकता। क्या आप निश्चित रूप से जारी रखना चाहते हैं?</string>
+    <string name="no">नहीं</string>
+    <string name="yes">हाँ</string>
+    <!-- Upload Button Messages -->
+    <string name="upload_button">अभी अपलोड करें</string>
+    <string name="upload_failed">अपलोड विफल, पुनः प्रयास करने के लिए क्लिक करें</string>
+    <string name="upload_successful">अपलोड हो रहा है…</string>
+
+    <!-- Recording Session Page -->
+    <string name="record">शुरू करें</string>
+    <string name="restart">गलती\nपुनः प्रारंभ करें</string>
+    <string name="finish">समाप्त</string>
+    <string name="recording">रिकॉर्डिंग</string>
+    <string name="time">15:00</string>
+    <string name="go">चलो!</string>
+
+    <!-- Permissions -->
+    <string name="perm_alert">ऐप का उपयोग करने के लिए अनुमतियाँ आवश्यक हैं</string>
+    <string name="perm_alert_message">आपका डेटा रिकॉर्ड करने के लिए, हमें कैमरा और लेखन कार्यक्षमता तक पहुँच की आवश्यकता होगी।</string>
+    <string name="ok">ठीक है</string>
+    <string name="words_signed">हस्ताक्षरित शब्द</string>
+</resources>

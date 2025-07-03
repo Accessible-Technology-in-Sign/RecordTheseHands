@@ -11,11 +11,24 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginTop="24dp"
-        android:text="Record These Hands!"
-        android:textSize="24sp"
+        android:text="@string/app_name"
+        android:textSize="50sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/backButton" />
+
+    <ImageButton
+        android:id="@+id/backButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/back_arrow"
+        android:layout_gravity="start"
+        android:layout_marginLeft="3dp"
+        android:layout_marginTop="3dp"
+        android:backgroundTint="@android:color/transparent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/versionText"
@@ -23,259 +36,299 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp"
         android:layout_marginBottom="3dp"
-        android:text="v1.0"
+        android:text="@string/version"
+        android:textColor="@color/lightgray"
         android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="@+id/header"
-        app:layout_constraintStart_toEndOf="@+id/header" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
         android:id="@+id/loadingText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="Loading App Data..."
+        android:text="@string/loading"
         android:textSize="30sp"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="@+id/header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/header" />
 
     <androidx.constraintlayout.widget.Group
         android:id="@+id/mainGroup"
         android:layout_width="wrap_content"
         android:visibility="visible"
-        app:constraint_referenced_ids="deviceIdLabel,deviceIdBox,usernameLabel,usernameBox,internetConnectionText,serverConnectionText,statisticsHeader,completedPromptsBox,completedPromptsText1,completedPromptsText2,completedPromptsText3,totalPromptsBox,recordingCountBox,recordingCountText,recordingTimeBox,recordingTimeText,sessionCounterText,sessionCounterBox,uploadButton,exitTutorialModeButton,tutorialModeText"
+        app:constraint_referenced_ids="sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation"
         android:layout_height="wrap_content"/>
 
-    <TextView
-        android:id="@+id/deviceIdLabel"
+    <LinearLayout
+        android:id="@+id/sessionInformation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Device Id:"
-        android:textSize="18sp"
-        app:layout_constraintStart_toStartOf="@+id/header"
-        app:layout_constraintTop_toBottomOf="@+id/header" />
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="@id/header"
+        app:layout_constraintEnd_toEndOf="@id/header"
+        app:layout_constraintTop_toBottomOf="@id/header">
+
+        <TextView
+            android:id="@+id/deviceIdLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textStyle="bold"
+            android:text="@string/id_label"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/deviceIdBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textStyle="italic"
+            android:text="@string/id_error"
+            android:textSize="18sp"
+            android:paddingRight="20dp" />
+
+        <TextView
+            android:id="@+id/usernameLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textStyle="bold"
+            android:text="@string/username_label"
+            android:textSize="18sp"
+            android:paddingLeft="20dp" />
+
+        <TextView
+            android:id="@+id/usernameBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textStyle="italic"
+            android:text="@string/username_error"
+            android:textSize="18sp" />
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/deviceIdBox"
+        android:id="@+id/statusHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:text="Device Id not set"
+        android:layout_marginTop="30dp"
         android:textStyle="bold"
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/deviceIdLabel"
-        app:layout_constraintTop_toTopOf="@+id/deviceIdLabel" />
-
-    <TextView
-        android:id="@+id/usernameLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Username:"
-        android:textSize="18sp"
-        app:layout_constraintStart_toStartOf="@+id/deviceIdLabel"
-        app:layout_constraintTop_toBottomOf="@+id/deviceIdLabel" />
-
-    <TextView
-        android:id="@+id/usernameBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:text="Username not set"
-        android:textStyle="bold"
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/usernameLabel"
-        app:layout_constraintTop_toTopOf="@+id/usernameLabel" />
-
-    <TextView
-        android:id="@+id/internetConnectionText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Checking for Internet Connection..."
-        android:textStyle="bold"
+        android:text="@string/status_header"
         android:textSize="32sp"
-        app:layout_constraintStart_toStartOf="@+id/usernameLabel"
-        app:layout_constraintTop_toBottomOf="@+id/usernameLabel" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/sessionInformation"/>
 
-    <TextView
-        android:id="@+id/serverConnectionText"
+    <LinearLayout
+        android:id="@+id/statusInformation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Checking for Server Connection..."
-        android:textStyle="bold"
-        android:textSize="32sp"
-        app:layout_constraintStart_toStartOf="@+id/internetConnectionText"
-        app:layout_constraintTop_toBottomOf="@+id/internetConnectionText" />
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="@id/header"
+        app:layout_constraintEnd_toEndOf="@id/header"
+        app:layout_constraintTop_toBottomOf="@id/statusHeader">
+
+        <TextView
+            android:id="@+id/internetConnectionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/internet_status"
+            android:textStyle="italic"
+            android:textSize="20sp"
+            android:paddingRight="50dp"/>
+
+        <TextView
+            android:id="@+id/serverConnectionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/server_status"
+            android:textStyle="italic"
+            android:textSize="20sp"
+            android:paddingLeft="50dp"/>
+    </LinearLayout>
 
     <TextView
         android:id="@+id/statisticsHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
         android:layout_marginTop="30dp"
-        android:text="Statistics"
-        android:textSize="24sp"
+        android:text="@string/statistics_header"
+        android:textSize="32sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/serverConnectionText" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/statusInformation" />
 
-    <TextView
-        android:id="@+id/completedPromptsText1"
+    <LinearLayout
+        android:id="@+id/statisticsInformation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Completed "
-        android:textSize="18sp"
-        app:layout_constraintStart_toStartOf="@+id/statisticsHeader"
-        app:layout_constraintTop_toBottomOf="@+id/statisticsHeader" />
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="@id/header"
+        app:layout_constraintEnd_toEndOf="@id/header"
+        app:layout_constraintTop_toBottomOf="@id/statisticsHeader">
 
-    <TextView
-        android:id="@+id/completedPromptsBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="\?"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toEndOf="@+id/completedPromptsText1"
-        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsText1" />
+        <LinearLayout
+            android:id="@+id/promptsGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            android:paddingTop="15dp" >
 
-    <TextView
-        android:id="@+id/completedPromptsText2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text=" of "
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/completedPromptsBox"
-        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsBox" />
+            <TextView
+                android:id="@+id/promptsProgressText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textStyle="bold"
+                android:text="@string/prompts_completed"
+                android:textSize="18sp" />
 
-    <TextView
-        android:id="@+id/totalPromptsBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="\?"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toEndOf="@+id/completedPromptsText2"
-        app:layout_constraintBottom_toBottomOf="@+id/completedPromptsText2" />
+            <TextView
+                android:id="@+id/completedAndTotalPromptsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/ratio"
+                android:textSize="18sp" />
+        </LinearLayout>
 
-    <TextView
-        android:id="@+id/completedPromptsText3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text=" prompts"
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/totalPromptsBox"
-        app:layout_constraintBottom_toBottomOf="@+id/totalPromptsBox" />
+        <LinearLayout
+            android:id="@+id/recordingsGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            android:paddingTop="15dp" >
 
-    <TextView
-        android:id="@+id/recordingCountBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="0"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="@+id/completedPromptsText1"
-        app:layout_constraintTop_toBottomOf="@+id/completedPromptsText1" />
+            <TextView
+                android:id="@+id/recordingsProgressText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textStyle="bold"
+                android:text="@string/total_recordings"
+                android:textSize="18sp" />
 
-    <TextView
-        android:id="@+id/recordingCountText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text=" total recordings"
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/recordingCountBox"
-        app:layout_constraintBottom_toBottomOf="@+id/recordingCountBox" />
+            <TextView
+                android:id="@+id/recordingCountText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/counter"
+                android:textSize="18sp" />
+        </LinearLayout>
 
-    <TextView
-        android:id="@+id/recordingTimeText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Total Time Spent: "
-        android:textSize="18sp"
-        app:layout_constraintStart_toStartOf="@+id/recordingCountBox"
-        app:layout_constraintTop_toBottomOf="@+id/recordingCountBox" />
 
-    <TextView
-        android:id="@+id/recordingTimeBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="..."
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toEndOf="@+id/recordingTimeText"
-        app:layout_constraintBottom_toBottomOf="@+id/recordingTimeText" />
+        <LinearLayout
+            android:id="@+id/recordingTimeGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            android:paddingTop="15dp" >
 
-    <TextView
-        android:id="@+id/sessionCounterBox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="0"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="@+id/recordingTimeText"
-        app:layout_constraintTop_toBottomOf="@+id/recordingTimeText" />
+            <TextView
+                android:id="@+id/recordingTimeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textStyle="bold"
+                android:text="@string/total_time"
+                android:textSize="18sp" />
 
-    <TextView
-        android:id="@+id/sessionCounterText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text=" Sessions completed in this sitting"
-        android:textSize="18sp"
-        app:layout_constraintStart_toEndOf="@+id/sessionCounterBox"
-        app:layout_constraintBottom_toBottomOf="@+id/sessionCounterBox" />
+            <TextView
+                android:id="@+id/recordingTimeParsedText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/counter"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/sessionCounterGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            android:paddingTop="15dp" >
+
+
+            <TextView
+                android:id="@+id/sessionCounterText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textStyle="bold"
+                android:text="@string/total_sessions"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/sessionCounterBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/counter"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+
+    </LinearLayout>
+    <ProgressBar
+        android:id="@+id/uploadProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="169dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="32dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:min="0"
+        android:visibility="gone"
+        android:progressDrawable="@drawable/progress_bar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/statisticsInformation" />
 
     <Button
         android:id="@+id/uploadButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:text="Upload Now"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
+        android:backgroundTint="@color/cardview_dark_background"
         android:textColor="@color/white"
+        android:text="@string/upload_button"
         android:textSize="24sp"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
+        android:layout_marginBottom="24dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/sessionCounterText" />
+        app:layout_constraintEnd_toStartOf="@id/startButton"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <Button
         android:id="@+id/startButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="60dp"
         android:layout_marginBottom="24dp"
-        android:text="Start"
-        android:enabled="false"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
+        android:backgroundTint="@color/cardview_dark_background"
+        android:text="@string/start_button"
         android:textColor="@color/white"
         android:textSize="24sp"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
+        app:layout_constraintStart_toEndOf="@id/uploadButton"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintHorizontal_chainStyle="packed" />
+
 
     <TextView
         android:id="@+id/tutorialModeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="100dp"
-        android:text="Tutorial Mode"
+        android:text="@string/tutorial_mode"
         android:textSize="32sp"
         android:textColor="@color/blue"
         android:textStyle="bold"
@@ -284,23 +337,21 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <Button
-        android:id="@+id/exitTutorialModeButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="60dp"
-        android:layout_marginBottom="24dp"
-        android:text="Exit Tutorial"
-        android:enabled="true"
-        android:visibility="visible"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:textSize="24sp"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-
+    <!--    <Button-->
+    <!--        android:id="@+id/exitTutorialModeButton"-->
+    <!--        android:layout_width="wrap_content"-->
+    <!--        android:layout_height="wrap_content"-->
+    <!--        android:layout_marginStart="60dp"-->
+    <!--        android:layout_marginBottom="24dp"-->
+    <!--        android:text="Exit Tutorial"-->
+    <!--        android:enabled="true"-->
+    <!--        android:visibility="visible"-->
+    <!--        android:background="@drawable/rounded_corners"-->
+    <!--        android:backgroundTint="@color/button_color"-->
+    <!--        android:textColor="@color/white"-->
+    <!--        android:textSize="24sp"-->
+    <!--        android:paddingLeft="30dp"-->
+    <!--        android:paddingRight="30dp"-->
+    <!--        app:layout_constraintBottom_toBottomOf="parent"-->
+    <!--        app:layout_constraintStart_toStartOf="parent" />-->
 </androidx.constraintlayout.widget.ConstraintLayout>
