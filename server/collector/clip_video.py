@@ -30,17 +30,16 @@ in this project.
 """
 
 from collections import defaultdict
+import concurrent.futures
+import csv
 import datetime
 import json
+import os
 import pathlib
 import re
-import csv
-import os
-import concurrent.futures
 
+from constants import VIDEO_EDGE_SAFETY_BUFFER, _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID
 import utils
-
-from constants import _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID, VIDEO_EDGE_SAFETY_BUFFER
 
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
@@ -50,13 +49,23 @@ SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 VIDEO_EDGE_SAFETY_BUFFER = 0.5
 
+
 def ffprobe_packet_info(video):
   """Probe the video and get all the packet info."""
 
   cmd = [
-      '-v', 'error', '-select_streams', 'v', '-show_packets',
-      '-show_data_hash', 'md5', '-show_entries', 'packet=pts_time,duration_time,flags,data_hash',
-      '-of', 'compact', video
+      '-v',
+      'error',
+      '-select_streams',
+      'v',
+      '-show_packets',
+      '-show_data_hash',
+      'md5',
+      '-show_entries',
+      'packet=pts_time,duration_time,flags,data_hash',
+      '-of',
+      'compact',
+      video,
   ]
 
   result = utils.run_ffprobe(cmd, capture_output=True, check=True, text=True)
@@ -67,25 +76,34 @@ def ffprobe_packet_info(video):
     m = re.match(
         r'packet\|pts_time=([\d\.-]+)\|duration_time=([\d\.]+)\|'
         r'flags=(...)\|data_hash=MD5:([0-9a-f]{32})$',
-        line)
+        line,
+    )
 
-    #approximate duration time as difference between PTS
+    # approximate duration time as difference between PTS
     assert m, line
     pts_time_s = float(m.group(1))
     duration = float(m.group(2))
     flags = m.group(3)
     md5sum = m.group(4)
-    packet_info.append({
-        'ptsTimeS': pts_time_s,
-        'flags': flags,
-        'md5': md5sum,
-        'duration': duration
-    })
+    packet_info.append(
+        {
+            'ptsTimeS': pts_time_s,
+            'flags': flags,
+            'md5': md5sum,
+            'duration': duration,
+        }
+    )
   return packet_info
 
 
-def make_clip(video, packet_info,
-              annotation_start_s, annotation_end_s, output_filename, verbose=False):
+def make_clip(
+    video,
+    packet_info,
+    annotation_start_s,
+    annotation_end_s,
+    output_filename,
+    verbose=False,
+):
   """Make a frame perfect clip at a keyframe boundary using codec copy.
 
   The clip is cut using a copy codec.  The clip is guaranteed to start
@@ -106,12 +124,12 @@ def make_clip(video, packet_info,
     video: A video filename to clip from.
     packet_info: A pre-computed packet_info dump of the video.
     annotation_start_s: The clip start time in Seconds (assuming the video
-                        starts at zero, despite pts_time values to the
-                        contrary).
-    annotation_end_s: The clip end time in Seconds (assuming the video
-                      starts at zero, despite pts_time values to the contrary).
-    output_filename: The name of the file to write to (overwriting anything
-                     that was there).
+      starts at zero, despite pts_time values to the contrary).
+    annotation_end_s: The clip end time in Seconds (assuming the video starts at
+      zero, despite pts_time values to the contrary).
+    output_filename: The name of the file to write to (overwriting anything that
+      was there).
+
   Returns:
     A clip_spec describing the created video.
 
@@ -184,7 +202,7 @@ def make_clip(video, packet_info,
   start_time = int((start_time * 1000000) + 0.5) / 1000000.0
   minimum_start_time = start_time - 2 * start_packet_in_orig['duration']
   maximum_start_time = start_time + start_packet_in_orig['duration']
-  end_time = end_packet_in_orig['ptsTimeS'] + pts_to_video_time + .000001
+  end_time = end_packet_in_orig['ptsTimeS'] + pts_to_video_time + 0.000001
   minimum_end_time = end_time - 0.5 * end_packet_in_orig['duration']
   maximum_end_time = end_time + 0.5 * end_packet_in_orig['duration']
   end_time = int((end_time * 1000000) + 0.5) / 1000000.0
@@ -222,8 +240,10 @@ def make_clip(video, packet_info,
       continue
     # Start time is now set correctly.
     if clip_data[-1]['md5'] != end_packet_in_orig['md5']:
-      if (clip_data[-1]['ptsTimeS'] >
-          end_packet_in_orig['ptsTimeS'] - start_packet_in_orig['ptsTimeS']):
+      if (
+          clip_data[-1]['ptsTimeS']
+          > end_packet_in_orig['ptsTimeS'] - start_packet_in_orig['ptsTimeS']
+      ):
         print('Last packet is after the keyframe we wanted.')
         maximum_end_time = end_time
       else:
@@ -240,7 +260,8 @@ def make_clip(video, packet_info,
   assert clip_data[-1]['md5'] == end_packet_in_orig['md5']
   output_stat = pathlib.Path(output_filename).lstat()
   clip_c_time = datetime.datetime.fromtimestamp(
-      output_stat.st_ctime, tz=datetime.timezone.utc)
+      output_stat.st_ctime, tz=datetime.timezone.utc
+  )
   clip_file_size = output_stat.st_size
 
   return {
@@ -258,7 +279,12 @@ def make_clip(video, packet_info,
       'clipCreationTime': clip_c_time.isoformat(),
   }
 
-def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA_DUMP_ID}.csv", user_buffers={}):
+
+def make_clips(
+    video_directory=f'{_VIDEO_DUMP_ID}/upload',
+    dump_csv=f'{_METADATA_DUMP_ID}.csv',
+    user_buffers={},
+):
   """Make clips from all the videos in the video directory."""
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
@@ -273,8 +299,13 @@ def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA
     csv_reader = csv.reader(f)
 
     for row in csv_reader:
-      user_id, video, start_time, end_time = row[0], row[1], float(row[4]), float(row[5])
-      video = pathlib.Path(user_id) / "upload" / (video + ".mp4")
+      user_id, video, start_time, end_time = (
+          row[0],
+          row[1],
+          float(row[4]),
+          float(row[5]),
+      )
+      video = pathlib.Path(user_id) / 'upload' / (video + '.mp4')
       clip_data[(user_id, video)].append((start_time, end_time))
 
   for (user_id, video), clip_times in clip_data.items():
@@ -282,14 +313,27 @@ def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA
     packet_info = ffprobe_packet_info(str(video))
     tasks = []
     buffers = user_buffers.get(user_id, {})
-    safety_buffer_start = buffers.get("start", VIDEO_EDGE_SAFETY_BUFFER)
-    safety_buffer_end = buffers.get("end", VIDEO_EDGE_SAFETY_BUFFER)
+    safety_buffer_start = buffers.get('start', VIDEO_EDGE_SAFETY_BUFFER)
+    safety_buffer_end = buffers.get('end', VIDEO_EDGE_SAFETY_BUFFER)
     for start_time, end_time in clip_times:
-      start_time_adjusted = max(start_time - safety_buffer_start, 0) # Negative would cause error
-      end_time_adjusted = end_time + safety_buffer_end # End time can be greater than video duration
+      start_time_adjusted = max(
+          start_time - safety_buffer_start, 0
+      )  # Negative would cause error
+      end_time_adjusted = (
+          end_time + safety_buffer_end
+      )  # End time can be greater than video duration
       output_filename = output_dir.joinpath(
-          video.stem + f'_clip_{start_time_adjusted}_{end_time_adjusted}.mp4')
-      tasks.append((video, packet_info, str(start_time_adjusted), str(end_time_adjusted), str(output_filename)))
+          video.stem + f'_clip_{start_time_adjusted}_{end_time_adjusted}.mp4'
+      )
+      tasks.append(
+          (
+              video,
+              packet_info,
+              str(start_time_adjusted),
+              str(end_time_adjusted),
+              str(output_filename),
+          )
+      )
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
       futures = {executor.submit(make_clip, *task): task for task in tasks}
@@ -300,17 +344,19 @@ def make_clips(video_directory=f"{_VIDEO_DUMP_ID}/upload", dump_csv=f"{_METADATA
       try:
         clips.append(future.result())
       except Exception as e:
-        print(f"Error processing clip {task}: {e}")
+        print(f'Error processing clip {task}: {e}')
 
   with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
     f.write(json.dumps(clips, indent=2))
+
 
 def clean():
   """Remove all the clips."""
   if os.path.exists(_CLIP_DUMP_ID):
     os.system(f'rm -rf {_CLIP_DUMP_ID}')
 
-  print(f"Removed {_CLIP_DUMP_ID}")
+  print(f'Removed {_CLIP_DUMP_ID}')
+
 
 def main(buffer_config=None):
   """Make all the clips."""
@@ -320,6 +366,7 @@ def main(buffer_config=None):
       user_buffers = json.load(f)
 
   make_clips(user_buffers=user_buffers)
+
 
 if __name__ == '__main__':
   main()

@@ -27,7 +27,6 @@ import os
 import sys
 
 from google.cloud import firestore
-
 import token_maker
 
 # Static globals.
@@ -80,7 +79,12 @@ def create_directive(username, op, value):
   directive_id = str(max_sequence_number + 1)
 
   directives.sort(
-      key=lambda x: (int(x.get('id','-1')), x.get('op',''), x.get('value','')))
+      key=lambda x: (
+          int(x.get('id', '-1')),
+          x.get('op', ''),
+          x.get('value', ''),
+      )
+  )
 
   print(json.dumps(directives, indent=2))
 
@@ -89,12 +93,14 @@ def create_directive(username, op, value):
   directive['op'] = op
   directive['value'] = value
   directive['creationTimestamp'] = datetime.datetime.now(
-      datetime.timezone.utc).isoformat()
+      datetime.timezone.utc
+  ).isoformat()
 
   print('Adding directive:')
   print(json.dumps(directive, indent=2))
   doc_ref = db.document(
-      f'collector/users/{username}/data/directive/{directive_id}')
+      f'collector/users/{username}/data/directive/{directive_id}'
+  )
   doc_ref.set(directive)
 
 
@@ -102,18 +108,22 @@ def cancel_directive(username, directive_id):
   db = firestore.Client()
   directive_id = int(directive_id)
   doc_ref = db.document(
-      f'collector/users/{username}/data/directive/{directive_id}')
+      f'collector/users/{username}/data/directive/{directive_id}'
+  )
   doc_data = doc_ref.get()
   if not doc_data.exists:
     print(
-        f'Unable to find directive for user {username} with id {directive_id}')
+        f'Unable to find directive for user {username} with id {directive_id}'
+    )
     return False
   doc_dict = doc_data.to_dict()
   assert int(doc_dict['id']) == directive_id
   doc_dict['cancelled'] = datetime.datetime.now(
-      datetime.timezone.utc).isoformat()
+      datetime.timezone.utc
+  ).isoformat()
   doc_ref.update(
-      doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
+      doc_dict, option=db.write_option(last_update_time=doc_data.update_time)
+  )
   print(f'Cancelled directive for user {username} with id {directive_id}')
   return True
 
@@ -128,9 +138,7 @@ if __name__ == '__main__':
   elif sys.argv[2] == 'changeUser':
     new_username = sys.argv[3]
     login_token, login_hash = token_maker.make_token(sys.argv[3], sys.argv[4])
-    output = {
-      'loginToken': login_token
-    }
+    output = {'loginToken': login_token}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
     db = firestore.Client()
     doc_ref = db.document(f'collector/users/{new_username}/login_hash')
@@ -140,48 +148,42 @@ if __name__ == '__main__':
   elif sys.argv[2] == 'downloadPrompts':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prompts_data = {
-      'path': sys.argv[3],
-      'creationTimestamp': timestamp,
+        'path': sys.argv[3],
+        'creationTimestamp': timestamp,
     }
     db = firestore.Client()
-    doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/active')
+    doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
     doc_ref.set(prompts_data)
     doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/all/all/{timestamp}')
+        f'collector/users/{username}/data/prompts/all/all/{timestamp}'
+    )
     doc_ref.set(prompts_data)
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':
-    output = {
-      'filepath': sys.argv[3]
-    }
+    output = {'filepath': sys.argv[3]}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'downloadTutorialPrompts':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prompts_data = {
-      'path': sys.argv[3],
-      'creationTimestamp': timestamp,
-      'tutorialMode': True,
+        'path': sys.argv[3],
+        'creationTimestamp': timestamp,
+        'tutorialMode': True,
     }
     db = firestore.Client()
-    doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/tutorial')
+    doc_ref = db.document(f'collector/users/{username}/data/prompts/tutorial')
     doc_ref.set(prompts_data)
     doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/all/all/{timestamp}')
+        f'collector/users/{username}/data/prompts/all/all/{timestamp}'
+    )
     doc_ref.set(prompts_data)
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':
-    output = {
-      'filepath': sys.argv[3]
-    }
+    output = {'filepath': sys.argv[3]}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'uploadState':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'setTutorialMode':
-    output = {
-      'tutorialMode': sys.argv[3].lower() in ['1', 't', 'true']
-    }
+    output = {'tutorialMode': sys.argv[3].lower() in ['1', 't', 'true']}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
   elif sys.argv[2] == 'cancel':
     directive_id = int(sys.argv[3])
@@ -191,6 +193,4 @@ if __name__ == '__main__':
   elif sys.argv[2] == 'getState':
     print_state(sys.argv[1])
   else:
-    raise AssertionError("Did not understand arguments: " + " ".join(sys.argv))
-
-
+    raise AssertionError('Did not understand arguments: ' + ' '.join(sys.argv))

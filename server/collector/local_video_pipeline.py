@@ -21,31 +21,38 @@
 # SOFTWARE.
 
 import argparse
+import clip_video
 import download_videos
 import dump_clips
-import clip_video
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--clean', action='store_true', default=False, help='Clean all existing files')
-    parser.add_argument('--buffers', type=str, default=None, help='Config file for user buffers')
-    args = parser.parse_args()
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      "--clean",
+      action="store_true",
+      default=False,
+      help="Clean all existing files",
+  )
+  parser.add_argument(
+      "--buffers", type=str, default=None, help="Config file for user buffers"
+  )
+  args = parser.parse_args()
 
-    if args.clean:
-        print("CLEANING EXISTING FILES")
-        print("---------------------------------------")
-        download_videos.clean()
-        dump_clips.clean()
-        clip_video.clean()
-
-    print("\n\nSTARTING VIDEO DOWNLOAD")
+  if args.clean:
+    print("CLEANING EXISTING FILES")
     print("---------------------------------------")
-    download_videos.main()
+    download_videos.clean()
+    dump_clips.clean()
+    clip_video.clean()
 
-    print("\n\nSTARTING CLIP METADATA DOWNLOAD")
-    print("---------------------------------------")
-    dump_clips.main()
+  print("\n\nSTARTING VIDEO DOWNLOAD")
+  print("---------------------------------------")
+  download_videos.main()
 
-    print("\n\nSTARTING VIDEO CLIPPING")
-    print("---------------------------------------")
-    clip_video.main(args.buffers)
+  print("\n\nSTARTING CLIP METADATA DOWNLOAD")
+  print("---------------------------------------")
+  dump_clips.main()
+
+  print("\n\nSTARTING VIDEO CLIPPING")
+  print("---------------------------------------")
+  clip_video.main(args.buffers)

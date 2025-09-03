@@ -22,7 +22,10 @@
 """Script to download videos from the Google Cloud Storage Bucket"""
 
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, message=".*transfer_manager.*")
+
+warnings.filterwarnings(
+    'ignore', category=UserWarning, message='.*transfer_manager.*'
+)
 
 import os
 import re
@@ -40,6 +43,7 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
+
 def get_video_metadata(db, username):
   """Obtain the video hash and path metadata from firestore."""
   c_ref = db.collection(f'collector/users/{username}/data/file')
@@ -52,13 +56,13 @@ def get_video_metadata(db, username):
       path = doc_dict.get('path')
 
       if not hash or not path:
-        print(f"Skipping invalid data under {doc_data.id}")
+        print(f'Skipping invalid data under {doc_data.id}')
         continue
 
-      path = f"upload/{username}/{path}"
+      path = f'upload/{username}/{path}'
 
       if os.path.exists(f'{_VIDEO_DUMP_ID}/{path}'):
-        print(f"Skipping already downloaded file: {_VIDEO_DUMP_ID}/{path}")
+        print(f'Skipping already downloaded file: {_VIDEO_DUMP_ID}/{path}')
         continue
 
       hashes.append(hash)
@@ -66,29 +70,37 @@ def get_video_metadata(db, username):
 
   return hashes, paths
 
-def download_all_videos(bucket_name, blob_names, destination_directory="", workers=8):
-    """Download blobs in a list by name, concurrently in a process pool."""
-    storage_client = Client()
-    bucket = storage_client.bucket(bucket_name)
 
-    results = transfer_manager.download_many_to_path(
-        bucket, blob_names, destination_directory=destination_directory, max_workers=workers
-    )
+def download_all_videos(
+    bucket_name, blob_names, destination_directory='', workers=8
+):
+  """Download blobs in a list by name, concurrently in a process pool."""
+  storage_client = Client()
+  bucket = storage_client.bucket(bucket_name)
 
-    for name, result in zip(blob_names, results):
-        if isinstance(result, Exception):
-            print("Failed to download {} due to exception: {}".format(name, result))
-        else:
-            print(f"Downloaded {name} to {destination_directory + name}.")
+  results = transfer_manager.download_many_to_path(
+      bucket,
+      blob_names,
+      destination_directory=destination_directory,
+      max_workers=workers,
+  )
+
+  for name, result in zip(blob_names, results):
+    if isinstance(result, Exception):
+      print('Failed to download {} due to exception: {}'.format(name, result))
+    else:
+      print(f'Downloaded {name} to {destination_directory + name}.')
+
 
 def clean():
   """Remove all the videos."""
   if os.path.exists(_VIDEO_DUMP_ID):
     os.system(f'rm -rf {_VIDEO_DUMP_ID}')
-  print(f"Removed {_VIDEO_DUMP_ID}")
+  print(f'Removed {_VIDEO_DUMP_ID}')
+
 
 def main():
-  print("Getting metadata from firestore")
+  print('Getting metadata from firestore')
   db = firestore.Client()
   doc_ref = db.document('collector/users')
   all_hashes = []
@@ -98,7 +110,7 @@ def main():
     if not m:
       continue
     retry = True
-    print(f"Getting data for user: {c_ref.id}")
+    print(f'Getting data for user: {c_ref.id}')
     while retry:
       retry = False
       try:
@@ -110,13 +122,12 @@ def main():
         print('timed out, retrying')
         retry = True
 
-
-  print(f"\nStarting download for {len(all_paths)} videos")
+  print(f'\nStarting download for {len(all_paths)} videos')
   download_all_videos(BUCKET_NAME, all_paths, f'{_VIDEO_DUMP_ID}/')
   print('Done downloading videos')
 
   print('\nValidating videos')
-  for (hash, path) in zip(all_hashes, all_paths):
+  for hash, path in zip(all_hashes, all_paths):
     file_path = f'{_VIDEO_DUMP_ID}/{path}'
     if compute_md5(file_path) != hash:
       print(f'File {file_path} failed validation')
@@ -124,6 +135,7 @@ def main():
       print(f'Deleted {file_path}')
     else:
       print(f'File {file_path} passed validation')
+
 
 if __name__ == '__main__':
   main()

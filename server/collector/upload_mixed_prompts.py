@@ -27,7 +27,6 @@ only sampled (with the entire set being output into exactly one of the
 output prompt files).
 
 Either input file can be "" which will ignore that file.
-
 """
 
 import datetime
@@ -59,21 +58,22 @@ def upload_prompts(prompts, prompts_ident, timestamp, useSummaryPage=True):
   doc_ref.set(data)
   # print(json.dumps(data, indent=2))
   local_tempfile = pathlib.Path(os.environ.get('HOME')).joinpath(
-      f'prompts/split_{timestamp}/{path}')
+      f'prompts/split_{timestamp}/{path}'
+  )
   local_tempfile.parent.mkdir(parents=True, exist_ok=True)
   with local_tempfile.open('w') as f:
     f.write(json.dumps(data, indent=2))
     f.write('\n')
   print(local_tempfile)
   return
-    
-  command = ['gsutil', 'cp', str(local_tempfile),
-             f'gs://{BUCKET_NAME}/{path}']
+
+  command = ['gsutil', 'cp', str(local_tempfile), f'gs://{BUCKET_NAME}/{path}']
   print(' '.join(command))
   p = subprocess.Popen(command)
   p.communicate()
-  assert p.returncode == 0, (
-      'upload of prompts FAILED, do not send update operation to phones!')
+  assert (
+      p.returncode == 0
+  ), 'upload of prompts FAILED, do not send update operation to phones!'
   print('Upload succeeded, send prompts to phone with')
   print(f'create_directive.py <username> downloadPrompts {path}')
 
@@ -111,13 +111,13 @@ if __name__ == '__main__':
   i = 0
   prompt_file_index = 1
   while True:
-    prompts = prompts1 + prompts2[i:i+num_samples2]
+    prompts = prompts1 + prompts2[i : i + num_samples2]
     random.shuffle(prompts)
 
     upload_prompts(
-        prompts, f'{dataset_name}_{prompt_file_index:02d}', timestamp)
+        prompts, f'{dataset_name}_{prompt_file_index:02d}', timestamp
+    )
     i += num_samples2
     prompt_file_index += 1
     if i >= len(prompts2):
       break
-

@@ -64,7 +64,8 @@ if __name__ == '__main__':
           prompt_text = m.group(2)
         else:
           raise ValueError(
-              f'prompt_type {prompt_type!r} not recognized for line {line!r}')
+              f'prompt_type {prompt_type!r} not recognized for line {line!r}'
+          )
       else:
         prompt_type = 'TEXT'
         prompt_text = line
@@ -91,4 +92,3 @@ if __name__ == '__main__':
     f.write(json.dumps(data, indent=2))
     f.write('\n')
   print(f'prompts written to {local_file}')
-

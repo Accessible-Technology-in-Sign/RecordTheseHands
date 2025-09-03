@@ -57,12 +57,15 @@ if __name__ == '__main__':
   doc_ref = db.document('collector/apk')
   doc_ref.set(apk_data)
   print(json.dumps(apk_data, indent=2))
-  command = ['gsutil', 'cp', local_filepath,
-             f'gs://{BUCKET_NAME}/apk/{filename}']
+  command = [
+      'gsutil',
+      'cp',
+      local_filepath,
+      f'gs://{BUCKET_NAME}/apk/{filename}',
+  ]
   print(' '.join(command))
   p = subprocess.Popen(command)
   p.communicate()
-  assert p.returncode == 0, (
-      'upload of apk FAILED, do not send update operation to phones!')
-
-
+  assert (
+      p.returncode == 0
+  ), 'upload of apk FAILED, do not send update operation to phones!'

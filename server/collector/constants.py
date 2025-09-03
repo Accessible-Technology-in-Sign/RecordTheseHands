@@ -30,7 +30,7 @@ _VIDEO_DUMP_ID = 'video_dump'
 _METADATA_DUMP_ID = 'metadata_dump'
 
 # stem name of the output video clips
-_CLIP_DUMP_ID = "clip_dump"
+_CLIP_DUMP_ID = 'clip_dump'
 
 # The edge safety buffer is the amount of time to be added to start and end of clips
 VIDEO_EDGE_SAFETY_BUFFER = 0.5

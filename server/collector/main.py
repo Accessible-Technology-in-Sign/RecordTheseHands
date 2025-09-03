@@ -36,20 +36,17 @@ import re
 import sys
 import urllib.request
 
+import config
 import flask
-import flask_paranoid
 import flask_login
-
+import flask_paranoid
+import generate_signed_url
 import google.auth
 import google.auth.iam
-
 from google.cloud import firestore
 from google.cloud import secretmanager
 from google.cloud import storage
 import google.cloud.logging
-
-import config
-import generate_signed_url
 import token_maker
 
 # Static globals.
@@ -57,21 +54,23 @@ PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
-IS_PROD_ENV = (PROJECT_ID == config.PROD_PROJECT)
+IS_PROD_ENV = PROJECT_ID == config.PROD_PROJECT
 IS_LOCAL_ENV = os.environ.get('GAE_ENV', 'localdev') == 'localdev'
 APP_VERSIONS = {
     'collector': 1,
 }
 
-_BANNED_USERNAMES = frozenset([
-  'apk',
-  'download',
-  'metadata',
-  'prompts',
-  'renamed_videos',
-  'resource',
-  'upload',
-])
+_BANNED_USERNAMES = frozenset(
+    [
+        'apk',
+        'download',
+        'metadata',
+        'prompts',
+        'renamed_videos',
+        'resource',
+        'upload',
+    ]
+)
 
 # globals, including Flask environment.
 app = flask.Flask(__name__)
@@ -91,6 +90,7 @@ if IS_LOCAL_ENV:
 def json_pretty(data):
   return json.dumps(data, sort_keys=True, indent=2)
 
+
 app.jinja_env.filters['tojson_pretty'] = json_pretty
 
 
@@ -100,6 +100,7 @@ class Error(Exception):
 
 # The flask-login user object.
 class User(flask_login.UserMixin):
+
   def __init__(self):
     super().__init__()
     self.allow_webapp_access = False
@@ -137,7 +138,7 @@ def request_loader(request):
   user.allow_webapp_access = allow_webapp_access
   # Anytime a login_token is provided in a form request we automatically
   # log the user in, regardless of which page they're on.
-  #   
+  #
   # Be very careful logging a user in on a subapplication,
   # If you create two session cookies things can get very messed up.
   # So, make sure the session cookies and app secret have the same settings
@@ -193,14 +194,16 @@ def inject_dev_header():
       server_title = 'localhost Dev'
     else:
       server_title = 'Dev'
-  return dict(dev_header=f"""
+  return dict(
+      dev_header=f"""
 <div style="font-size:30px;color:blue;font-weight:bold;">
   {server_title}
   <a href="{config.DEV_URL}">(dev)</a>
   <a href="{config.PROD_URL}">(prod)</a>
   (GCP <a href="{config.DEV_DASHBOARD}">dev</a>,
   <a href="{config.PROD_DASHBOARD}">prod</a>)
-</div>""")
+</div>"""
+  )
 
 
 @app.context_processor
@@ -234,8 +237,10 @@ def check_login_token(login_token):
 
   Args:
     login_token: The login token as a string.
+
   Returns
-    A Tuple of (is_valid, username, allow_webapp_access)"""
+    A Tuple of (is_valid, username, allow_webapp_access)
+  """
   m = re.match(r'^([a-z][a-z0-9_]{2,}):[0-9a-f]{64}$', login_token)
   if not m:
     return (False, None, False)
@@ -267,7 +272,8 @@ def get_download_link(object_name):
   auth_request = google.auth.transport.requests.Request()
   credentials, unused_project = google.auth.default()
   signer = google.auth.iam.Signer(
-      auth_request, credentials, SERVICE_ACCOUNT_EMAIL)
+      auth_request, credentials, SERVICE_ACCOUNT_EMAIL
+  )
 
   return generate_signed_url.generate_signed_url(
       signer=signer,
@@ -285,7 +291,8 @@ def get_upload_link(object_name):
   auth_request = google.auth.transport.requests.Request()
   credentials, unused_project = google.auth.default()
   signer = google.auth.iam.Signer(
-      auth_request, credentials, SERVICE_ACCOUNT_EMAIL)
+      auth_request, credentials, SERVICE_ACCOUNT_EMAIL
+  )
 
   return generate_signed_url.generate_signed_url(
       signer=signer,
@@ -303,12 +310,13 @@ def home_page():
   """The homepage."""
   if flask_login.current_user.is_authenticated:
     return flask.render_template('index.html')
-  
+
   # If we're using POST and get this far, then the password was incorrect.
   incorrect_password = flask.request.method != 'GET'
 
   return flask.render_template(
-      'login.html', incorrect_password=incorrect_password)
+      'login.html', incorrect_password=incorrect_password
+  )
 
 
 @app.route('/resource', methods=['GET', 'POST'])
@@ -343,8 +351,11 @@ def prompts_page():
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
     return 'login_token invalid', 400
-  tutorial_mode = flask.request.values.get(
-      'tutorial_mode', '').lower() in ['1', 't', 'true']
+  tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
+      '1',
+      't',
+      'true',
+  ]
   if tutorial_mode:
     prompts_key = 'tutorial'
   else:
@@ -356,27 +367,35 @@ def prompts_page():
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data/prompts/{prompts_key}')
+      f'collector/users/{username}/data/prompts/{prompts_key}'
+  )
   doc_data = doc_ref.get()
   if not doc_data.exists:
-    return (f'no prompts found for user {username}'
-            f' with tutorial_mode {tutorial_mode}'), 404
+    return (
+        f'no prompts found for user {username}'
+        f' with tutorial_mode {tutorial_mode}'
+    ), 404
   doc_dict = doc_data.to_dict()
   path = doc_dict.get('path')
   if not path:
-    return (f'prompt file not found for user {username}'
-            f' with tutorial_mode {tutorial_mode}'), 404
+    return (
+        f'prompt file not found for user {username}'
+        f' with tutorial_mode {tutorial_mode}'
+    ), 404
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
   server_log_key = f'downloadPrompts-{timestamp}'
   app_version = flask.request.values.get('app_version', 'unknown')
   doc_ref = db.document(
-      f'collector/users/{username}/data/server/{server_log_key}').set({
-      'appVersion': app_version,
-      'path': path,
-      'tutorialMode': tutorial_mode,
-      'timestamp': timestamp,
-  })
+      f'collector/users/{username}/data/server/{server_log_key}'
+  ).set(
+      {
+          'appVersion': app_version,
+          'path': path,
+          'tutorialMode': tutorial_mode,
+          'timestamp': timestamp,
+      }
+  )
 
   download_link = get_download_link(path)
 
@@ -431,22 +450,27 @@ def upload():
   m = re.match(r'^\d+$', file_size)
   if not m:
     return 'file_size was not a non-negative integer', 400
-  tutorial_mode = (
-      flask.request.values.get('tutorial_mode', '').lower() in
-      ['1', 't', 'true'])
+  tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
+      '1',
+      't',
+      'true',
+  ]
 
   tutorial_mode_prefix = ''
   if tutorial_mode:
     tutorial_mode_prefix = 'tutorial_'
 
   db = firestore.Client()
-  db.document(f'collector/users/{username}/{tutorial_mode_prefix}data/'
-              f'file/{filename}').set({
-      'appVersion': app_version,
-      'path': path,
-      'md5': md5sum,
-      'fileSize': int(file_size)
-  })
+  db.document(
+      f'collector/users/{username}/{tutorial_mode_prefix}data/file/{filename}'
+  ).set(
+      {
+          'appVersion': app_version,
+          'path': path,
+          'md5': md5sum,
+          'fileSize': int(file_size),
+      }
+  )
 
   upload_link = get_upload_link(f'upload/{username}/{path}')
   return flask.jsonify({'uploadLink': upload_link})
@@ -472,12 +496,9 @@ if IS_LOCAL_ENV:
       return 'md5 was invalid (must be 32 lower case hex characters).', 400
 
     db = firestore.Client()
-    db.document(f'collector/users/{username}/data/file/{filename}'
-               ).set({
-                   'appVersion': app_version,
-                   'filename': filename,
-                   'md5': md5sum
-               })
+    db.document(f'collector/users/{username}/data/file/{filename}').set(
+        {'appVersion': app_version, 'filename': filename, 'md5': md5sum}
+    )
 
     upload_link = get_upload_link(f'upload/{username}/{filename}')
     return flask.jsonify({'uploadLink': upload_link})
@@ -511,17 +532,19 @@ def verify():
   m = re.match(r'^\d+$', file_size)
   if not m:
     return 'file_size was not a non-negative integer', 400
-  tutorial_mode = (
-      flask.request.values.get('tutorial_mode', '').lower() in
-      ['1', 't', 'true'])
+  tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
+      '1',
+      't',
+      'true',
+  ]
   tutorial_mode_prefix = ''
   if tutorial_mode:
     tutorial_mode_prefix = 'tutorial_'
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/{tutorial_mode_prefix}data/'
-      f'file/{filename}').get()
+      f'collector/users/{username}/{tutorial_mode_prefix}data/file/{filename}'
+  ).get()
   if not doc_ref.exists:
     return 'no file registered', 400
   doc_dict = doc_ref.to_dict()
@@ -539,17 +562,24 @@ def verify():
   if not blob.exists():
     return flask.jsonify({'verified': False, 'fileNotFound': True}), 404
   blob.reload()
-  file_md5 = base64.b16encode(
-      base64.b64decode(blob.md5_hash)).decode('utf-8').lower()
+  file_md5 = (
+      base64.b16encode(base64.b64decode(blob.md5_hash)).decode('utf-8').lower()
+  )
   # print(blob.md5_hash)
   # print(file_md5)
   md5_matches = file_md5 == md5sum
   size_matches = blob.size == int(file_size)
   verified = md5_matches and size_matches
-  return flask.jsonify({
-      'verified': verified,
-      'md5Matches': md5_matches,
-      'sizeMatches': size_matches}), 200 if verified else 400
+  return (
+      flask.jsonify(
+          {
+              'verified': verified,
+              'md5Matches': md5_matches,
+              'sizeMatches': size_matches,
+          }
+      ),
+      200 if verified else 400,
+  )
 
 
 @app.route('/create_login', methods=['GET'])
@@ -585,14 +615,15 @@ def users_page():
       if timestamp:
         users[-1]['heartbeat'] = timestamp
         t = datetime.datetime.fromisoformat(timestamp)
-        users[-1]['heartbeatFromNow'] = (
-            current_time - t) / datetime.timedelta(seconds=1)
+        users[-1]['heartbeatFromNow'] = (current_time - t) / datetime.timedelta(
+            seconds=1
+        )
     doc_ref = c_ref.document('data/heartbeat/max_prompt')
     doc_data = doc_ref.get()
     if doc_data.exists:
       doc_dict = doc_data.to_dict()
       users[-1]['maxPrompt'] = doc_dict.get('maxPrompt')
-      
+
   users.sort(key=lambda x: x.get('username'))
   return flask.render_template('users.html', users=users)
 
@@ -624,10 +655,13 @@ def user_page():
     assert doc_dict.get('value')
     directives.append(doc_dict)
   directives.sort(
-      key=lambda x: (int(x.get('id', '-1')),
-                     x.get('op', ''),
-                     x.get('value', '')))
-  
+      key=lambda x: (
+          int(x.get('id', '-1')),
+          x.get('op', ''),
+          x.get('value', ''),
+      )
+  )
+
   c_ref = db.collection(f'collector/users/{username}/data/file')
   files = list()
   for doc in c_ref.stream():
@@ -696,9 +730,11 @@ def video_page():
   username = flask.request.values.get('username', '')
   if not username:
     return 'invalid username', 401
-  tutorial_mode = (
-      flask.request.values.get('tutorial_mode', '').lower() in
-      ['1', 't', 'true'])
+  tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
+      '1',
+      't',
+      'true',
+  ]
 
   tutorial_mode_prefix = ''
   if tutorial_mode:
@@ -706,7 +742,8 @@ def video_page():
 
   db = firestore.Client()
   c_ref = db.collection(
-      f'collector/users/{username}/{tutorial_mode_prefix}data/save')
+      f'collector/users/{username}/{tutorial_mode_prefix}data/save'
+  )
   num_skipped = 0
   total_clips = 0
   clip_data = list()
@@ -739,13 +776,14 @@ def video_page():
   clip_data.sort(key=lambda x: (x.get('clipId', ''),))
 
   download_link = get_download_link(f'upload/{username}/upload/{filename}')
-  
+
   return flask.render_template(
       'video.html',
       filename=filename,
       session_data=session_data,
       video_link=download_link,
-      clip_data=clip_data)
+      clip_data=clip_data,
+  )
 
 
 @app.route('/register_login', methods=['POST'])
@@ -762,17 +800,23 @@ def register_login():
   m = re.match(r'^([a-z][a-z0-9_]{2,}):[0-9a-f]{64}$', login_token)
   if not m:
     return (
-        ('login_token is malformed.  '
-         'Note that username must be at least 3 characters, start with '
-         'a lowercase letter and include only lower case letters, '
-         'numbers, and underscores.'),
-        400)
+        (
+            'login_token is malformed.  '
+            'Note that username must be at least 3 characters, start with '
+            'a lowercase letter and include only lower case letters, '
+            'numbers, and underscores.'
+        ),
+        400,
+    )
   username = m.group(1)
   if username in _BANNED_USERNAMES:
-    return  (
-        ('username choice is banned.  '
-         'Your username cannot be a banned keywoard.'),
-        400)
+    return (
+        (
+            'username choice is banned.  '
+            'Your username cannot be a banned keywoard.'
+        ),
+        400,
+    )
   db = firestore.Client()
   data = {
       'login_hash': token_maker.get_login_hash(username, login_token),
@@ -781,8 +825,8 @@ def register_login():
   db.document(f'collector/users/{username}/login_hash').set(data)
 
   return flask.render_template(
-      'success.html',
-      message=f'User {username} successfully created.')
+      'success.html', message=f'User {username} successfully created.'
+  )
 
 
 @app.route('/save', methods=['POST'])
@@ -821,8 +865,10 @@ def save():
     tutorial_mode_prefix = ''
     if tutorial_mode:
       tutorial_mode_prefix = 'tutorial_'
-    doc_key = (f'collector/users/{username}/{tutorial_mode_prefix}data/'
-               f'save_{partition}/{key}')
+    doc_key = (
+        f'collector/users/{username}/{tutorial_mode_prefix}data/'
+        f'save_{partition}/{key}'
+    )
     save = {
         'appVersion': app_version,
         'serverTimestamp': timestamp,
@@ -843,13 +889,11 @@ def save():
           if max_prompt_index is None or max_prompt_index < final_prompt_index:
             max_prompt_index = final_prompt_index
   if max_prompt_index is not None:
-    db.document(
-        f'collector/users/{username}/data/'
-        f'heartbeat/max_prompt').set({'maxPrompt': max_prompt_index})
+    db.document(f'collector/users/{username}/data/heartbeat/max_prompt').set(
+        {'maxPrompt': max_prompt_index}
+    )
 
-  return flask.render_template(
-      'success.html',
-      message='Key values saved.')
+  return flask.render_template('success.html', message='Key values saved.')
 
 
 @app.route('/save_state', methods=['POST'])
@@ -871,13 +915,14 @@ def save_state():
 
   db = firestore.Client()
   db.document(f'collector/users/{username}/data/state/{timestamp}').set(
-      {'appVersion': app_version,
-       'serverTimestamp': timestamp,
-       'state': json.loads(state)})
+      {
+          'appVersion': app_version,
+          'serverTimestamp': timestamp,
+          'state': json.loads(state),
+      }
+  )
 
-  return flask.render_template(
-      'success.html',
-      message='Key value saved.')
+  return flask.render_template('success.html', message='Key value saved.')
 
 
 @app.route('/directives', methods=['POST'])
@@ -918,22 +963,28 @@ def directives_page():
     assert doc_dict.get('value')
     directives.append(doc_dict)
   directives.sort(
-      key=lambda x: (int(x.get('id', '-1')),
-                     x.get('op', ''),
-                     x.get('value', '')))
+      key=lambda x: (
+          int(x.get('id', '-1')),
+          x.get('op', ''),
+          x.get('value', ''),
+      )
+  )
   if directives:
     logging.info(
-        f'responding to /directives for {username} with ids=' +
-        ','.join([str(x.get('id', '-1')) for x in directives]))
+        f'responding to /directives for {username} with ids='
+        + ','.join([str(x.get('id', '-1')) for x in directives])
+    )
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
   app_version = flask.request.values.get('app_version', 'unknown')
 
   doc_ref = db.document(f'collector/users/{username}/data/heartbeat/latest')
-  doc_ref.set({
-      'appVersion': app_version,
-      'timestamp': timestamp,
-  })
+  doc_ref.set(
+      {
+          'appVersion': app_version,
+          'timestamp': timestamp,
+      }
+  )
 
   return flask.jsonify({'directives': directives, 'apk': apk_data}), 200
 
@@ -960,7 +1011,8 @@ def directive_completed():
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data/directive/{directive_id}')
+      f'collector/users/{username}/data/directive/{directive_id}'
+  )
   doc_data = doc_ref.get()
   if not doc_data.exists:
     return 'directive not found.', 404
@@ -970,11 +1022,13 @@ def directive_completed():
   doc_dict['completedServerTimestamp'] = server_timestamp
   doc_dict['appVersion'] = app_version
   doc_ref.update(
-      doc_dict, option=db.write_option(last_update_time=doc_data.update_time))
+      doc_dict, option=db.write_option(last_update_time=doc_data.update_time)
+  )
   return flask.jsonify({'updated:': True}), 200
 
 
 if not IS_PROD_ENV:
+
   @app.route('/env', methods=['GET', 'POST'])
   def env_page():
     """The env page (only available in dev mode."""
@@ -982,8 +1036,7 @@ if not IS_PROD_ENV:
     output.append('')
     for k, v in os.environ.items():
       output.append(f'{k}={v}')
-    return '\n'.join(output), 200, {
-        'Content-Type': 'text/plain; charset=utf-8'}
+    return '\n'.join(output), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
 initialize_app()

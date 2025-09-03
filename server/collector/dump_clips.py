@@ -27,9 +27,9 @@ import json
 import os
 import re
 
+from constants import _MATCH_USERS, _METADATA_DUMP_ID
 import google.api_core.exceptions
 from google.cloud import firestore
-from constants import _MATCH_USERS, _METADATA_DUMP_ID
 
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
@@ -37,10 +37,13 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
+
 def get_data(username):
   """Obtain the clip and session data from firestore."""
   db = firestore.Client()
-  c_ref = db.collection(f'collector/users/{username}/data/save') # Changed from save_clip -> save in DPAN data
+  c_ref = db.collection(
+      f'collector/users/{username}/data/save'
+  )  # Changed from save_clip -> save in DPAN data
   clips = list()
   sessions = list()
   for doc_data in c_ref.stream():
@@ -49,26 +52,26 @@ def get_data(username):
       data = doc_dict.get('data')
       clip_id = data.get('clipId')
       if not clip_id:
-        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        print(f'Skipping invalid data from user {username} under {doc_data.id}')
         continue
       m = re.match(r'[^-]+-s(\d{3})-(\d{3})', clip_id)
       if not m:
-        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        print(f'Skipping invalid data from user {username} under {doc_data.id}')
         continue
       session_index = int(m.group(1))
       clip_index = int(m.group(2))
       filename = data.get('filename')
       if not filename:
-        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        print(f'Skipping invalid data from user {username} under {doc_data.id}')
         continue
       m = re.match(r'^(tutorial-)?(.+[^-]+)-[^-]+-s(\d{3})-.+\.mp4$', filename)
       if not m:
-        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        print(f'Skipping invalid data from user {username} under {doc_data.id}')
         continue
       tutorial_prefix = m.group(1)
       user_id = m.group(2)
       if session_index != int(m.group(3)):
-        print(f"Skipping invalid data from user {username} under {doc_data.id}")
+        print(f'Skipping invalid data from user {username} under {doc_data.id}')
         continue
 
       simple_clip = {
@@ -124,15 +127,17 @@ def get_clip_bounds_in_video(clip_data):
   end_s = (clip_end_time - video_start_time).total_seconds()
   return (start_s, end_s)
 
+
 def clean():
   """Remove all the metadata."""
   if os.path.exists(f'{_METADATA_DUMP_ID}.json'):
     os.system(f'rm -rf {_METADATA_DUMP_ID}.json')
-  print(f"Removed {_METADATA_DUMP_ID}.json")
+  print(f'Removed {_METADATA_DUMP_ID}.json')
 
   if os.path.exists(f'{_METADATA_DUMP_ID}.csv'):
     os.system(f'rm -rf {_METADATA_DUMP_ID}.csv')
-  print(f"Removed {_METADATA_DUMP_ID}.csv")
+  print(f'Removed {_METADATA_DUMP_ID}.csv')
+
 
 def main():
   db = firestore.Client()
@@ -144,7 +149,7 @@ def main():
     if not m:
       continue
     retry = True
-    print(f"Getting data for user: {c_ref.id}")
+    print(f'Getting data for user: {c_ref.id}')
     while retry:
       retry = False
       try:
@@ -158,16 +163,18 @@ def main():
   all_clips.sort(key=lambda x: (x.get('filename', ''), x.get('clipId', '')))
   all_sessions.sort(key=lambda x: (x.get('filename', ''),))
   with open(f'{_METADATA_DUMP_ID}.json', 'w') as f:
-    f.write(json.dumps({
-        'clips': all_clips,
-        'sessions': all_sessions}, indent=2))
+    f.write(
+        json.dumps({'clips': all_clips, 'sessions': all_sessions}, indent=2)
+    )
     f.write('\n')
   # Create a csv file for import into Google internal Clipping system.
   csv_rows = list()
   for clip in all_clips:
-    if ('start_s' not in clip['summary'] or
-        'end_s' not in clip['summary'] or
-        'promptText' not in clip['summary']):
+    if (
+        'start_s' not in clip['summary']
+        or 'end_s' not in clip['summary']
+        or 'promptText' not in clip['summary']
+    ):
       print('csv conversion failed for:')
       print(json.dumps(clip, indent=2))
       continue
