@@ -2,15 +2,14 @@
 
 # Record These Hands!
 
-© 2021&ndash;2024 Georgia Institute of Technology /
-Center for Accessible Technology in Sign (GT-CATS) / Google LLC<br>
-Licensed under the MIT license.
+© 2021–2024 Georgia Institute of Technology / Center for Accessible Technology
+in Sign (GT-CATS) / Google LLC<br> Licensed under the MIT license.
 
 Principal authors:
 
-*   Sahir Shahryar (sahirshahryar@gmail.com)
-*   Manfred Georg (mgeorg@google.com)
-*   Matthew So (matthew.so@gatech.edu)
+- Sahir Shahryar (sahirshahryar@gmail.com)
+- Manfred Georg (mgeorg@google.com)
+- Matthew So (matthew.so@gatech.edu)
 
 Instruction videos provided by the
 [Deaf Professional Arts Network (DPAN)](https://dpan.tv).
@@ -29,8 +28,8 @@ The data collected using this app was also used for a
 sponsored by Google, with the intent of using the best-performing model directly
 within PopSignAI. The Kaggle competition and PopSignAI received
 [a brief mention](https://www.youtube.com/watch?v=r8T0SnwHRNI&t=3965s) at the
-Google I/O &rsquo;23 Developer Keynote. To learn more about the dataset and how
-we went about collecting it, please see our paper on the subject, *PopSign ASL
+Google I/O ’23 Developer Keynote. To learn more about the dataset and how we
+went about collecting it, please see our paper on the subject, *PopSign ASL
 v1.0: An Isolated American Sign Language Dataset Collected via Smartphones*
 (arXiv link available shortly).
 
@@ -67,24 +66,26 @@ Please be aware that data is stored in the local filesystem and uninstalling the
 app will completely erase all local data.
 
 The data collection process proceeds as follows:
-- Users enter the app and see a simple home screen showing their progress. 
-    - Generally the app would be configured to be in "tutorial" mode. Which has a separate set of prompts which
-can be used for training purposes and will be uploaded and stored to a separate
-part of the database. This data would generally be ignored, as it generally
-includes conversation with the researcher and any other training setup and
-mistakes which might happen.
-- When the user presses "Start", the camera opens
-and begins recording. Users see a prompt at the top of the screen letting them
-know what to sign. 
-- Note that the app records continously and simply keeps track of the timestamp of all events such as button presses. If the participant wishes to end the session they can do that at any time by closing the app (at
-which point the partial session video will be saved on device). 
-- On each prompt page, the participant presses "START" then signs. If a mistake is made, then
-they can press "MISTAKE RESTART" and sign again. 
-- When they are satisfied with what they have signed, they swipe their finger from right to left to get to the
-next prompt. 
-- The app can be configured to send confirmation emails to an
-observer inbox. This allows the researcher to keep track of each participant's
-progress. See the **Enabling confirmation emails** section below for more info.
+
+- Users enter the app and see a simple home screen showing their progress.
+  - Generally the app would be configured to be in "tutorial" mode. Which has a
+    separate set of prompts which can be used for training purposes and will be
+    uploaded and stored to a separate part of the database. This data would
+    generally be ignored, as it generally includes conversation with the
+    researcher and any other training setup and mistakes which might happen.
+- When the user presses "Start", the camera opens and begins recording. Users
+  see a prompt at the top of the screen letting them know what to sign.
+- Note that the app records continously and simply keeps track of the timestamp
+  of all events such as button presses. If the participant wishes to end the
+  session they can do that at any time by closing the app (at which point the
+  partial session video will be saved on device).
+- On each prompt page, the participant presses "START" then signs. If a mistake
+  is made, then they can press "MISTAKE RESTART" and sign again.
+- When they are satisfied with what they have signed, they swipe their finger
+  from right to left to get to the next prompt.
+- The app can be configured to send confirmation emails to an observer inbox.
+  This allows the researcher to keep track of each participant's progress. See
+  the **Enabling confirmation emails** section below for more info.
 
 ## Defining your own prompts
 
@@ -129,11 +130,11 @@ inches in size, as determined by the built-in methods for screen resolution and
 pixel density in the Android SDK.
 
 The video orientation has been determined experimentally for the Google Pixel
-Tablet (2023) &mdash;
-[shown here](https://www.theverge.com/23765921/google-pixel-tablet-review)
-&mdash; which is designed to be used in one specific orientation (USB-C charging
-port to the left) while attached to the included stand. Other tablets may run
-into issues, as the app has not been set up to handle any other orientations.
+Tablet (2023) —
+[shown here](https://www.theverge.com/23765921/google-pixel-tablet-review) —
+which is designed to be used in one specific orientation (USB-C charging port to
+the left) while attached to the included stand. Other tablets may run into
+issues, as the app has not been set up to handle any other orientations.
 
 ## Feedback
 
