@@ -33,6 +33,8 @@ from google.cloud import firestore
 from utils import compute_md5
 from constants import _MATCH_USERS, _VIDEO_DUMP_ID
 
+from constants import _MATCH_USERS, _VIDEO_DUMP_ID
+
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'

@@ -368,13 +368,10 @@ class HomeScreenActivity : ComponentActivity() {
 
             // Send an alert prompting the user that they need to grant permissions
             val builder = AlertDialog.Builder(applicationContext).apply {
-              setTitle("Permissions are required to use the app")
-              setMessage(
-                "In order to record your data, we will need access to " +
-                    "the camera and write functionality."
-              )
+              setTitle(getString(R.string.perm_alert))
+              setMessage(getString(R.string.perm_alert_message))
 
-              setPositiveButton("OK") { dialog, _ ->
+              setPositiveButton(getString(R.string.ok)) { dialog, _ ->
                 requestRecordingPermissions.launch(
                   arrayOf(CAMERA)
                 )
@@ -414,10 +411,10 @@ class HomeScreenActivity : ComponentActivity() {
       uploadButton.setOnClickListener {
         // Show a confirmation dialog before proceeding with the upload
         val builder = AlertDialog.Builder(this@HomeScreenActivity).apply {
-          setTitle("Confirm Upload")
-          setMessage("Uploading may take 10 or more minutes and can't be interrupted. Are you sure you want to proceed?")
+          setTitle(getString(R.string.upload_alert))
+          setMessage(getString(R.string.upload_alert_message))
 
-          setPositiveButton("Yes") { dialog, _ ->
+          setPositiveButton(getString(R.string.yes)) { dialog, _ ->
             // User confirmed, proceed with the upload
             Log.i(TAG, "User confirmed upload.")
             dialog.dismiss()
@@ -425,7 +422,7 @@ class HomeScreenActivity : ComponentActivity() {
             // Disable the button and start the upload process
             uploadButton.isEnabled = false
             uploadButton.isClickable = false
-            uploadButton.text = "Uploading..."
+            uploadButton.text = getString(R.string.upload_successful)
 
             // Progress bar appears after confirming
             val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
