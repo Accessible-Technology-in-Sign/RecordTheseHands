@@ -22,19 +22,35 @@
         app:layout_constraintVertical_bias="0.0" />
 
     <TextView
-        android:id="@+id/textView2"
-        android:layout_width="350sp"
-        android:layout_height="300sp"
-        android:gravity="center"
-        android:text=""
-        android:textAppearance="@style/TextAppearance.AppCompat.Large"
-        android:textColor="@color/black"
-        android:textSize="32sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/promptView"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="@+id/promptView"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.50" />
+        android:id="@+id/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="24dp"
+        android:text="Words Signed"
+        android:textSize="50sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@id/promptView"
+        app:layout_constraintEnd_toEndOf="@id/promptView"
+        app:layout_constraintTop_toTopOf="@id/promptView" />
 
+    <ScrollView
+        android:id="@+id/signedPromptsListContainer"
+        android:layout_width="1000dp"
+        android:layout_height="650dp"
+        app:layout_constraintStart_toStartOf="@id/promptView"
+        app:layout_constraintEnd_toEndOf="@id/promptView"
+        app:layout_constraintTop_toBottomOf="@id/header"
+        app:layout_constraintBottom_toBottomOf="@id/promptView">
+
+        <LinearLayout
+            android:id="@+id/signedPromptsList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintStart_toStartOf="@id/signedPromptsListContainer"
+            app:layout_constraintEnd_toEndOf="@id/signedPromptsListContainer"
+            app:layout_constraintTop_toTopOf="@id/signedPromptsListContainer"
+            app:layout_constraintBottom_toBottomOf="@id/signedPromptsListContainer" />
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>
