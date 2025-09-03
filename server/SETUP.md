@@ -124,7 +124,7 @@ This section will all be done locally within project code (except for the last s
 
 8. Now that RecordTheseHands has the token hash and backend server information, it can communicate with the DPAN Server. Compile RecordTheseHands using Android Studio and refer to [USAGE.md](USAGE.md) for further use.
 
-> Documentation made by Bill Neubauer and Manfred George. For any questions please contact bill.neubauer.4@gmail.com
+> Documentation made by Bill Neubauer and Manfred Georg. For any questions please contact bill.neubauer.4@gmail.com
 
 
 
