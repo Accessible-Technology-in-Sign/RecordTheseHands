@@ -39,7 +39,6 @@ import os
 import concurrent.futures
 
 import utils
-
 from constants import _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID, VIDEO_EDGE_SAFETY_BUFFER
 
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')

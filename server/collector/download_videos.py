@@ -31,6 +31,7 @@ import google.api_core.exceptions
 from google.cloud.storage import Client, transfer_manager
 from google.cloud import firestore
 from utils import compute_md5
+from constants import _MATCH_USERS, _VIDEO_DUMP_ID
 
 from constants import _MATCH_USERS, _VIDEO_DUMP_ID
 

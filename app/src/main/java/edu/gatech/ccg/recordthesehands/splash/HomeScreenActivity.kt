@@ -169,23 +169,23 @@ class HomeScreenActivity : ComponentActivity() {
       val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
       if (network == null) {
         internetConnectionText.visibility = View.VISIBLE
-        internetConnectionText.text = getString(R.string.internet_failed)
+        internetConnectionText.text = "Internet Unavailable"
       } else {
         if (dataManager.connectedToServer()) {
           internetConnectionText.visibility = View.INVISIBLE
         } else {
           internetConnectionText.visibility = View.VISIBLE
         }
-        internetConnectionText.text = getString(R.string.internet_success)
+        internetConnectionText.text = "Internet Connected"
       }
 
       val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
       if (dataManager.connectedToServer()) {
         serverConnectionText.visibility = View.INVISIBLE
-        serverConnectionText.text = getString(R.string.server_success)
+        serverConnectionText.text = "Connected to Server"
       } else {
         serverConnectionText.visibility = View.VISIBLE
-        serverConnectionText.text = getString(R.string.server_failed)
+        serverConnectionText.text = "Unable to connect to Server"
       }
     }
   }
@@ -197,7 +197,7 @@ class HomeScreenActivity : ComponentActivity() {
     val startRecordingButton = findViewById<Button>(R.id.startButton)
     startRecordingButton.isEnabled = false
     startRecordingButton.isClickable = false
-    startRecordingButton.text = getString(R.string.start_failed)
+    startRecordingButton.text = "Cannot Start"
     val versionText = findViewById<TextView>(R.id.versionText)
     versionText.text = "v$APP_VERSION"
     val loadingText = findViewById<TextView>(R.id.loadingText)
@@ -266,7 +266,7 @@ class HomeScreenActivity : ComponentActivity() {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
-          startRecordingButton.text = getString(R.string.start_button)
+          startRecordingButton.text = "Start"
         } else {
           startRecordingButton.visibility = View.GONE
         }
@@ -291,7 +291,7 @@ class HomeScreenActivity : ComponentActivity() {
         val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
         val completedPrompts = prompts!!.promptIndex.toString()
         val totalPrompts = prompts!!.array.size.toString()
-        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
+        promptsProgressBox.text = "${completedPrompts} of ${totalPrompts}"
 
 //        if (tutorialMode && (currentRecordingSessions > 0 ||
 //              (promptIndex ?: 0) >= (numPrompts ?: 0))
@@ -445,9 +445,9 @@ class HomeScreenActivity : ComponentActivity() {
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
                   if (uploadSucceeded) {
-                    uploadButton.text = getString(R.string.upload_button)
+                    uploadButton.text = "Upload Now"
                   } else {
-                    uploadButton.text = getString(R.string.upload_failed)
+                    uploadButton.text = "Upload Failed, Click to try again"
                     val textFinish = "Upload Failed"
                     val toastFinish = Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
                     toastFinish.show()
@@ -461,14 +461,14 @@ class HomeScreenActivity : ComponentActivity() {
                   toastFinish.show()
                   uploadButton.isEnabled = true
                   uploadButton.isClickable = true
-                  uploadButton.text = getString(R.string.upload_button)
+                  uploadButton.text = "Upload Now"
                 }
               }
               updateConnectionUi()
             }
           }
 
-          setNegativeButton(getString(R.string.no)) { dialog, _ ->
+          setNegativeButton("No") { dialog, _ ->
             Log.i(TAG, "User canceled upload.")
             dialog.dismiss()
           }

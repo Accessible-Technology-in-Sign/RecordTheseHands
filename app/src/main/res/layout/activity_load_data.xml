@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:textStyle="bold"
         android:layout_marginTop="50dp"
-        android:text="@string/admin_title"
+        android:text="Log In"
         android:textSize="30sp"
         android:textColor="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
@@ -30,7 +30,7 @@
         app:layout_constraintStart_toStartOf="@id/usernameTextField"
         android:layout_marginTop="10dp"
         android:textStyle="italic"
-        android:text="@string/id_label" />
+        android:text="Device ID:" />
 
     <EditText
         android:id="@+id/setDeviceIdText"
@@ -57,7 +57,7 @@
         app:layout_constraintStart_toStartOf="@id/usernameTextField"
         android:layout_marginTop="10dp"
         android:textStyle="italic"
-        android:text="@string/username_label" />
+        android:text="Username:" />
 
     <EditText
         android:id="@+id/usernameTextField"
@@ -70,7 +70,7 @@
         app:layout_constraintRight_toRightOf="parent"
         android:drawableStart="@drawable/email"
         android:drawablePadding="5dp"
-        android:hint="@string/username_input"
+        android:hint="Enter username"
         android:maxLines="1"
         android:singleLine="true" />
 
@@ -85,7 +85,7 @@
         app:layout_constraintStart_toStartOf="@id/adminPasswordTextField"
         android:layout_marginTop="10dp"
         android:textStyle="italic"
-        android:text="@string/password_label" />
+        android:text="Password:" />
 
     <EditText
         android:id="@+id/adminPasswordTextField"
@@ -97,7 +97,7 @@
         app:layout_constraintRight_toRightOf="parent"
         android:drawableStart="@drawable/password"
         android:drawablePadding="5dp"
-        android:hint="@string/password_input"
+        android:hint="Enter password"
         android:inputType="textPassword"
         android:maxLines="1"
         android:singleLine="true" />
@@ -113,7 +113,7 @@
         app:layout_constraintRight_toRightOf="parent"
         android:layout_marginTop="20dp"
         android:textColor="@color/white"
-        android:text="@string/login_button"
+        android:text="Log In"
         android:textSize="20sp" />
 
     <Button
@@ -125,7 +125,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         android:layout_marginTop="10dp"
-        android:text="@string/signup_button"
+        android:text="Create an Account"
         android:textColor="@color/white"
         android:textSize="20sp" />
 
@@ -139,7 +139,7 @@
         app:layout_constraintRight_toRightOf="parent"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="20dp"
-        android:text="@string/id_button"
+        android:text="Set Device ID"
         android:textColor="@color/white"
         android:textSize="20sp" />
 
