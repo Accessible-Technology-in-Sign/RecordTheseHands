@@ -32,7 +32,8 @@ import androidx.fragment.app.Fragment
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 
-class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes layout: Int) : Fragment(layout) {
+class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes layout: Int) :
+  Fragment(layout) {
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
 

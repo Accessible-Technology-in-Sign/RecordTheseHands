@@ -96,7 +96,8 @@ class RecordingListAdapter(
 
         activity.dataManager.logToServerAtTimestamp(
           timestamp,
-          "setting clip invalid ${clipDetails.toJson()}")
+          "setting clip invalid ${clipDetails.toJson()}"
+        )
 
         CoroutineScope(Dispatchers.IO).launch {
           // TODO This has a race condition to saving the data.
@@ -115,7 +116,8 @@ class RecordingListAdapter(
         clipDetails.valid = true
         activity.dataManager.logToServerAtTimestamp(
           timestamp,
-          "setting clip valid ${clipDetails.toJson()}")
+          "setting clip valid ${clipDetails.toJson()}"
+        )
 
         clipDetails.lastModifiedTimestamp = now
         CoroutineScope(Dispatchers.IO).launch {

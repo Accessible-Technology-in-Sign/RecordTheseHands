@@ -124,7 +124,10 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     landscape = arguments?.getBoolean("landscape") ?: false
     isTablet = arguments?.getBoolean("isTablet") ?: false
 
-    Log.d(TAG, "startTimeMs $startTimeMs endTimeMs $endTimeMs landscape $landscape isTablet $isTablet")
+    Log.d(
+      TAG,
+      "startTimeMs $startTimeMs endTimeMs $endTimeMs landscape $landscape isTablet $isTablet"
+    )
 
     timer = Timer()
   }

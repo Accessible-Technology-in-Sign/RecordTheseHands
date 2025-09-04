@@ -116,7 +116,11 @@ import kotlin.random.Random
  * @param attempt    (Int) An attempt number for this phrase key in this session.
  */
 class ClipDetails(
-  val clipId: String, val sessionId: String, val filename: String, val prompt: Prompt, val videoStart: Instant,
+  val clipId: String,
+  val sessionId: String,
+  val filename: String,
+  val prompt: Prompt,
+  val videoStart: Instant,
 ) {
 
   companion object {
@@ -213,7 +217,8 @@ fun Context.filenameToFilepath(filename: String): File {
  */
 class RecordingSessionInfo(
   val sessionId: String, val filename: String, val deviceId: String, val username: String,
-  val sessionType: String, val initialPromptIndex: Int, val limitPromptIndex: Int) {
+  val sessionType: String, val initialPromptIndex: Int, val limitPromptIndex: Int
+) {
   companion object {
     private val TAG = RecordingSessionInfo::class.java.simpleName
   }
@@ -723,8 +728,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
         currentClipDetails =
-          ClipDetails(newClipId(), sessionInfo.sessionId, filename,
-          prompts.array[sessionStartIndex + currentPage], sessionStartTime)
+          ClipDetails(
+            newClipId(), sessionInfo.sessionId, filename,
+            prompts.array[sessionStartIndex + currentPage], sessionStartTime
+          )
         currentClipDetails!!.startButtonDownTimestamp = now
         currentClipDetails!!.lastModifiedTimestamp = now
         clipData.add(currentClipDetails!!)
@@ -774,6 +781,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
     return true
   }
+
   private fun restartButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
 
     when (event.action) {
@@ -789,8 +797,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         dataManager.saveClipData(lastClipDetails)
 
         currentClipDetails =
-          ClipDetails(newClipId(), sessionInfo.sessionId,
-            filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime)
+          ClipDetails(
+            newClipId(), sessionInfo.sessionId,
+            filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime
+          )
         currentClipDetails!!.startButtonDownTimestamp = now
         currentClipDetails!!.lastModifiedTimestamp = now
         clipData.add(currentClipDetails!!)
@@ -1238,8 +1248,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
 
     dataManager.logToServer(
-        "Setting up recording with filename ${filename} for prompts " +
-            "[${prompts.promptIndex}, ${sessionLimit})")
+      "Setting up recording with filename ${filename} for prompts " +
+          "[${prompts.promptIndex}, ${sessionLimit})"
+    )
 
     val aspectRatioLayout = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
     origAspectRatioLayout = ConstraintSet().apply {
@@ -1367,10 +1378,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val widthDp = screenWidth / density
     val heightDp = screenHeight / density
 
-    val desiredOriginalPortraitWidthPx = calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
-    val desiredOriginalLandscapeWidthPx = calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
+    val desiredOriginalPortraitWidthPx =
+      calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
+    val desiredOriginalLandscapeWidthPx =
+      calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
 
-    setOriginalScreen(aspectRatioLayout, aspectRatioParams, currentOrientation, desiredOriginalPortraitWidthPx, desiredOriginalLandscapeWidthPx)
+    setOriginalScreen(
+      aspectRatioLayout,
+      aspectRatioParams,
+      currentOrientation,
+      desiredOriginalPortraitWidthPx,
+      desiredOriginalLandscapeWidthPx
+    )
 
     recordingLightView.visibility = View.GONE
   }
@@ -1400,10 +1419,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val widthDp = screenWidth / density
     val heightDp = screenHeight / density
 
-    val desiredOriginalPortraitWidthPx = calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
-    val desiredOriginalLandscapeWidthPx = calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
-    val desiredSplitLandscapeWidthPx = calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
-    val desiredSplitPortraitHeightPx = calculateScaledPixelWidth(heightDp, splitPortraitHeightScaleFactor)
+    val desiredOriginalPortraitWidthPx =
+      calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
+    val desiredOriginalLandscapeWidthPx =
+      calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
+    val desiredSplitLandscapeWidthPx =
+      calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
+    val desiredSplitPortraitHeightPx =
+      calculateScaledPixelWidth(heightDp, splitPortraitHeightScaleFactor)
 
     when (displayMode) {
       // Handles full-screening the camera preview
@@ -1428,7 +1451,13 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       // Handles minimizing the camera preview to original size
       WordPromptFragment.PromptDisplayMode.ORIGINAL -> {
         resetConstraintLayout()
-        setOriginalScreen(aspectRatioLayout, aspectRatioParams, currentOrientation, desiredOriginalPortraitWidthPx, desiredOriginalLandscapeWidthPx)
+        setOriginalScreen(
+          aspectRatioLayout,
+          aspectRatioParams,
+          currentOrientation,
+          desiredOriginalPortraitWidthPx,
+          desiredOriginalLandscapeWidthPx
+        )
       }
     }
   }
@@ -1513,7 +1542,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         aspectRatioParams.endToEnd = R.id.sessionPager
         Log.i(TAG, "Configuring Layout in Phone Mode")
       }
-      Log.i(TAG,"In split portrait")
+      Log.i(TAG, "In split portrait")
     } else if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
       if (isTablet) {
         aspectRatioParams.width = desiredSplitLandscapeWidthPx
@@ -1586,7 +1615,11 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   private fun calculateScaledPixelWidth(pixelWidthDensity: Float, scaleFactor: Float): Int {
     val scaledPixelDensityWidth = pixelWidthDensity * scaleFactor
-    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, scaledPixelDensityWidth, resources.displayMetrics).toInt()
+    return TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      scaledPixelDensityWidth,
+      resources.displayMetrics
+    ).toInt()
   }
 
   private fun animateGoText() {
@@ -1704,7 +1737,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val widthRatio = if (isTablet) 3 else 4
     val mainAspectRatio = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
     (mainAspectRatio.layoutParams as LayoutParams).dimensionRatio =
-        "H,${heightRatio}:${widthRatio}"
+      "H,${heightRatio}:${widthRatio}"
 
     val largestAvailableSize = sizes?.getOutputSizes(ImageFormat.JPEG)?.filter {
       // Find a resolution smaller than the maximum pixel count (6 MP)
@@ -1745,7 +1778,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     val notification = dataManager.createNotification(
-      "Recording Session Completed", "still need to upload")
+      "Recording Session Completed", "still need to upload"
+    )
     notificationManager.notify(UploadService.NOTIFICATION_ID, notification)
 
     finish()
@@ -1769,7 +1803,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // TODO test this code.
     val output = JSONObject()
     val clips = JSONArray()
-    for (i in 0..clipData.size-1) {
+    for (i in 0..clipData.size - 1) {
       val clipDetails = clipData[i]
       clips.put(i, clipDetails.toJson())
     }

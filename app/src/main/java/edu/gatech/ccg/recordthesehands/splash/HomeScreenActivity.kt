@@ -119,6 +119,7 @@ class HomeScreenActivity : ComponentActivity() {
       when (result.resultCode) {
         RESULT_OK -> {
         }
+
         else -> {
           val text = "The recording session was ended due to an unexpected error."
           val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
@@ -139,7 +140,8 @@ class HomeScreenActivity : ComponentActivity() {
         // Permission is granted.
         lifecycleScope.launch {
           val intent = Intent(
-                this@HomeScreenActivity, RecordingActivity::class.java).also {
+            this@HomeScreenActivity, RecordingActivity::class.java
+          ).also {
             it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
           }
           UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)

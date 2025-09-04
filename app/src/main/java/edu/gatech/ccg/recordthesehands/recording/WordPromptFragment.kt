@@ -325,8 +325,10 @@ class WordPromptFragment(
     pixelDensity: Float
   ) {
     val widthDp = (screenWidth / pixelDensity)
-    val desiredPortraitWidthPx = calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
-    val desiredLandscapeWidthPx = calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
+    val desiredPortraitWidthPx =
+      calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
+    val desiredLandscapeWidthPx =
+      calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
 
     displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL)
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
@@ -475,7 +477,14 @@ class WordPromptFragment(
   ) {
     if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
       displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL)
-      setOriginalScreen(videoView, videoViewParams, currentOrientation, lastDisplayMode, screenWidth, pixelDensity)
+      setOriginalScreen(
+        videoView,
+        videoViewParams,
+        currentOrientation,
+        lastDisplayMode,
+        screenWidth,
+        pixelDensity
+      )
     } else {
       displayMode?.displayModeListener(PromptDisplayMode.FULL)
       setFullScreen(videoView, videoViewParams, currentOrientation)
@@ -549,7 +558,8 @@ class WordPromptFragment(
     val fullScreenButton = requireView().findViewById<ImageButton>(R.id.fullScreenButton)
     val minimizeScreenButton = requireView().findViewById<ImageButton>(R.id.originalScreenButton)
     val splitScreenButton = requireView().findViewById<ImageButton>(R.id.splitScreenButton)
-    val disableSplitScreenButton = requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
+    val disableSplitScreenButton =
+      requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
 
     val displayMetrics = requireContext().resources.displayMetrics
     val density = displayMetrics.density
@@ -558,12 +568,29 @@ class WordPromptFragment(
     val fullScreenParam = fullScreenButton.layoutParams as ConstraintLayout.LayoutParams
     val minScreenParam = minimizeScreenButton.layoutParams as ConstraintLayout.LayoutParams
     val splitScreenParam = splitScreenButton.layoutParams as ConstraintLayout.LayoutParams
-    val disableSplitScreenParam = disableSplitScreenButton.layoutParams as ConstraintLayout.LayoutParams
+    val disableSplitScreenParam =
+      disableSplitScreenButton.layoutParams as ConstraintLayout.LayoutParams
 
-    fullScreenParam.bottomMargin += TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, shiftPx, displayMetrics).toInt()
-    minScreenParam.bottomMargin += TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, shiftPx, displayMetrics).toInt()
-    splitScreenParam.bottomMargin += TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, shiftPx, displayMetrics).toInt()
-    disableSplitScreenParam.bottomMargin += TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, shiftPx, displayMetrics).toInt()
+    fullScreenParam.bottomMargin += TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      shiftPx,
+      displayMetrics
+    ).toInt()
+    minScreenParam.bottomMargin += TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      shiftPx,
+      displayMetrics
+    ).toInt()
+    splitScreenParam.bottomMargin += TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      shiftPx,
+      displayMetrics
+    ).toInt()
+    disableSplitScreenParam.bottomMargin += TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      shiftPx,
+      displayMetrics
+    ).toInt()
 
     fullScreenButton.layoutParams = fullScreenParam
     minimizeScreenButton.layoutParams = minScreenParam
@@ -579,7 +606,8 @@ class WordPromptFragment(
     val fullScreenButton = requireView().findViewById<ImageButton>(R.id.fullScreenButton)
     val minimizeScreenButton = requireView().findViewById<ImageButton>(R.id.originalScreenButton)
     val splitScreenButton = requireView().findViewById<ImageButton>(R.id.splitScreenButton)
-    val disableSplitScreenButton = requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
+    val disableSplitScreenButton =
+      requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
 
     fullScreenButton.layoutParams = originalButtonParams[fullScreenButton.id]
     minimizeScreenButton.layoutParams = originalButtonParams[minimizeScreenButton.id]
@@ -593,7 +621,11 @@ class WordPromptFragment(
    */
   private fun calculateScaledPixelWidth(pixelWidthDensity: Float, scaleFactor: Float): Int {
     val scaledPixelDensityWidth = pixelWidthDensity * scaleFactor
-    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, scaledPixelDensityWidth, resources.displayMetrics).toInt()
+    return TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      scaledPixelDensityWidth,
+      resources.displayMetrics
+    ).toInt()
   }
 
   /**

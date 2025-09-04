@@ -694,7 +694,7 @@ class DataManager(val context: Context) {
       "string",
       context.packageName
     )
-    check(serverStringId != 0) {"backend_server is not defined in a resource."}
+    check(serverStringId != 0) { "backend_server is not defined in a resource." }
     return context.resources.getString(serverStringId)
   }
 
@@ -932,14 +932,18 @@ class DataManager(val context: Context) {
     if (!downloadPrompts(
         false,
         "promptsFilename",
-        "promptIndex")) {
+        "promptIndex"
+      )
+    ) {
       Log.w(TAG, "Unable to download normal prompts file.")
       returnValue = false
     }
     if (!downloadPrompts(
         true,
         "tutorialPromptsFilename",
-        "promptIndex")) {
+        "promptIndex"
+      )
+    ) {
       Log.w(TAG, "Unable to download tutorial prompts file.")
       returnValue = false
     }
@@ -1157,8 +1161,10 @@ class DataManager(val context: Context) {
     return true
   }
 
-  suspend fun uploadData(notificationManager: NotificationManager? = null,
-                         progressCallback: (Int) -> Unit): Boolean {
+  suspend fun uploadData(
+    notificationManager: NotificationManager? = null,
+    progressCallback: (Int) -> Unit
+  ): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1351,7 +1357,9 @@ class DataManager(val context: Context) {
       }
     } else if (op == "downloadPrompts") {
       if (!downloadPrompts(
-            false, "promptsFilename", "promptIndex")) {
+          false, "promptsFilename", "promptIndex"
+        )
+      ) {
         return false
       }
       if (!directiveCompleted(id)) {
@@ -1361,7 +1369,9 @@ class DataManager(val context: Context) {
       if (!downloadPrompts(
           true,
           "tutorialPromptsFilename",
-          "promptIndex")) {
+          "promptIndex"
+        )
+      ) {
         return false
       }
       if (!directiveCompleted(id)) {
@@ -1409,7 +1419,8 @@ class DataManager(val context: Context) {
   }
 
   private suspend fun downloadPrompts(
-      useTutorialMode: Boolean, promptsFilenameKey: String, promptIndexKey: String): Boolean {
+    useTutorialMode: Boolean, promptsFilenameKey: String, promptIndexKey: String
+  ): Boolean {
     val url = URL(getServer() + "/prompts")
     Log.i(TAG, "downloading prompt data at $url.")
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
@@ -1652,7 +1663,8 @@ class DataManager(val context: Context) {
         return dataManagerData.tutorialPromptsData
       }
       val newPromptsData = Prompts(
-          context, "tutorialPromptsFilename", "promptIndex")
+        context, "tutorialPromptsFilename", "promptIndex"
+      )
       if (!newPromptsData.initialize()) {
         Log.w(TAG, "Tutorial prompts not initialized!")
         return null
@@ -1675,7 +1687,8 @@ class DataManager(val context: Context) {
         return dataManagerData.promptsData
       }
       val newPromptsData = Prompts(
-          context, "promptsFilename", "promptIndex")
+        context, "promptsFilename", "promptIndex"
+      )
       if (!newPromptsData.initialize()) {
         return null
       }
@@ -1784,7 +1797,7 @@ class DataManager(val context: Context) {
       val isConnected = pingServer()
       _serverStatus.postValue(isConnected) // Update LiveData on the main thread
       // Debugging
-      Log.d(TAG,"Check server connection: $isConnected")
+      Log.d(TAG, "Check server connection: $isConnected")
     }
 
   }
@@ -1811,11 +1824,13 @@ enum class PromptType {
   TEXT, IMAGE, VIDEO
 }
 
-class Prompt(val index: Int,
-             val key: String,
-             val type: PromptType,
-             val prompt: String?,
-             val resourcePath: String?) {
+class Prompt(
+  val index: Int,
+  val key: String,
+  val type: PromptType,
+  val prompt: String?,
+  val resourcePath: String?
+) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("index", index)

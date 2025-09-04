@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" >
+    android:layout_height="match_parent">
 
     <TextView
         android:id="@+id/header"
@@ -59,7 +59,7 @@
         android:layout_width="wrap_content"
         android:visibility="visible"
         app:constraint_referenced_ids="sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content" />
 
     <LinearLayout
         android:id="@+id/sessionInformation"
@@ -119,7 +119,7 @@
         android:textSize="32sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sessionInformation"/>
+        app:layout_constraintTop_toBottomOf="@id/sessionInformation" />
 
     <LinearLayout
         android:id="@+id/statusInformation"
@@ -138,7 +138,7 @@
             android:text="@string/internet_status"
             android:textStyle="italic"
             android:textSize="20sp"
-            android:paddingRight="50dp"/>
+            android:paddingRight="50dp" />
 
         <TextView
             android:id="@+id/serverConnectionText"
@@ -148,7 +148,7 @@
             android:text="@string/server_status"
             android:textStyle="italic"
             android:textSize="20sp"
-            android:paddingLeft="50dp"/>
+            android:paddingLeft="50dp" />
     </LinearLayout>
 
     <TextView
@@ -178,7 +178,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_gravity="center"
-            android:paddingTop="15dp" >
+            android:paddingTop="15dp">
 
             <TextView
                 android:id="@+id/promptsProgressText"
@@ -204,7 +204,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_gravity="center"
-            android:paddingTop="15dp" >
+            android:paddingTop="15dp">
 
             <TextView
                 android:id="@+id/recordingsProgressText"
@@ -231,7 +231,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_gravity="center"
-            android:paddingTop="15dp" >
+            android:paddingTop="15dp">
 
             <TextView
                 android:id="@+id/recordingTimeText"
@@ -257,7 +257,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_gravity="center"
-            android:paddingTop="15dp" >
+            android:paddingTop="15dp">
 
 
             <TextView
@@ -280,6 +280,7 @@
 
 
     </LinearLayout>
+
     <ProgressBar
         android:id="@+id/uploadProgressBar"
         style="?android:attr/progressBarStyleHorizontal"

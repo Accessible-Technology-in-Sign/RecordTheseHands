@@ -147,7 +147,8 @@ fun sendEmail(from: String, to: List<String>, subject: String, content: String, 
   })
 
   Log.d(
-    "EMAIL", "Attempting to send email with subject '$subject'")
+    "EMAIL", "Attempting to send email with subject '$subject'"
+  )
 
   try {
     Transport.send(msg)
@@ -224,11 +225,13 @@ fun msToHMS(ms: Long, compact: Boolean = false): String {
     return output
   }
 }
+
 fun hapticFeedbackOnTouchListener(view: View, event: MotionEvent): Boolean {
   when (event.action) {
     MotionEvent.ACTION_DOWN -> {
       view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
+
     MotionEvent.ACTION_UP -> {
       view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
     }

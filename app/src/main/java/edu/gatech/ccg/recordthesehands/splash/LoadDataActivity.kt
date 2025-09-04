@@ -137,7 +137,8 @@ class LoadDataActivity : ComponentActivity() {
 
   fun requestAllPermissions() {
     val launcher = registerForActivityResult(
-      ActivityResultContracts.RequestMultiplePermissions()) { map ->
+      ActivityResultContracts.RequestMultiplePermissions()
+    ) { map ->
       val cameraGranted = map[Manifest.permission.CAMERA] ?: false
       runOnUiThread {
         val text = "Permissions: camera $cameraGranted"
