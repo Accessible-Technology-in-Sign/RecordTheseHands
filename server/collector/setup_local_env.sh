@@ -27,15 +27,12 @@
 
 APP_ENV_DIR=~/.asl_app_env
 
-if ! dpkg -s google-cloud-sdk ; then
-  sudo apt install -y google-cloud-sdk
+if ! dpkg -s google-cloud-cli || ! dpkg -s google-cloud-cli-anthoscli ; then
+  sudo apt install -y google-cloud-cli google-cloud-cli-anthoscli
 fi
 if ! dpkg -s python3-venv ; then
   sudo apt install -y python3-venv
 fi
-# if ! dpkg -s gunicorn ; then
-#   sudo apt install -y gunicorn
-# fi
 
 if ! [[ -d "${APP_ENV_DIR}" ]] ; then
   python3 -m venv "${APP_ENV_DIR}"
