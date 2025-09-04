@@ -2,25 +2,25 @@
 
 ## Create a Google Account
 
-Create an account at http://gmail.com/ of form `acronym.server@gmail.com`. Set
-the birthdate as `1970-01-01`, and avoid putting any personal information such
-as a phone number (to avoid accidentally enabling 2-factor authentication).
-Disable any option to store personal info (such that web browsing information is
-not revealed).
+Create an account at [http://gmail.com/](http://gmail.com/) of form
+`acronym.server@gmail.com`. Set the birthdate as `1970-01-01`, and avoid putting
+any personal information such as a phone number (to avoid accidentally enabling
+2-factor authentication). Disable any option to store personal info (such that
+web browsing information is not revealed).
 
 **Do not add a phone number to this account.**
 
 ## Setting up the cloud project
 
 1. While logged into `acronym.server@gmail.com`, go to
-   http://console.cloud.google.com/
+   [http://console.cloud.google.com/](http://console.cloud.google.com/)
 
 1. Create a new project
 
    - Click on the active project (probably "My First Project").
    - Click on "new project"
    - Set project name such as "Acronym Data Collection"
-   - Set project ID to "acronym-data". **It is important you do this step when
+   - Set project ID to `acronym-data`. **It is important you do this step when
      creating the project as otherwise a project ID will be randomly generated
      for you.**
    - Delete the first project (to clean up the project management).
@@ -48,7 +48,7 @@ not revealed).
 
 1. Create Firestore database.
 
-   - Select Native mode for the data store (which is recommended for a mobile
+   - Select "Native mode" for the data store (which is recommended for a mobile
      app like this one)
    - This database is responsible for storing all metadata associated with user
      recordings when interacting with the GCP server
@@ -85,12 +85,13 @@ not revealed).
      - This will allow this new user to access the Google Cloud Console pages
        and use command line tools for this project.
 
-## Integrating the DPAN Server with RecordTheseHands
+## Integrating the DPAN Server with `RecordTheseHands`
 
 This section will all be done locally within project code (except for the last
 step)
 
-1. Install Google Cloud SDK: https://cloud.google.com/sdk/docs/install-sdk
+1. Install Google Cloud SDK:
+   [https://cloud.google.com/sdk/docs/install-sdk](https://cloud.google.com/sdk/docs/install-sdk)
 
 1. Set up Google Cloud within the Terminal
 
@@ -106,11 +107,11 @@ step)
      account with. This can be your personal account as long as permissions have
      been granted.
    - When initializing the project:
-     - Use a project name of "acronym-data"
-     - Enter the project id: "acronym-data"
+     - Use a project name of `acronym-data`
+     - Enter the project id: `acronym-data`
    - Set the default quota for the project. This suppresses a bunch of warnings
      and might help access APIs
-   - When creating the app, pick a region such as us-central
+   - When creating the app, pick a region such as `us-central`
 
 1. Create Server Config. In `server/collector/`, copy `example_config.py` to
    `config.py`.
@@ -120,12 +121,12 @@ step)
    cp example_config.py config.py
    ```
 
-   Edit config.py to use the project id "acronym-data" for the prod server and
+   Edit `config.py` to use the project id `acronym-data` for the prod server and
    either the same for the dev server, or the dev project name if you're using
-   one ("acronym-data-dev") \[This is only if you are using two projects for
+   one (`acronym-data-dev`) \[This is only if you are using two projects for
    production and development\].
 
-1. Set Parameters in credentials.xml within the app
+1. Set Parameters in `credentials.xml` within the app
 
    - Copy the example credentials to
      `record_these_hands/app/src/main/res/values/credentials.xml`
@@ -152,50 +153,74 @@ step)
    ```
    cd server/collector
    source setup_local_env.sh
-   deploy_dev.sh
+   ./deploy_dev.sh
    ```
 
-   - The local environment uses the apt-package manager to download
-     google-cloud-sdk and python3-venv. If you are not on a Debian-based
-     operating system and have google cloud / python installed, you can set up
-     the local environment here. The pip commands install the necessary
-     dependencies to run the python scripts.
-     ```
+   - The `setup_local_env.sh` script is intended for Debian-based systems. It
+     uses `apt` to install `google-cloud-cli` and `python3-venv`. If you are on
+     a different OS, you will need to install these manually.
+   - If you are not on a Debian-based system, you can set up the local
+     environment with these commands:
+     ```bash
+     # For non-debian systems:
      python3 -m venv APP_ENV_DIR
      source APP_ENV_DIR/bin/activate
      pip install -r requirements.txt
      pip install gunicorn
      ```
-   - `deploy_dev.sh` will take the python scripts in collector and upload it to
-     the app engine
+   - After setting up the local environment, you need to authenticate with
+     Google Cloud:
+     ```bash
+     gcloud auth login
+     gcloud auth application-default login
+     ```
+   - The `deploy_dev.sh` script will deploy the python scripts in the collector
+     directory to the App Engine.
+   - There is also a `deploy_prod.sh` for deploying to the production App Engine
+     instance.
+   - The `setup_local_env.sh` script will also print instructions on how to set
+     up a local server for testing. Here is a summary of the steps:
+     - Generate self-signed credentials:
+       ```bash
+       openssl req -x509 -newkey rsa:4096 -keyout ~/.ssh/https/key.pem -out ~/.ssh/https/cert.pem -sha256 -nodes -days 365
+       ```
+     - Start the server using gunicorn:
+       ```bash
+       export GOOGLE_CLOUD_PROJECT=$(cat config.py | grep 'DEV_PROJECT *=' | sed 's/DEV_PROJECT *= *['\'"']\([^'\'"']\+\)['\'"'].*/\1/')
+       gunicorn --certfile=~/.ssh/https/cert.pem --keyfile=~/.ssh/https/key.pem -b :8050 main:app
+       ```
+     - You can also set up a proxy using `nginx`. Please refer to the output of
+       `source setup_local_env.sh` for more details.
 
 1. Create a Secret (locally)
 
    ```
+   cd server/collector
    source setup_local_env.sh 
-   token_maker.py
+   python3 token_maker.py
    ```
 
    - For the username, specify "admin"
    - For the password, create a simple password (this will be something you will
      use everytime you are setting up a user account).
-   - Store both the login_token and the login_hash (including both
-     username:hash)
+   - Store both the `login_token` and the `login_hash` (including both
+     `username:hash`)
 
 1. Go to the Secret Manager under the Security Manager (within the Google Cloud
    Console)
 
    - Create a secret
      - name: `admin_token_hash`
-     - Secret Value: login_hash from before (of form: `admin:hash`)
+     - Secret Value: `login_hash` from before (of form: `admin:hash`)
    - Create another secret
      - name: `app_secret_key`
      - Secret Value: Use a random string, such as the output of
        `openssl rand -base64 30`. The output of this does not need to be stored
 
-1. Now that RecordTheseHands has the token hash and backend server information,
-   it can communicate with the DPAN Server. Compile RecordTheseHands using
-   Android Studio and refer to [USAGE.md](USAGE.md) for further use.
+1. Now that `RecordTheseHands` has the token hash and backend server
+   information, it can communicate with the `DPAN Server`. Compile
+   `RecordTheseHands` using Android Studio and refer to [USAGE.md](USAGE.md) for
+   further use.
 
 > Documentation made by Bill Neubauer and Manfred Georg. For any questions
-> please contact bill.neubauer.4@gmail.com
+> please contact `bill.neubauer.4@gmail.com`

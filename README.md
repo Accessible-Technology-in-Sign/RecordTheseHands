@@ -1,24 +1,24 @@
 ![app-icon-updated](https://github.com/Accessible-Technology-in-Sign/RecordTheseHands/assets/1849924/80c0241b-4d86-4710-8012-1c17032e6538)
 
-# Record These Hands!
+# `Record These Hands!`
 
-© 2021–2024 Georgia Institute of Technology / Center for Accessible Technology
+© 2021–2025 Georgia Institute of Technology / Center for Accessible Technology
 in Sign (GT-CATS) / Google LLC<br> Licensed under the MIT license.
 
 Principal authors:
 
-- Sahir Shahryar (sahirshahryar@gmail.com)
-- Manfred Georg (mgeorg@google.com)
-- Matthew So (matthew.so@gatech.edu)
+- Sahir Shahryar (`sahirshahryar@gmail.com`)
+- Manfred Georg (`mgeorg@google.com`)
+- Matthew So (`matthew.so@gatech.edu`)
 
 Instruction videos provided by the
 [Deaf Professional Arts Network (DPAN)](https://dpan.tv).
 
 ## About
 
-*Record These Hands!* is an Android app that researchers can use to collect sign
+`Record These Hands!` is an Android app that researchers can use to collect sign
 language training data from Deaf and hard-of-hearing (DHH) volunteers. An
-earlier version of the app, titled ASLRecorder, was used to collect data to
+earlier version of the app, titled `ASLRecorder`, was used to collect data to
 train machine learning models for [PopSignAI](https://www.popsign.org/), a
 bubble shooter game that hearing parents of Deaf children can use to learn the
 basics of American Sign Language.
@@ -26,21 +26,21 @@ basics of American Sign Language.
 The data collected using this app was also used for a
 [Kaggle machine learning competition](https://www.kaggle.com/competitions/asl-signs)
 sponsored by Google, with the intent of using the best-performing model directly
-within PopSignAI. The Kaggle competition and PopSignAI received
+within `PopSignAI`. The Kaggle competition and `PopSignAI` received
 [a brief mention](https://www.youtube.com/watch?v=r8T0SnwHRNI&t=3965s) at the
 Google I/O ’23 Developer Keynote. To learn more about the dataset and how we
 went about collecting it, please see our paper on the subject, *PopSign ASL
 v1.0: An Isolated American Sign Language Dataset Collected via Smartphones*
 (arXiv link available shortly).
 
-This updated version of ASLRecorder has a few improvements over the original
+This updated version of `ASLRecorder` has a few improvements over the original
 app, and it has been cleaned up to make it possible for researchers to get a
 running start when collecting their own sign language datasets. It is named
-*Record These Hands!* in honor of a
+`Record These Hands!` in honor of a
 [popular song by Sean Forbes](https://www.youtube.com/watch?v=7lQx1f5lEFo), who
 is a cofounder of DPAN. He and several people working at DPAN collaborated
 extensively with students at the Georgia Institute of Technology and the
-Rochester Institute of Technology to make PopSignAI possible.
+Rochester Institute of Technology to make `PopSignAI` possible.
 
 ## How it works
 
@@ -122,7 +122,7 @@ many emails to this list can cause you to hit
 If you want to use another email service or your own SMTP server, you can tweak
 the `sendEmail()` function in `Utilities.kt`.
 
-## Using RecordTheseHands with tablets
+## Using `RecordTheseHands` with tablets
 
 As of v1.3, the app supports being used on tablets in landscape mode. As of
 right now, the app is configured to use tablet mode on any display larger than 7

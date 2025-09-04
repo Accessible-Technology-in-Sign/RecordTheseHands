@@ -3,7 +3,7 @@
 ## About
 
 The DPAN Server is a Flask-based web server that communicates with the
-RecordTheseHands app. Users register accounts and download instructions /
+`RecordTheseHands` app. Users register accounts and download instructions /
 prompts from the server. Once users are done collecting data, users can upload
 their recorded videos to the server, in which the data/metadata is stored in a
 GCP bucket and firestore database. Server admins can issue instructions to user

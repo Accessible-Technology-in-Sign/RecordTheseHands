@@ -11,10 +11,10 @@ source setup_local_env.sh
 or
 
 ```
-source {APP_ENV_DIR}/bin/activate
+source ${APP_ENV_DIR}/bin/activate
 ```
 
-where APP_ENV_DIR is where you installed the virtual environment.
+where ${APP_ENV_DIR} is where you installed the virtual environment.
 
 1. Copy any images and video files to the GCP bucket if necessary:
 
@@ -23,7 +23,7 @@ gsutil cp reference_video.mp4 gs://bucket-name/resource/path/to/file
 ```
 
 It is crucial that the reference images and files are under `/resource` as the
-RecordTheseHands app will not download any files unless it is under this
+`RecordTheseHands` app will not download any files unless it is under this
 directory. Otherwise the prompt will fail to download and no data will be
 collected for that prompt.
 
@@ -39,7 +39,7 @@ The first word `TEXT/IMAGE/VIDEO` is the type of prompt you are creating. The
 PATH is the path to the file within the GCP bucket, not on the local machine.
 The CAPTION is shown to the user as text at the top of the screen.
 
-1. Convert the prompt text file to a \*.json file used by RecordTheseHands:
+1. Convert the prompt text file to a `\*.json` file used by `RecordTheseHands`:
 
 ```
 python phrases_to_prompts.py PREFIX prompt.txt
@@ -71,10 +71,10 @@ source setup_local_env.sh
 or
 
 ```
-source {APP_ENV_DIR}/bin/activate
+source ${APP_ENV_DIR}/bin/activate
 ```
 
-where APP_ENV_DIR is where you installed the virtual environment.
+where ${APP_ENV_DIR} is where you installed the virtual environment.
 
 1. Set the environment variables for the Google Cloud Project:
 
@@ -209,7 +209,7 @@ patterns.
 
 As stated above, this script downloads metadata from Firestore in a Google Cloud
 Project to the files `metadata_dump.csv` and `metadata_dump.json`. This metadata
-corresponds to the videos retrieved from RecordTheseHands, including the
+corresponds to the videos retrieved from `RecordTheseHands`, including the
 following:
 
 - `clipId` - ID of the clip of the sign.
@@ -292,7 +292,7 @@ been retrieved from all users, the data is written to the output `JSON` and
 
 ## Video downloading (download_videos.py)
 
-This script is used to locally download the RecordTheseHands videos from cloud
+This script is used to locally download the `RecordTheseHands` videos from cloud
 storage buckets in the set Google Cloud Project.
 
 ### Code Explanation
