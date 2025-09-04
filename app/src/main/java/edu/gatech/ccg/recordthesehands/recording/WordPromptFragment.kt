@@ -41,14 +41,11 @@ import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
-import androidx.transition.Visibility
+import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.PromptType
-import edu.gatech.ccg.recordthesehands.R
 import java.io.File
-import kotlin.math.min
 import kotlin.math.sqrt
-import kotlin.math.roundToInt
 
 /**
  * This is the little rectangle at the top of the screen that prompts the

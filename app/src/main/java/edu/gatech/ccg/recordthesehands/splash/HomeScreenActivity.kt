@@ -32,7 +32,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -47,10 +46,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
-import edu.gatech.ccg.recordthesehands.*
+import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
+import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
@@ -63,7 +64,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /**

@@ -27,25 +27,21 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
-import androidx.lifecycle.lifecycleScope
-import edu.gatech.ccg.recordthesehands.recording.ClipDetails
-import edu.gatech.ccg.recordthesehands.recording.saveClipData
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.File
-import java.lang.Math.min
 import java.security.MessageDigest
-import java.util.*
-import javax.mail.*
+import java.util.Calendar
+import java.util.Properties
+import javax.mail.Authenticator
+import javax.mail.Message
+import javax.mail.MessagingException
+import javax.mail.PasswordAuthentication
+import javax.mail.Session
+import javax.mail.Transport
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
 import javax.mail.internet.MimeMultipart
-import kotlin.collections.ArrayList
 import kotlin.random.Random
-import org.json.JSONObject
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 
 /**
  * Selects `count` elements from `list` at random, using the designated seed if given,

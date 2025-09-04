@@ -28,10 +28,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.runBlocking
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 
 class UploadServiceStarter : BroadcastReceiver() {
 

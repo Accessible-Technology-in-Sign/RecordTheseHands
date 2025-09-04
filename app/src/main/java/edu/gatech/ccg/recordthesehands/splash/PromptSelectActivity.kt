@@ -32,9 +32,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
-import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
-import edu.gatech.ccg.recordthesehands.splash.HomeScreenActivity.Companion
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -24,16 +24,10 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.util.Log
-import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
-import edu.gatech.ccg.recordthesehands.upload.Prompt
-import edu.gatech.ccg.recordthesehands.upload.Prompts
-import java.io.IOException
-import java.util.*
-import kotlin.collections.HashMap
 
 /**
  * The Adapter for swiping through the prompts.  The name "Word" is in

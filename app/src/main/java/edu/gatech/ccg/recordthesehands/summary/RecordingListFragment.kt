@@ -24,7 +24,6 @@
 package edu.gatech.ccg.recordthesehands.summary
 
 import android.os.Bundle
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -35,11 +34,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
-import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
-import edu.gatech.ccg.recordthesehands.upload.Prompt
-import java.util.*
-import kotlin.collections.HashMap
 
 /**
  * Represents the recording summary page that shows up at the end of the user's recording session.

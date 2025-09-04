@@ -25,7 +25,6 @@ package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest
 import android.os.Bundle
-import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -38,8 +37,6 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityLoadDataBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
-import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
-import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

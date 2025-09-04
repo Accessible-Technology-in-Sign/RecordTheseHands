@@ -61,7 +61,6 @@ import android.view.WindowManager
 import android.view.animation.CycleInterpolator
 import android.widget.Button
 import android.widget.TextView
-import android.widget.VideoView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -81,29 +80,28 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
+import edu.gatech.ccg.recordthesehands.toHex
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.UploadService
-import edu.gatech.ccg.recordthesehands.toHex
 import kotlinx.coroutines.CoroutineScope
-import java.io.File
-import kotlin.collections.ArrayList
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
-import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.lang.Integer.min
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**

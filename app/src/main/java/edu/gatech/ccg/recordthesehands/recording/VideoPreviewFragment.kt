@@ -25,7 +25,6 @@ package edu.gatech.ccg.recordthesehands.recording
 
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.View
@@ -38,7 +37,9 @@ import androidx.fragment.app.DialogFragment
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
 import java.io.FileInputStream
-import java.util.*
+import java.util.Calendar
+import java.util.Timer
+import java.util.TimerTask
 
 /**
  * Represents a video preview box. We use Android's built-in modals to allow us to easily

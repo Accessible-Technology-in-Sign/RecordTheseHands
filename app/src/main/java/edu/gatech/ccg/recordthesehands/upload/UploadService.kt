@@ -32,14 +32,11 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.upload.DataManager
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 import java.util.Date
 import kotlin.concurrent.thread
-import kotlin.random.Random
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * The upload service.
