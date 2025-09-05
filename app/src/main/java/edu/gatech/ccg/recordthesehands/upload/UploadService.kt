@@ -31,7 +31,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
@@ -41,7 +46,7 @@ import kotlin.concurrent.thread
 /**
  * The upload service.
  */
-class UploadService : Service() {
+class UploadService : LifecycleService() {
 
   companion object {
     private val TAG = UploadService::class.simpleName
@@ -82,7 +87,6 @@ class UploadService : Service() {
 
   private var notificationManager: NotificationManager? = null
 
-  private var runningThread: Thread? = null
   private var notifiedOfCompletion = false
 
 
@@ -90,6 +94,7 @@ class UploadService : Service() {
    * onCreate.
    */
   override fun onCreate() {
+    super.onCreate()
     val channel = NotificationChannel(
       NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
     )
@@ -102,6 +107,7 @@ class UploadService : Service() {
    * onBind is not allowed for this service.
    */
   override fun onBind(intent: Intent): IBinder? {
+    super.onBind(intent)
     return null
   }
 
@@ -119,48 +125,43 @@ class UploadService : Service() {
    * onStartCommand starts the service, which keeps a thread running continuously.
    */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    if (runningThread != null) {
-      return START_STICKY
-    }
-
+    super.onStartCommand(intent, flags, startId)
     startForeground(NOTIFICATION_ID, createNotification("Upload Service started", ""))
 
-    runningThread = thread {
-      runBlocking {
-        val dataManager = DataManager(applicationContext)
-        try {
-          dataManager.dataManagerData.lock.withLock {
-            dataManager.runDirectives()
-          }
-        } catch (e: InterruptedUploadException) {
-          Log.w(TAG, "Paused, skipping directives.")
+    lifecycleScope.launch(Dispatchers.IO) {
+      val dataManager = DataManager(applicationContext)
+      try {
+        dataManager.dataManagerData.lock.withLock {
+          dataManager.runDirectives()
         }
-        pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
-        while (true) {
-          if (!isPaused()) {
-            Log.i(TAG, "Upload loop is running.")
-            try {
-              if (dataManager.uploadData(notificationManager!!) { progress ->
-                  Log.d(TAG, "Upload progress: $progress%")
-                }) {
-                if (!notifiedOfCompletion) {
-                  notificationManager!!.notify(
-                    NOTIFICATION_ID,
-                    createNotification("Uploading complete", "")
-                  )
-                  notifiedOfCompletion = true
-                }
-              } else {
-                notifiedOfCompletion = false
+      } catch (e: InterruptedUploadException) {
+        Log.w(TAG, "Paused, skipping directives.")
+      }
+      pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
+      while (true) {
+        if (!isPaused()) {
+          Log.i(TAG, "Upload loop is running.")
+          try {
+            if (dataManager.uploadData(notificationManager!!) { progress ->
+                Log.d(TAG, "Upload progress: $progress%")
+              }) {
+              if (!notifiedOfCompletion) {
+                notificationManager!!.notify(
+                  NOTIFICATION_ID,
+                  createNotification("Uploading complete", "")
+                )
+                notifiedOfCompletion = true
               }
-            } catch (e: InterruptedUploadException) {
-              Log.w(TAG, "data upload interrupted: ${e.message}")
+            } else {
+              notifiedOfCompletion = false
             }
-          } else {
-            Log.i(TAG, "Upload loop is paused.");
+          } catch (e: InterruptedUploadException) {
+            Log.w(TAG, "data upload interrupted: ${e.message}")
           }
-          Thread.sleep(UPLOAD_LOOP_TIMEOUT)
+        } else {
+          Log.i(TAG, "Upload loop is paused.");
         }
+        delay(UPLOAD_LOOP_TIMEOUT)
       }
     }
 
