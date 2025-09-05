@@ -41,7 +41,7 @@ fi
 source "${APP_ENV_DIR}"/bin/activate
 
 pip install -r requirements.txt
-pip install gunicorn
+pip install gunicorn pyink
 
 cat << EndOfMessage
 Local environment is setup and sourced.
