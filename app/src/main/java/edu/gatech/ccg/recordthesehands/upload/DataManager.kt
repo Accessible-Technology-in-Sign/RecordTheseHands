@@ -408,9 +408,7 @@ class UploadSession(
     val url = URL(sessionLink)
 
     val urlConnection = url.openConnection() as HttpsURLConnection
-    if (dataManager.shouldTrustAllCertificates()) {
-      dataManager.setTrustAllCertificates(urlConnection)
-    }
+    dataManager.setAppropriateTrust(urlConnection)
 
     var code: Int = -1
     var output: String? = null
@@ -700,17 +698,36 @@ class DataManager(val context: Context) {
 
   /**
    * Return whether we should trust any certificate, including self signed ones.
-   * We should only do this when accessing localhost.  It would be better to install the
+   * We should only do this when accessing localhost or possible 10.0.2.2 (for virtual devices).  It would be better to install the
    * self signed certificates on the device, but this turns out to be very tricky.
    */
-  fun shouldTrustAllCertificates(): Boolean {
-    return getServer().startsWith("https://localhost")
+  private fun shouldTrustUrl(url: URL): Boolean {
+    val trustable = context.resources.getIdentifier(
+      "trustable_hosts",
+      "string",
+      context.packageName
+    )
+    if (trustable == 0) {
+      return false
+    }
+
+    val host = url.getHost()
+    if (host == null) {
+      return false
+    }
+    for (trustable_host in context.resources.getString(trustable).split(',')) {
+      if (host == trustable_host) {
+        return true
+      }
+    }
+    return false
   }
 
-  fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
-    // This is a workaround to work with self signed certificates.  Ideally, we would
-    // install those self signed certificates as trusted on the Android device, but
-    // that turned out to be quite complicated.
+  /**
+   * Workaround for trusting self signed certificates.  Only call this
+   * on server connections you trust implicitly.
+   */
+  private fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
     val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
       override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
       }
@@ -731,6 +748,17 @@ class DataManager(val context: Context) {
     urlConnection.setHostnameVerifier(TrustAllHostnameVerifier())
     urlConnection.sslSocketFactory = sslContext.socketFactory
   }
+
+  /**
+   * Set the appropriate level of trust for the connection.  If it is listed
+   * as a host that we can trust, then enable all certificates.
+   */
+  fun setAppropriateTrust(urlConnection: HttpsURLConnection) {
+    if (shouldTrustUrl(urlConnection.url)) {
+      setTrustAllCertificates(urlConnection)
+    }
+  }
+
 
   /**
    * Get the urlConnection's "input" stream (i.e. the result), whether that is the error
@@ -765,9 +793,7 @@ class DataManager(val context: Context) {
     fileOutputStream: FileOutputStream
   ): Boolean {
     val urlConnection = url.openConnection() as HttpsURLConnection
-    if (shouldTrustAllCertificates()) {
-      setTrustAllCertificates(urlConnection)
-    }
+    setAppropriateTrust(urlConnection)
 
     var code: Int = -1
     try {
@@ -801,9 +827,7 @@ class DataManager(val context: Context) {
   ): Triple<Int, String?, String?> {
     var outputFromHeader: String? = null
     val urlConnection = url.openConnection() as HttpsURLConnection
-    if (shouldTrustAllCertificates()) {
-      setTrustAllCertificates(urlConnection)
-    }
+    setAppropriateTrust(urlConnection)
 
     var code: Int = -1
     var output: String? = null
@@ -1791,6 +1815,8 @@ class DataManager(val context: Context) {
   /**
    * Check server connection by pinging server
    * method must be called whenever you want to check the server status
+   * TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
+   * other server calls (which could just set this directly).
    */
   fun checkServerConnection() {
     CoroutineScope(Dispatchers.IO).launch {
@@ -1806,16 +1832,18 @@ class DataManager(val context: Context) {
    * Ping server by calling server and checking connectivity
    */
   private fun pingServer(): Boolean {
-    return try {
+    try {
       val url = URL(getServer())
-      val connection = url.openConnection() as HttpsURLConnection
-      connection.requestMethod = "GET"
-      connection.connectTimeout = 5000
-      connection.readTimeout = 5000
-      val responseCode = connection.responseCode
-      responseCode == HttpURLConnection.HTTP_OK
+      val urlConnection = url.openConnection() as HttpsURLConnection
+      setAppropriateTrust(urlConnection)
+      urlConnection.requestMethod = "GET"
+      urlConnection.connectTimeout = 5000
+      urlConnection.readTimeout = 5000
+      val responseCode = urlConnection.responseCode
+      return responseCode == HttpURLConnection.HTTP_OK
     } catch (e: Exception) {
-      false
+      Log.d(TAG, e.toString())
+      return false
     }
   }
 }

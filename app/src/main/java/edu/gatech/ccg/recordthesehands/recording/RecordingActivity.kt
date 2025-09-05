@@ -1769,9 +1769,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   fun concludeRecordingSession() {
     sessionInfo.result = "RESULT_OK"
     stopRecorder()
-    runBlocking {
-      dataManager.saveSessionInfo(sessionInfo)
-    }
     setResult(RESULT_OK)
 
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

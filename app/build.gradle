@@ -79,6 +79,7 @@ dependencies {
 
     // App compat and UI things
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0'
+    implementation 'androidx.lifecycle:lifecycle-service:2.5.1'
 
     implementation "com.google.guava:guava:31.0-android"
 
