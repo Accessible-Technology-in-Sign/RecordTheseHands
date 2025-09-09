@@ -4,4 +4,5 @@
 deploymentTargetDropDown.xml
 deploymentTargetSelector.xml
 deviceManager.xml
-
+misc.xml
+vcs.xml
