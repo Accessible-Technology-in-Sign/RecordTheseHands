@@ -85,7 +85,7 @@ class WordPromptFragment(
   /**
    * A map to store display mode button parameters via the button ids.
    */
-  private lateinit var originalButtonParams: Map<Int, ConstraintLayout.LayoutParams>
+  private lateinit var originalButtonParams: Map<Int, LayoutParams>
 
   /**
    * Enum class defining the possible display modes. Allows [WordPromptFragment] to communicate display
@@ -128,7 +128,7 @@ class WordPromptFragment(
     val currentOrientation = resources.configuration.orientation
 
     val screenWidth = resources.displayMetrics.widthPixels
-    val screenHeight = resources.displayMetrics.heightPixels
+    resources.displayMetrics.heightPixels
     val pixelDensity = resources.displayMetrics.density
 
     val displayMetrics = resources.displayMetrics
@@ -186,10 +186,10 @@ class WordPromptFragment(
             view.findViewById<ImageButton>(R.id.disableSplitScreenButton)
 
           originalButtonParams = mapOf(
-            R.id.fullScreenButton to ConstraintLayout.LayoutParams(fullScreenButton.layoutParams as ConstraintLayout.LayoutParams),
-            R.id.originalScreenButton to ConstraintLayout.LayoutParams(minimizeScreenButton.layoutParams as ConstraintLayout.LayoutParams),
-            R.id.splitScreenButton to ConstraintLayout.LayoutParams(splitScreenButton.layoutParams as ConstraintLayout.LayoutParams),
-            R.id.disableSplitScreenButton to ConstraintLayout.LayoutParams(disableSplitScreenButton.layoutParams as ConstraintLayout.LayoutParams)
+            R.id.fullScreenButton to ConstraintLayout.LayoutParams(fullScreenButton.layoutParams as LayoutParams),
+            R.id.originalScreenButton to ConstraintLayout.LayoutParams(minimizeScreenButton.layoutParams as LayoutParams),
+            R.id.splitScreenButton to ConstraintLayout.LayoutParams(splitScreenButton.layoutParams as LayoutParams),
+            R.id.disableSplitScreenButton to ConstraintLayout.LayoutParams(disableSplitScreenButton.layoutParams as LayoutParams)
           )
 
           var lastDisplayMode: PromptDisplayMode? = PromptDisplayMode.ORIGINAL
@@ -496,7 +496,7 @@ class WordPromptFragment(
     val promptText = requireView().findViewById<TextView>(R.id.promptText)
     val promptView = requireView().findViewById<View>(R.id.promptView)
 
-    val textParams = promptText.layoutParams as ConstraintLayout.LayoutParams
+    val textParams = promptText.layoutParams as LayoutParams
 
     textParams.marginStart = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
@@ -522,7 +522,7 @@ class WordPromptFragment(
     val scaledTextSizeSp = originalTextSizeSp * scaleFactor
     promptText.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledTextSizeSp)
 
-    val viewParams = promptView.layoutParams as ConstraintLayout.LayoutParams
+    val viewParams = promptView.layoutParams as LayoutParams
 
     viewParams.marginStart = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
@@ -562,11 +562,11 @@ class WordPromptFragment(
     val density = displayMetrics.density
     val shiftPx = shiftDp * density
 
-    val fullScreenParam = fullScreenButton.layoutParams as ConstraintLayout.LayoutParams
-    val minScreenParam = minimizeScreenButton.layoutParams as ConstraintLayout.LayoutParams
-    val splitScreenParam = splitScreenButton.layoutParams as ConstraintLayout.LayoutParams
+    val fullScreenParam = fullScreenButton.layoutParams as LayoutParams
+    val minScreenParam = minimizeScreenButton.layoutParams as LayoutParams
+    val splitScreenParam = splitScreenButton.layoutParams as LayoutParams
     val disableSplitScreenParam =
-      disableSplitScreenButton.layoutParams as ConstraintLayout.LayoutParams
+      disableSplitScreenButton.layoutParams as LayoutParams
 
     fullScreenParam.bottomMargin += TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,

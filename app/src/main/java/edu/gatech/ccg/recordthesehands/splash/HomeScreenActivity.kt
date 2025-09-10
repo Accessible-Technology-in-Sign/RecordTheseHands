@@ -165,7 +165,7 @@ class HomeScreenActivity : ComponentActivity() {
     // the upload now button is pressed or the app is restarted.  The best way to fix this
     // would be to have dataManager broadcast a message every time the server is pinged.
     val connectivityManager =
-      applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
     val network = connectivityManager.activeNetwork
     runOnUiThread {
       val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)

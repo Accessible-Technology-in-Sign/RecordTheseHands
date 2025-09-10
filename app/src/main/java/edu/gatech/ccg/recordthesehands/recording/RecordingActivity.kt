@@ -527,7 +527,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   private val cameraManager: CameraManager by lazy {
     val context = this.applicationContext
-    context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    context.getSystemService(CAMERA_SERVICE) as CameraManager
   }
 
 
@@ -1287,7 +1287,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         )
         if (currentClipDetails != null) {
           val now = Instant.now()
-          val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+          DateTimeFormatter.ISO_INSTANT.format(now)
           if (currentPage < sessionPager.currentItem) {
             // Swiped forward (currentPage is still the old value)
             currentClipDetails!!.swipeForwardTimestamp = now
@@ -1367,7 +1367,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     val density = resources.displayMetrics.density
     val widthDp = screenWidth / density
-    val heightDp = screenHeight / density
+    screenHeight / density
 
     val desiredOriginalPortraitWidthPx =
       calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
@@ -1625,7 +1625,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     // Construct and run the parallel animation of the four translation and
     // scale properties: X, Y, SCALE_X, and SCALE_Y.
-    var expandAnimator = AnimatorSet().apply {
+    AnimatorSet().apply {
       play(
         ObjectAnimator.ofFloat(
           goText,
@@ -1763,7 +1763,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     stopRecorder()
     setResult(RESULT_OK)
 
-    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     val notification = dataManager.createNotification(
       "Recording Session Completed", "still need to upload"
     )

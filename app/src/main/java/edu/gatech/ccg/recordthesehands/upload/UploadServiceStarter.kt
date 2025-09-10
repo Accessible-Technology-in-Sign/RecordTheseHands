@@ -37,7 +37,7 @@ class UploadServiceStarter : BroadcastReceiver() {
   }
 
   override fun onReceive(context: Context, intent: Intent) {
-    var action = intent.getAction();
+    var action = intent.action
     if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
       Log.d(TAG, "System Boot Completed, starting upload service.")
     } else if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {

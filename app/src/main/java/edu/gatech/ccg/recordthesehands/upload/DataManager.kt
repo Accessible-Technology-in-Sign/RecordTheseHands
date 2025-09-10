@@ -120,7 +120,7 @@ class DataManagerReceiver : BroadcastReceiver() {
       if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
         Log.i(TAG, "Pending user action.")
         val confirmIntent = extras.get(Intent.EXTRA_INTENT) as Intent
-        confirmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        confirmIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         // TODO This might only work if the activity is in the foreground.
         context.startActivity(confirmIntent)
       }
@@ -322,7 +322,7 @@ class UploadSession(
     Log.i(TAG, "Getting Upload link: \"${relativePath}\"")
     val url = URL(uploadLink)
     val md5Base64 = Base64.encode(fromHex(md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
-    val (code, unused, outputFromHeader) =
+    val (code, _, outputFromHeader) =
       dataManager.serverRequest(
         url,
         "POST",
@@ -358,7 +358,7 @@ class UploadSession(
 
     Log.i(TAG, "acquireSessionState: \"${relativePath}\"")
     val url = URL(sessionLink)
-    val (code, unused, outputFromHeader) =
+    val (code, _, outputFromHeader) =
       dataManager.serverRequest(
         url,
         "PUT",
@@ -416,7 +416,7 @@ class UploadSession(
     try {
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(fileSize!! - numSavedBytes)
-      urlConnection.setRequestMethod("PUT")
+      urlConnection.requestMethod = "PUT"
       urlConnection.setRequestProperty("Content-Length", "${fileSize!! - numSavedBytes}")
       urlConnection.setRequestProperty(
         "Content-Range",
@@ -667,7 +667,7 @@ class DataManager(val context: Context) {
   }
 
   val LOGIN_TOKEN_FULL_PATH =
-    context.getFilesDir().getAbsolutePath() + File.separator + LOGIN_TOKEN_RELATIVE_PATH
+    context.filesDir.absolutePath + File.separator + LOGIN_TOKEN_RELATIVE_PATH
 
   val dataManagerData = DataManagerData.getInstance(LOGIN_TOKEN_FULL_PATH)
 
@@ -710,7 +710,7 @@ class DataManager(val context: Context) {
       return false
     }
 
-    val host = url.getHost()
+    val host = url.host
     if (host == null) {
       return false
     }
@@ -766,7 +766,7 @@ class DataManager(val context: Context) {
   fun getDataStream(urlConnection: HttpURLConnection): InputStream {
     val inputStream: InputStream
     if (urlConnection.responseCode >= 400) {
-      inputStream = urlConnection.getErrorStream()
+      inputStream = urlConnection.errorStream
     } else {
       inputStream = urlConnection.getInputStream()
     }
@@ -777,7 +777,7 @@ class DataManager(val context: Context) {
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
     }.joinToString("&").toByteArray(Charsets.UTF_8)
-    val (code, output, unused) = serverRequest(
+    val (code, output, _) = serverRequest(
       url,
       "POST",
       mapOf("Content-Type" to "application/x-www-form-urlencoded"),
@@ -797,7 +797,7 @@ class DataManager(val context: Context) {
     var code: Int = -1
     try {
       urlConnection.setDoOutput(false)
-      urlConnection.setRequestMethod("GET")
+      urlConnection.requestMethod = "GET"
       headers.forEach {
         urlConnection.setRequestProperty(it.key, it.value)
       }
@@ -833,7 +833,7 @@ class DataManager(val context: Context) {
     try {
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(data.size)
-      urlConnection.setRequestMethod(requestMethod)
+      urlConnection.requestMethod = requestMethod
       headers.forEach {
         urlConnection.setRequestProperty(it.key, it.value)
       }
@@ -992,7 +992,7 @@ class DataManager(val context: Context) {
 
     val url = URL(getServer() + "/register_login")
     Log.d(TAG, "Registering login at $url")
-    val (code, unused) =
+    val (code, _) =
       serverFormPostRequest(
         url, mapOf(
           "app_version" to APP_VERSION,
@@ -1067,7 +1067,7 @@ class DataManager(val context: Context) {
     val localFilesJson = JSONArray()
     json.put("localFiles", localFilesJson)
     context.filesDir.walk().forEach {
-      if (it.isFile()) {
+      if (it.isFile) {
         val entryJson = JSONObject(it.path)
         entryJson.put("path", it.path)
         localFilesJson.put(entryJson)
@@ -1077,7 +1077,7 @@ class DataManager(val context: Context) {
     json.put("prompts", getPrompts()?.toJson())
 
     val url = URL(getServer() + "/save_state")
-    val (code, unused) =
+    val (code, _) =
       serverFormPostRequest(
         url,
         mapOf(
@@ -1105,7 +1105,7 @@ class DataManager(val context: Context) {
       Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
     }
     val url = URL(getServer() + "/save")
-    val (code, unused) =
+    val (code, _) =
       serverFormPostRequest(
         url,
         mapOf(
@@ -1165,7 +1165,7 @@ class DataManager(val context: Context) {
     if (timestamp == null) {
       timestamp = "null"
     }
-    val (code, data) = serverFormPostRequest(
+    val (code, _) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
@@ -1274,7 +1274,7 @@ class DataManager(val context: Context) {
     Log.i(TAG, "Marking directive completed.")
     val url = URL(getServer() + "/directive_completed")
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    val (code, data) = serverFormPostRequest(
+    val (code, _) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
@@ -1425,10 +1425,7 @@ class DataManager(val context: Context) {
       }
     } else if (op == "uploadState") {
       if (uploadState()) {
-        if (!directiveCompleted(id)) {
-          return false
-        }
-        return true
+        return directiveCompleted(id)
       } else {
         return false
       }
@@ -1508,7 +1505,7 @@ class DataManager(val context: Context) {
     out.close()
 
     val intent = Intent(context, DataManagerReceiver::class.java)
-    intent.setAction(".upload.SESSION_API_PACKAGE_INSTALLED")
+    intent.action = ".upload.SESSION_API_PACKAGE_INSTALLED"
     intent.putExtra("apkMd5", apkData.getString("md5"))
     intent.putExtra("apkTimestamp", apkData.getString("timestamp"))
     val pendingIntent = PendingIntent.getBroadcast(

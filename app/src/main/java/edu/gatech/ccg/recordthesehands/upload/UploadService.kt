@@ -98,8 +98,8 @@ class UploadService : LifecycleService() {
     val channel = NotificationChannel(
       NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
     )
-    channel.description = "Uploads Sign Language Videos.";
-    notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    channel.description = "Uploads Sign Language Videos."
+    notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     notificationManager!!.createNotificationChannel(channel)
   }
 
@@ -159,7 +159,7 @@ class UploadService : LifecycleService() {
             Log.w(TAG, "data upload interrupted: ${e.message}")
           }
         } else {
-          Log.i(TAG, "Upload loop is paused.");
+          Log.i(TAG, "Upload loop is paused.")
         }
         delay(UPLOAD_LOOP_TIMEOUT)
       }
