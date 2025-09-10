@@ -34,18 +34,17 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.OutputConfiguration
+import android.hardware.camera2.params.SessionConfiguration
 import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.os.Handler
-import android.os.HandlerThread
 import android.util.Log
 import android.util.Range
 import android.util.Size
@@ -98,6 +97,9 @@ import java.lang.Integer.min
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -476,15 +478,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   // Camera API variables
   /**
-   * The thread for handling camera-related actions.
+   * The executor for handling camera-related actions.
    */
-  private lateinit var cameraThread: HandlerThread
-
-  /**
-   * The Handler object for accessing the camera. We primarily use this when initializing or
-   * shutting down the camera.
-   */
-  private lateinit var cameraHandler: Handler
+  private lateinit var cameraExecutor: ExecutorService
 
   /**
    * The buffer to which camera frames are projected. This is used by the MediaRecorder to
@@ -569,10 +565,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   private val splitPortraitHeightScaleFactor = 0.5f
 
-  /**
-   * A function to initialize a new thread for camera-related code to run on.
-   */
-  private fun generateCameraThread() = HandlerThread("CameraThread").apply { start() }
+  
 
   /**
    * Generates a new [Surface] for storing recording data, which will promptly be assigned to
@@ -676,14 +669,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     /**
      * Open the front-facing camera.
      */
-    camera = openCamera(cameraManager, cameraId, cameraHandler)
+    camera = openCamera(cameraManager, cameraId, cameraExecutor)
 
     /**
      * Send video feed to both [previewSurface] and [recordingSurface], then start the
      * recording.
      */
     val targets = listOf(previewSurface!!, recordingSurface)
-    session = createCaptureSession(camera, targets, cameraHandler)
+    session = createCaptureSession(camera, targets, cameraExecutor)
 
     startRecording()
 
@@ -894,10 +887,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private suspend fun openCamera(
     manager: CameraManager,
     cameraId: String,
-    handler: Handler? = null
+    executor: Executor
   ): CameraDevice = suspendCancellableCoroutine { caller ->
     manager.openCamera(
-      cameraId, object : CameraDevice.StateCallback() {
+      cameraId, executor, object : CameraDevice.StateCallback() {
         /**
          * Once the camera has been successfully opened, resume execution in the calling
          * function.
@@ -939,10 +932,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
             caller.resumeWithException(exc)
           }
         }
-      },
-
-      // Pass this code onto the camera handler thread
-      handler
+      }
     )
   }
 
@@ -952,24 +942,26 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private suspend fun createCaptureSession(
     device: CameraDevice,
     targets: List<Surface>,
-    handler: Handler? = null
+    executor: Executor
   ): CameraCaptureSession = suspendCoroutine { cont ->
-    /**
-     * Set up the camera capture session with the success / failure handlers defined below
-     */
-    device.createCaptureSession(targets, object : CameraCaptureSession.StateCallback() {
-      // Capture session successfully configured - resume execution
-      override fun onConfigured(session: CameraCaptureSession) {
-        cont.resume(session)
-      }
+    val outputConfigs = targets.map { OutputConfiguration(it) }
+    val sessionConfig = SessionConfiguration(
+      SessionConfiguration.SESSION_REGULAR,
+      outputConfigs,
+      executor,
+      object : CameraCaptureSession.StateCallback() {
+        override fun onConfigured(session: CameraCaptureSession) {
+          cont.resume(session)
+        }
 
-      // Capture session config failed - throw exception
-      override fun onConfigureFailed(session: CameraCaptureSession) {
-        val exc = RuntimeException("Camera ${device.id} session configuration failed")
-        Log.e(TAG, exc.message, exc)
-        cont.resumeWithException(exc)
+        override fun onConfigureFailed(session: CameraCaptureSession) {
+          val exc = RuntimeException("Camera ${device.id} session configuration failed")
+          Log.e(TAG, exc.message, exc)
+          cont.resumeWithException(exc)
+        }
       }
-    }, handler)
+    )
+    device.createCaptureSession(sessionConfig)
   }
 
 
@@ -1012,7 +1004,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       )
     }.build()
 
-    session.setRepeatingRequest(cameraRequest, null, cameraHandler)
+    session.setRepeatingRequest(cameraRequest, null, null)
 
     UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     isRecording = true
@@ -1106,6 +1098,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         stopRecorder()
         setResult(RESULT_ACTIVITY_STOPPED)
       }
+      cameraExecutor.shutdown()
       /**
        * This is remnant code from when we were attempting to find and fix a memory leak
        * that occurred if the user did too many recording sessions in one sitting. It is
@@ -1146,7 +1139,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       session.stopRepeating()
       session.close()
       recorder.release()
-      cameraHandler.removeCallbacksAndMessages(null)
       camera.close()
       recordingSurface.release()
       countdownTimer.cancel()
@@ -1178,7 +1170,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       if (emailConfirmationEnabled) {
         sendConfirmationEmail()
       }
-      cameraThread.quitSafely()
       Log.i(TAG, "stopRecorder: finished")
     } else {
       Log.i(TAG, "stopRecorder: called with isRecording == false")
@@ -1718,9 +1709,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     super.onResume()
 
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-    // Create camera thread
-    cameraThread = generateCameraThread()
-    cameraHandler = Handler(cameraThread.looper)
+    cameraExecutor = Executors.newSingleThreadExecutor()
 
     val cameraId = getFrontCamera()
     val props = cameraManager.getCameraCharacteristics(cameraId)
