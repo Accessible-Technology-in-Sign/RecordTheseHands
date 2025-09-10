@@ -120,8 +120,8 @@ class VideoPromptController(
       it.reset()
       destroyFileInputStream()
       createFileInputStream()
-      if (fileInputStream != null) {
-        it.setDataSource(fileInputStream!!.fd)
+      fileInputStream?.let { stream ->
+        it.setDataSource(stream.fd)
         it.setOnPreparedListener(this)
         it.prepareAsync()
       }

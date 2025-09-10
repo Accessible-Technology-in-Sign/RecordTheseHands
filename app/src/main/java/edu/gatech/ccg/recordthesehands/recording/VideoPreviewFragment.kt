@@ -114,12 +114,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     super.onCreate(savedInstanceState)
     prompt = arguments?.getString("prompt")
 
-    val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
-    if (filepath.exists()) {
-      fileInputStream = FileInputStream(filepath)
-    }
-    Log.d(TAG, "Playing video from $filepath")
-
     startTimeMs = arguments?.getLong("startTimeMs") ?: 0
     endTimeMs = arguments?.getLong("endTimeMs") ?: 0
     landscape = arguments?.getBoolean("landscape") ?: false
@@ -133,12 +127,12 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     timer = Timer()
   }
 
-  override fun onDestroy() {
+  override fun onDestroyView() {
     if (fileInputStream != null) {
       fileInputStream!!.close()
       fileInputStream = null
     }
-    super.onDestroy()
+    super.onDestroyView()
   }
 
   /**
@@ -149,6 +143,12 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     this.setStyle(STYLE_NO_FRAME, 0)
 
     Log.d(TAG, "onViewCreated")
+
+    val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
+    if (filepath.exists()) {
+      fileInputStream = FileInputStream(filepath)
+    }
+    Log.d(TAG, "Playing video from $filepath")
 
     // Set the video UI
     videoView = view.findViewById<VideoView>(R.id.videoPreview)

@@ -262,13 +262,14 @@ class UploadSession(
     val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
     val buffer = ByteArray(STREAM_BUFFER_LENGTH)
     Log.i(TAG, "computing md5sum for $filepath")
-    val stream = FileInputStream(filepath.absolutePath)
-    var read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-    while (read > -1) {
-      digest.update(buffer, 0, read)
-      read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-      if (UploadService.isPaused()) {
-        throw InterruptedUploadException("Computation of md5sum was interrupted.")
+    FileInputStream(filepath.absolutePath).use { stream ->
+      var read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
+      while (read > -1) {
+        digest.update(buffer, 0, read)
+        read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
+        if (UploadService.isPaused()) {
+          throw InterruptedUploadException("Computation of md5sum was interrupted.")
+        }
       }
     }
     md5sum = toHex(digest.digest())
@@ -1004,9 +1005,9 @@ class DataManager(val context: Context) {
     }
 
     Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
-    val stream = FileOutputStream(LOGIN_TOKEN_FULL_PATH)
-    stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
-    stream.close()
+    FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
+      stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+    }
 
     dataManagerData.loginToken = newLoginToken
     runBlocking {
