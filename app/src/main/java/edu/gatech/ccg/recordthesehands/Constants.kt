@@ -62,8 +62,13 @@ object Constants {
   const val RESULT_CAMERA_DIED = 2
 
   /**
+   * Result code for when the RecordingActivity fails because we lost access to the camera.
+   */
+  const val RESULT_SURFACE_DESTROYED = 3
+
+  /**
    * Result code for when the RecordingActivity fails because the recording file or buffer
    * failed for some reason.
    */
-  const val RESULT_RECORDING_DIED = 3
+  const val RESULT_RECORDING_DIED = 4
 }

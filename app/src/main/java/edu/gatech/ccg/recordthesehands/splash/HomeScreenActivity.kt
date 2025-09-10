@@ -430,7 +430,7 @@ class HomeScreenActivity : ComponentActivity() {
             uploadProgressBar.visibility = View.VISIBLE
             uploadProgressBar.progress = 0
 
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
               UploadService.pauseUploadUntil(null)
               try {
                 updateConnectionUi()

@@ -75,6 +75,7 @@ import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_SURFACE_DESTROYED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
@@ -282,15 +283,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     private const val RECORDER_VIDEO_BITRATE: Int = 15_000_000
 
     /**
-     * Height, width, and frame rate of the video recording. Using a 4:3 aspect ratio allows us
-     * to get the widest possible field of view on a Pixel 4a camera, which has a 4:3 sensor.
-     * Any other aspect ratio would result in some degree of cropping.
+     * Camera resolution and framerate parameters.
      */
-    private const val RECORDING_HEIGHT = 2592
-    private const val RECORDING_WIDTH = 1944
     private const val RECORDING_FRAMERATE = 30
-
-    private const val MAXIMUM_RESOLUTION = 6_000_000
+    private const val MAXIMUM_RESOLUTION = 9_000_000
 
     /**
      * The length of the countdown (in milliseconds), after which the recording will end
@@ -876,6 +872,12 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       override fun surfaceDestroyed(holder: SurfaceHolder) {
         Log.d(TAG, "Camera preview surface destroyed!")
         previewSurface = null
+        if (::session.isInitialized) {
+          sessionInfo.result = "RESULT_SURFACE_DESTROYED"
+          stopRecorder()
+          setResult(RESULT_SURFACE_DESTROYED)
+          finish()
+        }
       }
     })
   }
@@ -1144,11 +1146,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       session.stopRepeating()
       session.close()
       recorder.release()
+      cameraHandler.removeCallbacksAndMessages(null)
       camera.close()
-      cameraThread.quitSafely()
       recordingSurface.release()
       countdownTimer.cancel()
-      cameraHandler.removeCallbacksAndMessages(null)
 
       runOnUiThread {
         recordingLightView.visibility = View.GONE
@@ -1177,6 +1178,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       if (emailConfirmationEnabled) {
         sendConfirmationEmail()
       }
+      cameraThread.quitSafely()
       Log.i(TAG, "stopRecorder: finished")
     } else {
       Log.i(TAG, "stopRecorder: called with isRecording == false")
@@ -1355,9 +1357,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           setButtonState(finishedButton, false)
           sessionPager.isUserInputEnabled = false
 
-          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
           stopRecorder()
+          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
         }
       }
     })
@@ -1724,7 +1726,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val props = cameraManager.getCameraCharacteristics(cameraId)
 
     val sizes = props.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-    Log.i(TAG, sizes.toString())
+    Log.i(TAG, sizes.toString().split("], [", "([", "])").joinToString("\n"))
 
     fun hasAspectRatio(heightRatio: Int, widthRatio: Int, dim: Size): Boolean {
       val target = heightRatio.toFloat() / widthRatio.toFloat()
@@ -1737,17 +1739,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     (mainAspectRatio.layoutParams as LayoutParams).dimensionRatio =
       "H,${heightRatio}:${widthRatio}"
 
-    val largestAvailableSize = sizes?.getOutputSizes(ImageFormat.JPEG)?.filter {
-      // Find a resolution smaller than the maximum pixel count (6 MP)
-      // with an aspect ratio of either 4:3 or 3:4, depending on whether we are using
-      // a tablet or not.
+    val videoSizes = sizes?.getOutputSizes(MediaRecorder::class.java)
+    val largestAvailableSize = videoSizes?.filter {
+      // Find a resolution smaller than the maximum pixel count (9 MP)
+      // with an aspect ratio of 4:3.
       it.width * it.height < MAXIMUM_RESOLUTION
           && (hasAspectRatio(heightRatio, widthRatio, it))
     }?.maxByOrNull { it.width * it.height }
 
-    val chosenSize = Size(2560, 1440)
-    // val chosenSize = largestAvailableSize ?: Size(RECORDING_HEIGHT, RECORDING_WIDTH)
-
+    if (largestAvailableSize == null) {
+      throw IllegalStateException("Unable to pick acceptable camera resolution.")
+    }
+    val chosenSize = largestAvailableSize
 
     Log.i(TAG, "Selected video resolution: ${chosenSize.width} x ${chosenSize.height}")
     recordingSurface = createRecordingSurface(chosenSize)
