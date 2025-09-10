@@ -422,30 +422,27 @@ class UploadSession(
         "bytes $numSavedBytes-${fileSize!! - 1L}/${fileSize!!}"
       )
 
-      val outputStream = urlConnection.outputStream
-
-      try {
-        val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
-        val buffer = ByteArray(STREAM_BUFFER_LENGTH)
-        Log.i(TAG, "Uploading $filepath")
-        val fileStream = FileInputStream(filepath.absolutePath)
-        fileStream.skip(numSavedBytes)
-        var read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-        while (read > -1) {
-          outputStream.write(buffer, 0, read)
-          if (UploadService.isPaused()) {
-            throw InterruptedUploadException("Uploading of file interrupted.")
+      urlConnection.outputStream.use { outputStream ->
+        FileInputStream(filepath.absolutePath).use { fileStream ->
+          val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
+          val buffer = ByteArray(STREAM_BUFFER_LENGTH)
+          Log.i(TAG, "Uploading $filepath")
+          fileStream.skip(numSavedBytes)
+          var read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
+          while (read > -1) {
+            outputStream.write(buffer, 0, read)
+            if (UploadService.isPaused()) {
+              throw InterruptedUploadException("Uploading of file interrupted.")
+            }
+            read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
           }
-          read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
         }
-      } finally {
-        outputStream.close()
       }
 
       code = urlConnection.responseCode
-      val inputStream = dataManager.getDataStream(urlConnection)
-      output = inputStream.readBytes().toString(Charsets.UTF_8)
-      inputStream.close()
+      dataManager.getDataStream(urlConnection).use { inputStream ->
+        output = inputStream.readBytes().toString(Charsets.UTF_8)
+      }
       if (code < 200 || code >= 300) {
         uploadCompleted = true
         saveState()
@@ -646,8 +643,9 @@ class DataManagerData() {
 
   fun initialize(login_token_path: String) {
     try {
-      val stream = FileInputStream(login_token_path)
-      loginToken = stream.readBytes().toString(Charsets.UTF_8)
+      FileInputStream(login_token_path).use { stream ->
+        loginToken = stream.readBytes().toString(Charsets.UTF_8)
+      }
     } catch (e: FileNotFoundException) {
       Log.i(TAG, "loginToken not found.")
     }
@@ -805,9 +803,9 @@ class DataManager(val context: Context) {
 
       code = urlConnection.responseCode
       if (code >= 200 && code < 300) {
-        val inputStream = getDataStream(urlConnection)
-        inputStream.copyTo(fileOutputStream)
-        inputStream.close()
+        getDataStream(urlConnection).use { inputStream ->
+          inputStream.copyTo(fileOutputStream)
+        }
       } else if (urlConnection.responseCode >= 400) {
         Log.e(TAG, "Failed to get url.  Response code: $code ")
         return false
@@ -839,9 +837,7 @@ class DataManager(val context: Context) {
         urlConnection.setRequestProperty(it.key, it.value)
       }
 
-      val outputStream = urlConnection.getOutputStream()
-      outputStream.write(data)
-      outputStream.close()
+      urlConnection.outputStream.use { it.write(data) }
 
       if (outputHeader != null) {
         outputFromHeader = urlConnection.getHeaderField(outputHeader)
@@ -851,9 +847,9 @@ class DataManager(val context: Context) {
       // }
 
       code = urlConnection.responseCode
-      val inputStream = getDataStream(urlConnection)
-      output = inputStream.readBytes().toString(Charsets.UTF_8)
-      inputStream.close()
+      getDataStream(urlConnection).use { inputStream ->
+        output = inputStream.readBytes().toString(Charsets.UTF_8)
+      }
 
       if (urlConnection.responseCode >= 400) {
         Log.e(TAG, "Response code: $code " + output)
