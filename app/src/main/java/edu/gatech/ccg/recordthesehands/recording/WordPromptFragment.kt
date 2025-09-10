@@ -518,9 +518,7 @@ class WordPromptFragment(
 
     promptText.layoutParams = textParams
 
-    val originalTextSizeSp = promptText.textSize / resources.displayMetrics.scaledDensity
-    val scaledTextSizeSp = originalTextSizeSp * scaleFactor
-    promptText.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledTextSizeSp)
+    promptText.setTextSize(TypedValue.COMPLEX_UNIT_PX, promptText.textSize * scaleFactor)
 
     val viewParams = promptView.layoutParams as LayoutParams
 

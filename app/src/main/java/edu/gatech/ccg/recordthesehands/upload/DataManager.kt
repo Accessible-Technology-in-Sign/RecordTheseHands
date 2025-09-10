@@ -119,10 +119,12 @@ class DataManagerReceiver : BroadcastReceiver() {
       Log.i(TAG, "Got extras: status = $status message = $message")
       if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
         Log.i(TAG, "Pending user action.")
-        val confirmIntent = extras.get(Intent.EXTRA_INTENT) as Intent
-        confirmIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        // TODO This might only work if the activity is in the foreground.
-        context.startActivity(confirmIntent)
+        val confirmIntent = extras.getParcelable(Intent.EXTRA_INTENT, Intent::class.java)
+        if (confirmIntent != null) {
+          confirmIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+          // TODO This might only work if the activity is in the foreground.
+          context.startActivity(confirmIntent)
+        }
       }
       if (status == PackageInstaller.STATUS_SUCCESS) {
         val md5KeyObject = stringPreferencesKey("apkDownloadMd5")
@@ -994,7 +996,8 @@ class DataManager(val context: Context) {
     Log.d(TAG, "Registering login at $url")
     val (code, _) =
       serverFormPostRequest(
-        url, mapOf(
+        url,
+        mapOf(
           "app_version" to APP_VERSION,
           "admin_token" to adminToken,
           "login_token" to newLoginToken
@@ -1445,9 +1448,10 @@ class DataManager(val context: Context) {
     val relativePath = "prompts" + File.separator + timestamp + ".json"
     val filepath = File(context.filesDir, relativePath)
 
-    if (!filepath.parentFile!!.exists()) {
+    val parentDir = filepath.parentFile
+    if (parentDir != null && !parentDir.exists()) {
       Log.i(TAG, "creating directory ${filepath.parentFile}.")
-      filepath.parentFile!!.mkdirs()
+      parentDir.mkdirs()
     }
     Log.i(TAG, "downloading prompt data to $filepath (useTutorialMode = ${useTutorialMode})")
     val (code, data) = serverFormPostRequest(

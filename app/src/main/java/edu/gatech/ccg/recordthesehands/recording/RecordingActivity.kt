@@ -565,7 +565,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   private val splitPortraitHeightScaleFactor = 0.5f
 
-  
 
   /**
    * Generates a new [Surface] for storing recording data, which will promptly be assigned to
@@ -1449,6 +1448,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           desiredOriginalPortraitWidthPx,
           desiredOriginalLandscapeWidthPx
         )
+      }
+
+      else -> {
+        throw IllegalStateException("Unknown display mode $displayMode")
       }
     }
   }
