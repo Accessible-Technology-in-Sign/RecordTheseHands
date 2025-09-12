@@ -60,6 +60,7 @@ import android.view.WindowManager
 import android.view.animation.CycleInterpolator
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -80,6 +81,7 @@ import edu.gatech.ccg.recordthesehands.Constants.RECORDER_VIDEO_BITRATE
 import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_SURFACE_DESTROYED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
@@ -565,7 +567,16 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       outputFile.parentFile?.mkdirs()
     }
 
-    setRecordingParameters(recorder, surface, recordingSize).prepare()
+    try {
+      setRecordingParameters(recorder, surface, recordingSize).prepare()
+    } catch (e: java.io.IOException) {
+      Log.e(TAG, "Failed to prepare MediaRecorder", e)
+      val text = "Failed to prepare recorder. Please try again."
+      Toast.makeText(this@RecordingActivity, text, Toast.LENGTH_LONG).show()
+      sessionInfo.result = "RESULT_RECORDING_DIED"
+      setResult(RESULT_RECORDING_DIED)
+      finish()
+    }
 
     return surface
   }
@@ -639,43 +650,52 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   @SuppressLint("ClickableViewAccessibility")
   private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
-    if (!checkCameraPermission()) {
-      return@launch
+    try {
+      if (!checkCameraPermission()) {
+        return@launch
+      }
+
+      /**
+       * User has given permission to use the camera. First, find the front camera. If no
+       * front-facing camera is available, crash. (This shouldn't fail on any modern
+       * smartphone.)
+       */
+      val cameraId = getFrontCamera()
+
+      /**
+       * Open the front-facing camera.
+       */
+      camera = openCamera(cameraManager, cameraId, cameraExecutor)
+
+      /**
+       * Send video feed to both [previewSurface] and [recordingSurface], then start the
+       * recording.
+       */
+      val targets = listOf(previewSurface!!, recordingSurface)
+      session = createCaptureSession(camera, targets, cameraExecutor)
+
+      startRecording()
+
+      recordButton.setOnTouchListener { view, event ->
+        return@setOnTouchListener recordButtonOnTouchListener(view, event)
+      }
+
+      restartButton.setOnTouchListener { view, event ->
+        return@setOnTouchListener restartButtonOnTouchListener(view, event)
+      }
+
+      finishedButton.setOnTouchListener { view, event ->
+        return@setOnTouchListener finishedButtonOnTouchListener(view, event)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to initialize camera", e)
+      val text = "Failed to initialize camera. Please try again."
+      Toast.makeText(this@RecordingActivity, text, Toast.LENGTH_LONG).show()
+      sessionInfo.result = "RESULT_CAMERA_DIED"
+      setResult(RESULT_CAMERA_DIED)
+      stopRecorder()
+      finish()
     }
-
-    /**
-     * User has given permission to use the camera. First, find the front camera. If no
-     * front-facing camera is available, crash. (This shouldn't fail on any modern
-     * smartphone.)
-     */
-    val cameraId = getFrontCamera()
-
-    /**
-     * Open the front-facing camera.
-     */
-    camera = openCamera(cameraManager, cameraId, cameraExecutor)
-
-    /**
-     * Send video feed to both [previewSurface] and [recordingSurface], then start the
-     * recording.
-     */
-    val targets = listOf(previewSurface!!, recordingSurface)
-    session = createCaptureSession(camera, targets, cameraExecutor)
-
-    startRecording()
-
-    recordButton.setOnTouchListener { view, event ->
-      return@setOnTouchListener recordButtonOnTouchListener(view, event)
-    }
-
-    restartButton.setOnTouchListener { view, event ->
-      return@setOnTouchListener restartButtonOnTouchListener(view, event)
-    }
-
-    finishedButton.setOnTouchListener { view, event ->
-      return@setOnTouchListener finishedButtonOnTouchListener(view, event)
-    }
-
   }
 
   private fun newClipId(): String {
@@ -1806,24 +1826,28 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
        * these string resources manually instead of making people create an app password
        * in Gmail for what is really just an optional component of the app.
        */
-      val senderStringId = resources.getIdentifier(
-        "confirmation_email_sender",
-        "string", packageName
-      )
-      val passwordStringId = resources.getIdentifier(
-        "confirmation_email_password",
-        "string", packageName
-      )
-      val recipientArrayId = resources.getIdentifier(
-        "confirmation_email_recipients",
-        "array", packageName
-      )
+      try {
+        val senderStringId = resources.getIdentifier(
+          "confirmation_email_sender",
+          "string", packageName
+        )
+        val passwordStringId = resources.getIdentifier(
+          "confirmation_email_password",
+          "string", packageName
+        )
+        val recipientArrayId = resources.getIdentifier(
+          "confirmation_email_recipients",
+          "array", packageName
+        )
 
-      val sender = resources.getString(senderStringId)
-      val password = resources.getString(passwordStringId)
-      val recipients = ArrayList(listOf(*resources.getStringArray(recipientArrayId)))
+        val sender = resources.getString(senderStringId)
+        val password = resources.getString(passwordStringId)
+        val recipients = ArrayList(listOf(*resources.getStringArray(recipientArrayId)))
 
-      sendEmail(sender, recipients, subject, body, password)
+        sendEmail(sender, recipients, subject, body, password)
+      } catch (e: android.content.res.Resources.NotFoundException) {
+        Log.w(TAG, "Email credentials not found, skipping email confirmation.")
+      }
     }
   }
 

@@ -101,8 +101,14 @@ class VideoPromptController(
   fun createFileInputStream() {
     destroyFileInputStream()
     val filepath = File(context.filesDir, videoPath)
-    if (filepath.exists()) {
-      fileInputStream = FileInputStream(filepath)
+    try {
+      if (filepath.exists()) {
+        fileInputStream = FileInputStream(filepath)
+      } else {
+        Log.w(TAG, "Video file does not exist: $filepath")
+      }
+    } catch (e: java.io.FileNotFoundException) {
+      Log.e(TAG, "Video file not found: $filepath", e)
     }
   }
 

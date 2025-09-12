@@ -266,15 +266,20 @@ class UploadSession(
     val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
     val buffer = ByteArray(STREAM_BUFFER_LENGTH)
     Log.i(TAG, "computing md5sum for $filepath")
-    FileInputStream(filepath.absolutePath).use { stream ->
-      var read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-      while (read > -1) {
-        digest.update(buffer, 0, read)
-        read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-        if (UploadService.isPaused()) {
-          throw InterruptedUploadException("Computation of md5sum was interrupted.")
+    try {
+      FileInputStream(filepath.absolutePath).use { stream ->
+        var read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
+        while (read > -1) {
+          digest.update(buffer, 0, read)
+          read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
+          if (UploadService.isPaused()) {
+            throw InterruptedUploadException("Computation of md5sum was interrupted.")
+          }
         }
       }
+    } catch (e: FileNotFoundException) {
+      Log.e(TAG, "File not found when computing md5sum: $filepath")
+      return false
     }
     md5sum = toHex(digest.digest())
     Log.i(TAG, "Computed md5sum for \"$filepath\" as $md5sum")
@@ -1010,9 +1015,14 @@ class DataManager(val context: Context) {
       return false
     }
 
-    Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
-    FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
-      stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+    try {
+        Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
+        FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
+          stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+        }
+    } catch (e: IOException) {
+        Log.e(TAG, "Failed to write login token to file", e)
+        return false
     }
 
     dataManagerData.loginToken = newLoginToken
@@ -1354,14 +1364,20 @@ class DataManager(val context: Context) {
           parent.mkdirs()
         }
       }
-      val fileOutputStream = FileOutputStream(filepath.absolutePath)
+      var downloadSucceeded = false
       try {
-        Log.i(TAG, "downloading apk to $filepath")
-        if (!serverGetToFileRequest(url, emptyMap(), fileOutputStream)) {
+        FileOutputStream(filepath.absolutePath).use { fileOutputStream ->
+          Log.i(TAG, "downloading apk to $filepath")
+          downloadSucceeded = serverGetToFileRequest(url, emptyMap(), fileOutputStream)
+        }
+      } catch (e: IOException) {
+        Log.e(TAG, "Failed to download apk", e)
+      } finally {
+        if (!downloadSucceeded) {
+          Log.w(TAG, "Cleaning up failed download: $filepath")
+          filepath.delete()
           return false
         }
-      } finally {
-        fileOutputStream.close()
       }
       Log.i(TAG, "apk downloaded $filepath with size ${filepath.length()}")
 
@@ -1473,11 +1489,13 @@ class DataManager(val context: Context) {
         Log.e(TAG, "data was null.")
         return false
       }
-      val fileOutputStream = FileOutputStream(filepath)
       try {
-        fileOutputStream.write(data!!.toByteArray(Charsets.UTF_8))
-      } finally {
-        fileOutputStream.close()
+        FileOutputStream(filepath).use {
+          it.write(data.toByteArray(Charsets.UTF_8))
+        }
+      } catch (e: IOException) {
+        Log.e(TAG, "Failed to write prompts to file", e)
+        return false
       }
     } else {
       Log.e(TAG, "unable to fetch prompts.")
@@ -1766,7 +1784,6 @@ class DataManager(val context: Context) {
       }
     }
 
-    var deleteFile = false
     val data = mapOf(
       "app_version" to APP_VERSION,
       "login_token" to dataManagerData.loginToken!!,
@@ -1779,25 +1796,22 @@ class DataManager(val context: Context) {
     // I'd be more comfortable with this if we used the POST method.
     val url = URL(getServer() + "/resource?" + formData)
 
-    val fileOutputStream = FileOutputStream(resource.absolutePath)
+    var downloadSucceeded = false
     try {
-      Log.i(TAG, "downloading resource (from url: $url) to $resource")
-      if (!serverGetToFileRequest(
-          url,
-          emptyMap(),
-          fileOutputStream
-        )
-      ) {
-        deleteFile = true
+      FileOutputStream(resource.absolutePath).use { fileOutputStream ->
+        Log.i(TAG, "downloading resource (from url: $url) to $resource")
+        downloadSucceeded = serverGetToFileRequest(url, emptyMap(), fileOutputStream)
+      }
+    } catch (e: IOException) {
+      Log.e(TAG, "Failed to download resource", e)
+    } finally {
+      if (!downloadSucceeded) {
+        Log.w(TAG, "Cleaning up failed resource download: $resource")
+        resource.delete()
         return false
       }
-    } finally {
-      fileOutputStream.close()
-      if (deleteFile) {
-        Log.i(TAG, "Deleting file ${resource} that wasn't successfully downloaded.")
-        resource.delete()
-      }
     }
+
     Log.i(TAG, "downloaded resource $resource with size ${resource.length()}")
     return true
   }
@@ -1924,6 +1938,9 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
       if (promptsJson.has("useSummaryPage")) {
         useSummaryPage = promptsJson.getBoolean("useSummaryPage")
       }
+    } catch (e: IOException) {
+      Log.e(TAG, "failed to load prompts, encountered IOException $e")
+      return false
     } catch (e: JSONException) {
       Log.e(TAG, "failed to load prompts, encountered JSONException $e")
       return false

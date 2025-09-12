@@ -132,10 +132,24 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
     Log.d(TAG, "onViewCreated")
 
-    val filepath = File(requireContext().filesDir, arguments?.getString("filepath")!!)
-    if (filepath.exists()) {
-      fileInputStream = FileInputStream(filepath)
+    val relativePath = arguments?.getString("filepath")
+    if (relativePath == null) {
+      Log.e(TAG, "VideoPreviewFragment created without a filepath argument.")
+      Toast.makeText(requireContext(), "Cannot play video: file path is missing.", Toast.LENGTH_LONG).show()
+      dismiss()
+      return
     }
+
+    val filepath = File(requireContext().filesDir, relativePath)
+    try {
+      fileInputStream = FileInputStream(filepath)
+    } catch (e: java.io.FileNotFoundException) {
+      Log.e(TAG, "Video file not found at path: $filepath", e)
+      Toast.makeText(requireContext(), "Cannot play video: file not found.", Toast.LENGTH_LONG).show()
+      dismiss()
+      return
+    }
+
     Log.d(TAG, "Playing video from $filepath")
 
     // Set the video UI
@@ -163,17 +177,24 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
     // TODO create a message if the file does not exist.
     if (fileInputStream != null) {
-      mediaPlayer = MediaPlayer().also {
-        // Passing a filepath or Uri to the file in the app directory gives a permission
-        // denied error (actually a generic error).  Instead, we need to produce a file descriptor
-        // directly and pass it as the source.  We maintain the FileInputStream for the entire
-        // duration that the file descriptor is in use.
-        it.setDataSource(fileInputStream!!.fd)
+      try {
+        mediaPlayer = MediaPlayer().also {
+          // Passing a filepath or Uri to the file in the app directory gives a permission
+          // denied error (actually a generic error).  Instead, we need to produce a file descriptor
+          // directly and pass it as the source.  We maintain the FileInputStream for the entire
+          // duration that the file descriptor is in use.
+          it.setDataSource(fileInputStream!!.fd)
 
-        it.setSurface(holder.surface)
-        it.setOnPreparedListener(this)
-        it.setOnErrorListener(this)
-        it.prepareAsync()
+          it.setSurface(holder.surface)
+          it.setOnPreparedListener(this)
+          it.setOnErrorListener(this)
+          it.prepareAsync()
+        }
+      } catch (e: java.io.IOException) {
+        Log.e(TAG, "Failed to set media player data source", e)
+        val text = "Error playing video file."
+        val toast = Toast.makeText(activity, text, Toast.LENGTH_SHORT)
+        toast.show()
       }
     } else {
       val text = "Video file not found"
