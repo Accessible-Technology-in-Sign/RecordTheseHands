@@ -44,45 +44,6 @@ import javax.mail.internet.MimeMultipart
 import kotlin.random.Random
 
 /**
- * Selects `count` elements from `list` at random, using the designated seed if given,
- * or a random seed otherwise.
- */
-fun <T> randomChoice(list: List<T>, count: Int, seed: Long? = null): ArrayList<T> {
-  when (count) {
-    0 -> return ArrayList()
-    list.size -> return ArrayList(list)
-  }
-
-  // Initialize Random object and resulting ArrayList.
-  val rand = Random(seed ?: Random.nextLong())
-  val result = ArrayList<T>()
-
-  if (count == 1) {
-    result.add(list[rand.nextInt(list.size)])
-    return result
-  }
-
-  // Fisher-Yates shuffle algorithm, `count` iterations, then return the `count` last items
-  // in the array.
-  val copy = ArrayList(list)
-  for (iter in 1..count) {
-    val destIndex = list.size - iter
-    val destVal = copy[destIndex]
-    val selIndex = rand.nextInt(destIndex + 1)
-    val selVal = copy[selIndex]
-
-    copy[destIndex] = selVal
-    copy[selIndex] = destVal
-  }
-
-  for (i in list.size - count until list.size) {
-    result.add(copy[i])
-  }
-
-  return result
-}
-
-/**
  * Prefixes a number with zeros so that the total length of the output string is at least
  * `digits` characters long.
  */
@@ -150,26 +111,6 @@ fun sendEmail(from: String, to: List<String>, subject: String, content: String, 
     Transport.send(msg)
   } catch (ex: MessagingException) {
     Log.d("EMAIL", "Email send failed: ${ex.message}")
-  }
-}
-
-/**
- * Computes the MD5 hash for a File object.
- *
- * Written by Stack Overflow user broc.seib (CC BY-SA 4.0)
- * https://stackoverflow.com/a/62963461
- */
-fun File.md5(): String {
-  val md = MessageDigest.getInstance("MD5")
-  return this.inputStream().use { fis ->
-    val buffer = ByteArray(8192)
-    generateSequence {
-      when (val bytesRead = fis.read(buffer)) {
-        -1 -> null
-        else -> bytesRead
-      }
-    }.forEach { bytesRead -> md.update(buffer, 0, bytesRead) }
-    md.digest().joinToString("") { "%02x".format(it) }
   }
 }
 

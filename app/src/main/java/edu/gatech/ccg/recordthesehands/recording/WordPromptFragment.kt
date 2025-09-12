@@ -287,27 +287,6 @@ class WordPromptFragment(
       }
     }
 
-    // if (!hasVideo) {
-    //   val promptView = view.findViewById<ConstraintLayout>(R.id.promptLayout)
-
-    //   ConstraintSet().apply {
-    //     clone(promptView)
-    //     connect(
-    //       R.id.promptText, ConstraintSet.END, R.id.promptView,
-    //       ConstraintSet.END, 8
-    //     )
-    //     constrainWidth(
-    //       R.id.promptText,
-    //       ConstraintLayout.LayoutParams.MATCH_CONSTRAINT
-    //     )
-    //     applyTo(promptView)
-    //   }
-    // }
-
-    //if (prompt.prompt.length > 20) {
-    //  textView.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
-    //  textView.textSize = 18.0f
-    // }
   }
 
   /**
