@@ -23,32 +23,29 @@
  */
 package edu.gatech.ccg.recordthesehands.recording
 
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.SurfaceHolder
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.VideoView
 import androidx.annotation.LayoutRes
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.DialogFragment
-import androidx.lifecycle.lifecycleScope
-import edu.gatech.ccg.recordthesehands.Constants.VIDEO_PREVIEW_ENDING_BUFFER_TIME
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ClippingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.ui.PlayerView
 import edu.gatech.ccg.recordthesehands.R
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileInputStream
 
 /**
  * Represents a video preview box. We use Android's built-in modals to allow us to easily
  * preview a video on top of the main activity.
  */
-class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
-  SurfaceHolder.Callback, MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener {
+class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
 
   companion object {
     private val TAG = VideoPreviewFragment::class.java.simpleName
@@ -57,17 +54,12 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   /**
    * The video view in which to run the video.
    */
-  private lateinit var videoView: VideoView
+  private lateinit var videoView: PlayerView
 
   /**
    * The controller for playing back the video.
    */
-  private var mediaPlayer: MediaPlayer? = null
-
-  /**
-   * A fileInputStream for the file to be used.
-   */
-  private var fileInputStream: FileInputStream? = null
+  private var exoPlayer: ExoPlayer? = null
 
   /**
    * The text prompt for this video.
@@ -115,11 +107,15 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     )
   }
 
+  override fun onStop() {
+    super.onStop()
+    exoPlayer?.stop()
+    exoPlayer?.release()
+    exoPlayer = null
+  }
+
   override fun onDestroyView() {
-    if (fileInputStream != null) {
-      fileInputStream!!.close()
-      fileInputStream = null
-    }
+    exoPlayer?.release()
     super.onDestroyView()
   }
 
@@ -141,10 +137,8 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     }
 
     val filepath = File(requireContext().filesDir, relativePath)
-    try {
-      fileInputStream = FileInputStream(filepath)
-    } catch (e: java.io.FileNotFoundException) {
-      Log.e(TAG, "Video file not found at path: $filepath", e)
+    if (!filepath.exists()) {
+      Log.e(TAG, "Video file not found at path: $filepath")
       Toast.makeText(requireContext(), "Cannot play video: file not found.", Toast.LENGTH_LONG).show()
       dismiss()
       return
@@ -153,9 +147,29 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     Log.d(TAG, "Playing video from $filepath")
 
     // Set the video UI
-    videoView = view.findViewById<VideoView>(R.id.videoPreview)
-    videoView.holder.addCallback(this)
-    videoView.visibility = View.VISIBLE
+    videoView = view.findViewById(R.id.videoPreview)
+
+    exoPlayer = ExoPlayer.Builder(requireContext()).build().also { player ->
+      videoView.player = player // videoView is now a PlayerView
+
+      // Create a media source for the full video file
+      val mediaItem = MediaItem.fromUri(Uri.fromFile(filepath))
+      val mediaSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(requireContext()))
+        .createMediaSource(mediaItem)
+
+      // Create a clipping source to play only the desired segment
+      val clippingMediaSource = ClippingMediaSource(
+        mediaSource,
+        startTimeMs * 1000, // Convert ms to microseconds
+        endTimeMs * 1000    // Convert ms to microseconds
+      )
+
+      player.setMediaSource(clippingMediaSource)
+      player.repeatMode = Player.REPEAT_MODE_ONE // Loop the clip
+      player.prepare()
+      player.play()
+    }
+
 
     if (prompt != null) {
       // Sets the title text for the video
@@ -165,99 +179,5 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       val title = view.findViewById<TextView>(R.id.wordBeingSigned)
       title.visibility = View.GONE
     }
-  }
-
-  /**
-   * Set up the video playback once a Surface (frame buffer) has been initialized
-   * for that purpose.
-   */
-  override fun surfaceCreated(holder: SurfaceHolder) {
-    // Set the data source
-    Log.d(TAG, "surfaceCreated")
-
-    // TODO create a message if the file does not exist.
-    if (fileInputStream != null) {
-      try {
-        mediaPlayer = MediaPlayer().also {
-          // Passing a filepath or Uri to the file in the app directory gives a permission
-          // denied error (actually a generic error).  Instead, we need to produce a file descriptor
-          // directly and pass it as the source.  We maintain the FileInputStream for the entire
-          // duration that the file descriptor is in use.
-          it.setDataSource(fileInputStream!!.fd)
-
-          it.setSurface(holder.surface)
-          it.setOnPreparedListener(this)
-          it.setOnErrorListener(this)
-          it.prepareAsync()
-        }
-      } catch (e: java.io.IOException) {
-        Log.e(TAG, "Failed to set media player data source", e)
-        val text = "Error playing video file."
-        val toast = Toast.makeText(activity, text, Toast.LENGTH_SHORT)
-        toast.show()
-      }
-    } else {
-      val text = "Video file not found"
-      val toast = Toast.makeText(activity, text, Toast.LENGTH_SHORT)
-      toast.show()
-    }
-  }
-
-  /**
-   * Used if the Surface is changed. Not currently used.
-   */
-  override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-    // TODO("Not currently used")
-  }
-
-  /**
-   * Stop video playback if the Surface is destroyed.
-   */
-  override fun surfaceDestroyed(holder: SurfaceHolder) {
-    Log.d(TAG, "surfaceDestroyed")
-    view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
-    mediaPlayer?.let {
-      it.stop()
-      it.reset()
-      it.release()
-    }
-  }
-
-  /**
-   * When the MediaPlayer is prepared, start playback.
-   */
-  override fun onPrepared(mp: MediaPlayer?) {
-    // Loop and start the video
-    Log.d(TAG, "onPrepared")
-    mp?.let {
-      it.isLooping = true
-
-      val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
-      val constraint = "${layoutParams.dimensionRatio[0]},${it.videoWidth}:${it.videoHeight}"
-      Log.d(TAG, "Setting video constraint to ${constraint}")
-      layoutParams.dimensionRatio = constraint
-      videoView.requestLayout()
-
-      it.seekTo(startTimeMs.toInt())
-      it.start()
-    }
-
-    // If the startTimeMs and endTimeMs properties are set, set up a looper for the video.
-    if (endTimeMs > startTimeMs) {
-      viewLifecycleOwner.lifecycleScope.launch {
-        while (isActive) {
-          delay(endTimeMs - startTimeMs + VIDEO_PREVIEW_ENDING_BUFFER_TIME)
-          if (isAdded && mediaPlayer?.isPlaying == true) {
-            mediaPlayer?.seekTo(startTimeMs.toInt())
-            Log.i(TAG, "Looping video!")
-          }
-        }
-      }
-    }
-  } // onPrepared()
-
-  override fun onError(mp: MediaPlayer, what: Int, extra: Int): Boolean {
-    Log.e(TAG, "MediaPlayer error occurred. what = $what extra = $extra")
-    return false
   }
 }

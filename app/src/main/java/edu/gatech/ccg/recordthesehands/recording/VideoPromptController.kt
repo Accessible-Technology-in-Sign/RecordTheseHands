@@ -25,26 +25,28 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.content.Context
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.SurfaceHolder
-import android.widget.VideoView
+import android.view.View
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import edu.gatech.ccg.recordthesehands.R
 import java.io.File
-import java.io.FileInputStream
 
 /**
- * A simple class to manage a video player within a VideoView element.
+ * A simple class to manage a video player within a PlayerView element.
  */
 class VideoPromptController(
   private val context: Context,
   private val activity: RecordingActivity?,
-  private val videoView: VideoView,
+  private val videoView: PlayerView,
   private var videoPath: String,
   private val setConstraint: Boolean,
-) : SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
+) {
 
   companion object {
     private val TAG = VideoPromptController::class.java.simpleName
@@ -53,12 +55,7 @@ class VideoPromptController(
   /**
    * The video playback controller.
    */
-  private var mediaPlayer: MediaPlayer? = null
-
-  /**
-   * A fileInputStream for the file to be used.
-   */
-  private var fileInputStream: FileInputStream? = null
+  private var exoPlayer: ExoPlayer? = null
 
   /**
    * Initializes the controller.
@@ -66,6 +63,10 @@ class VideoPromptController(
   init {
     Log.d(TAG, "Constructing VideoPromptController")
 
+    exoPlayer = ExoPlayer.Builder(context).build().also {
+      videoView.player = it
+      it.repeatMode = Player.REPEAT_MODE_ONE
+    }
     setPath(videoPath)
 
     if (activity != null) {
@@ -79,7 +80,7 @@ class VideoPromptController(
         val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
         previewFragment.arguments = bundle
 
-        previewFragment.show(activity!!.supportFragmentManager, "videoPreview")
+        previewFragment.show(activity.supportFragmentManager, "videoPreview")
       }
     }
   }
@@ -91,110 +92,27 @@ class VideoPromptController(
     videoView.visibility = visibility
   }
 
-  fun destroyFileInputStream() {
-    if (fileInputStream != null) {
-      fileInputStream!!.close()
-      fileInputStream = null
-    }
-  }
-
-  fun createFileInputStream() {
-    destroyFileInputStream()
-    val filepath = File(context.filesDir, videoPath)
-    try {
-      if (filepath.exists()) {
-        fileInputStream = FileInputStream(filepath)
-      } else {
-        Log.w(TAG, "Video file does not exist: $filepath")
-      }
-    } catch (e: java.io.FileNotFoundException) {
-      Log.e(TAG, "Video file not found: $filepath", e)
-    }
-  }
-
   /**
    * Sets the video player to play a video.
    */
   fun setPath(newPath: String) {
     videoPath = newPath
-
     Log.d(TAG, "Playing video from $videoPath")
-
-    // If the media player already exists, just change its data source and start playback again.
-    mediaPlayer?.let {
-      it.stop()
-      it.reset()
-      destroyFileInputStream()
-      createFileInputStream()
-      fileInputStream?.let { stream ->
-        it.setDataSource(stream.fd)
-        it.setOnPreparedListener(this)
-        it.prepareAsync()
-      }
+    val videoFile = File(context.filesDir, videoPath)
+    if (videoFile.exists()) {
+      val mediaItem = MediaItem.fromUri(Uri.fromFile(videoFile))
+      exoPlayer?.setMediaItem(mediaItem)
+      exoPlayer?.prepare()
+      exoPlayer?.play()
+    } else {
+      Log.w(TAG, "Video prompt file does not exist: $videoPath")
+      videoView.visibility = View.GONE
     }
-
-    // If the media player has not been initialized, set up the video player.
-    // We will set up the data source from the surfaceCreated() function
-      ?: run {
-        videoView.holder.addCallback(this)
-      }
   }
 
   fun releasePlayer() {
-    this.mediaPlayer?.let {
-      it.stop()
-      it.release()
-    }
-    destroyFileInputStream()
+    exoPlayer?.stop()
+    exoPlayer?.release()
+    exoPlayer = null
   }
-
-  /**
-   * When the videoView's pixel buffer is set up, this function is called. The MediaPlayer object
-   * will then target the videoView's canvas.
-   */
-  override fun surfaceCreated(holder: SurfaceHolder) {
-    createFileInputStream()
-    mediaPlayer = MediaPlayer().apply {
-      fileInputStream?.let {
-        setDataSource(it.fd)
-        setSurface(holder.surface)
-        setOnPreparedListener(this@VideoPromptController)
-        prepareAsync()
-      }
-    }
-  }
-
-  /**
-   * We don't use surfaceChanged right now since the same surface is used for the entire
-   * duration of the activity.
-   */
-  override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-    // TODO("Not yet implemented")
-  }
-
-  /**
-   * When the recording activity is finished, we can free the memory used by the media player.
-   */
-  override fun surfaceDestroyed(holder: SurfaceHolder) {
-    releasePlayer()
-  }
-
-  /**
-   * This function is called when the video file is ready, this function makes it so that
-   * the video loops and then starts playing back.
-   */
-  override fun onPrepared(mp: MediaPlayer?) {
-    mp?.let {
-      it.isLooping = true
-      if (setConstraint) {
-        val layoutParams = videoView.layoutParams as ConstraintLayout.LayoutParams
-        val constraint = "${layoutParams.dimensionRatio[0]},${it.videoWidth}:${it.videoHeight}"
-        Log.d(TAG, "Setting video constraint to ${constraint}")
-        layoutParams.dimensionRatio = constraint
-        videoView.requestLayout()
-      }
-      it.start()
-    }
-  }
-
 }

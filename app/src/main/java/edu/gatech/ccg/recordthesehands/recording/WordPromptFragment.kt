@@ -40,6 +40,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
+import androidx.media3.ui.PlayerView
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.upload.Prompt
@@ -175,7 +176,7 @@ class WordPromptFragment(
 
       PromptType.VIDEO -> {
         prompt.resourcePath?.let { resourcePath ->
-          val videoView = view.findViewById<VideoView>(R.id.promptVideo)
+          val videoView = view.findViewById<PlayerView>(R.id.promptVideo)
           val videoViewParams = videoView.layoutParams as LayoutParams
 
           // Initialize button for adjusting video size
@@ -293,7 +294,7 @@ class WordPromptFragment(
    * Sets the reference video to default screen mode.
    */
   private fun setOriginalScreen(
-    videoView: VideoView,
+    videoView: PlayerView,
     videoViewParams: LayoutParams,
     currentOrientation: Int,
     lastDisplayMode: PromptDisplayMode?,
@@ -351,7 +352,7 @@ class WordPromptFragment(
    * Sets the reference video to full screen mode.
    */
   private fun setFullScreen(
-    videoView: VideoView,
+    videoView: PlayerView,
     videoViewParams: LayoutParams,
     currentOrientation: Int
   ) {
@@ -390,7 +391,7 @@ class WordPromptFragment(
    * Sets the reference video to split screen mode.
    */
   private fun setSplitScreen(
-    videoView: VideoView,
+    videoView: PlayerView,
     videoViewParams: LayoutParams,
     currentOrientation: Int,
     lastDisplayMode: PromptDisplayMode?,
@@ -444,7 +445,7 @@ class WordPromptFragment(
    * Sets the reference video to the last detected display screen mode.
    */
   private fun undoSplitScreen(
-    videoView: VideoView,
+    videoView: PlayerView,
     videoViewParams: LayoutParams,
     currentOrientation: Int,
     lastDisplayMode: PromptDisplayMode?,
