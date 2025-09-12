@@ -45,12 +45,7 @@ import javax.mail.internet.MimeMultipart
  * `digits` characters long.
  */
 fun padZeroes(number: Int, digits: Int = 5): String {
-  val asString = number.toString()
-  if (asString.length >= digits) {
-    return asString
-  }
-
-  return "0".repeat(digits - asString.length) + asString
+    return "%0${digits}d".format(number)
 }
 
 /**
