@@ -280,7 +280,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
      * Record video at 15 Mbps. At 1944x2592 @ 30 fps, this level of detail should be more
      * than high enough.
      */
-    private const val RECORDER_VIDEO_BITRATE: Int = 15_000_000
+    private const val RECORDER_VIDEO_BITRATE: Int = 30_000_000
 
     /**
      * Camera resolution and framerate parameters.
