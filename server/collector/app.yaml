@@ -1,7 +1,7 @@
 service: default
 runtime: python311
 
-instance_class: F4_1G
+instance_class: F1
 
 liveness_check:
   check_interval_sec: 60
