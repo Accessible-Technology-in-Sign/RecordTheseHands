@@ -164,17 +164,17 @@ class WordPromptFragment(
 
       PromptType.IMAGE -> {
         Log.d(TAG, "Rendering Image for ${prompt.key}.")
-        if (prompt.resourcePath != null) {
-          Log.d(TAG, "resourcePath ${prompt.resourcePath}.")
+        prompt.resourcePath?.let { resourcePath ->
+          Log.d(TAG, "resourcePath $resourcePath.")
           val imageView = view.findViewById<ImageView>(R.id.promptImage)
-          val filepath = File(requireContext().filesDir, prompt.resourcePath)
+          val filepath = File(requireContext().filesDir, resourcePath)
           imageView.setImageURI(Uri.fromFile(filepath))
           imageView.visibility = View.VISIBLE
         }
       }
 
       PromptType.VIDEO -> {
-        if (prompt.resourcePath != null) {
+        prompt.resourcePath?.let { resourcePath ->
           val videoView = view.findViewById<VideoView>(R.id.promptVideo)
           val videoViewParams = videoView.layoutParams as LayoutParams
 
@@ -267,7 +267,7 @@ class WordPromptFragment(
           }
 
           videoPromptController = VideoPromptController(
-            requireContext(), null, videoView, prompt.resourcePath!!, true
+            requireContext(), null, videoView, resourcePath, true
           )
           resetPromptTypeConstraint()
           setOriginalScreen(

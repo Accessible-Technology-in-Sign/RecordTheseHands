@@ -382,7 +382,6 @@ class UploadSession(
         Log.i(TAG, "No data has been uploaded.")
       } else {
         Log.i(TAG, "Upload has not yet been completed.  Range: $outputFromHeader")
-        check(outputFromHeader != null) { "outputFromHeader was null, no range field found" }
         val m = Regex("^bytes=(\\d+)-(\\d+)$").matchEntire(outputFromHeader!!)
         check(m != null) { "Range header field did not have proper format." }
         val firstSavedByte = m!!.groups[1]!!.value.toLong()
@@ -987,9 +986,11 @@ class DataManager(val context: Context) {
     val newLoginToken = makeToken(username, password)
     val adminToken = makeToken("admin", adminPassword)
     val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
-    if (!loginTokenPath.parentFile!!.exists()) {
-      Log.i(TAG, "creating directory for loginToken.")
-      loginTokenPath.parentFile!!.mkdirs()
+    loginTokenPath.parentFile?.let { parent ->
+      if (!parent.exists()) {
+        Log.i(TAG, "creating directory for loginToken.")
+        parent.mkdirs()
+      }
     }
 
     val url = URL(getServer() + "/register_login")
@@ -1345,9 +1346,11 @@ class DataManager(val context: Context) {
       val relativePath = "apk" + File.separator + filename
       val filepath = File(context.filesDir, relativePath)
 
-      if (!filepath.parentFile.exists()) {
-        Log.i(TAG, "creating directory ${filepath.parentFile}.")
-        filepath.parentFile.mkdirs()
+      filepath.parentFile?.let { parent ->
+        if (!parent.exists()) {
+          Log.i(TAG, "creating directory ${parent}.")
+          parent.mkdirs()
+        }
       }
       val fileOutputStream = FileOutputStream(filepath.absolutePath)
       try {
@@ -1448,10 +1451,11 @@ class DataManager(val context: Context) {
     val relativePath = "prompts" + File.separator + timestamp + ".json"
     val filepath = File(context.filesDir, relativePath)
 
-    val parentDir = filepath.parentFile
-    if (parentDir != null && !parentDir.exists()) {
-      Log.i(TAG, "creating directory ${filepath.parentFile}.")
-      parentDir.mkdirs()
+    filepath.parentFile?.let { parentDir ->
+      if (!parentDir.exists()) {
+        Log.i(TAG, "creating directory $parentDir.")
+        parentDir.mkdirs()
+      }
     }
     Log.i(TAG, "downloading prompt data to $filepath (useTutorialMode = ${useTutorialMode})")
     val (code, data) = serverFormPostRequest(
@@ -1753,9 +1757,11 @@ class DataManager(val context: Context) {
 
   suspend fun downloadResource(resourcePath: String): Boolean {
     val resource = File(context.filesDir, resourcePath)
-    if (!resource.parentFile!!.exists()) {
-      Log.i(TAG, "creating directory for resource.")
-      resource.parentFile!!.mkdirs()
+    resource.parentFile?.let { parent ->
+      if (!parent.exists()) {
+        Log.i(TAG, "creating directory for resource: $parent")
+        parent.mkdirs()
+      }
     }
 
     var deleteFile = false
