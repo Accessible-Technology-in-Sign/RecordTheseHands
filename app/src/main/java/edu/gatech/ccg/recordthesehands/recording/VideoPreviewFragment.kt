@@ -35,6 +35,7 @@ import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.ccg.recordthesehands.Constants.VIDEO_PREVIEW_ENDING_BUFFER_TIME
 import edu.gatech.ccg.recordthesehands.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -51,12 +52,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
   companion object {
     private val TAG = VideoPreviewFragment::class.java.simpleName
-
-    /**
-     * Since playback cuts out early from testing, adding an extra half second
-     * to the end of a sign's playback could be beneficial to users.
-     */
-    const val ENDING_BUFFER_TIME: Long = 500
   }
 
   /**
@@ -230,7 +225,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
     if (endTimeMs > startTimeMs) {
       viewLifecycleOwner.lifecycleScope.launch {
         while (isActive) {
-          delay(endTimeMs - startTimeMs + ENDING_BUFFER_TIME)
+          delay(endTimeMs - startTimeMs + VIDEO_PREVIEW_ENDING_BUFFER_TIME)
           if (isAdded && mediaPlayer?.isPlaying == true) {
             mediaPlayer?.seekTo(startTimeMs.toInt())
             Log.i(TAG, "Looping video!")

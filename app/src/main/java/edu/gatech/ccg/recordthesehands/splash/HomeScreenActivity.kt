@@ -24,7 +24,6 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
@@ -49,6 +48,7 @@ import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
@@ -144,7 +144,7 @@ class HomeScreenActivity : ComponentActivity() {
           ).also {
             it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
           }
-          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
           Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
           dataManager.waitForDataLock()
           Log.d(TAG, "Data lock was available.")
@@ -346,7 +346,7 @@ class HomeScreenActivity : ComponentActivity() {
               ).also {
                 it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
               }
-              UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+              UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
               Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
               dataManager.waitForDataLock()
               Log.d(TAG, "Data lock was available.")

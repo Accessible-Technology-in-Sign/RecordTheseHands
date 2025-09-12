@@ -71,4 +71,44 @@ object Constants {
    * failed for some reason.
    */
   const val RESULT_RECORDING_DIED = 4
+
+  /**
+   * Record video at 15 Mbps. At 1944x2592 @ 30 fps, this level of detail should be more
+   * than high enough.
+   */
+  const val RECORDER_VIDEO_BITRATE: Int = 30_000_000
+
+  /**
+   * Camera resolution and framerate parameters.
+   */
+  const val RECORDING_FRAMERATE = 30
+  const val MAXIMUM_RESOLUTION = 9_000_000
+
+  /**
+   * The length of the countdown (in milliseconds), after which the recording will end
+   * automatically. Currently configured to be 15 minutes.
+   */
+  const val COUNTDOWN_DURATION = 15 * 60 * 1000L
+
+  /**
+   * The number of prompts to use in each recording session.
+   */
+  const val DEFAULT_SESSION_LENGTH = 30
+  const val DEFAULT_TUTORIAL_SESSION_LENGTH = 5
+
+  /**
+   * Since playback cuts out early from testing, adding an extra half second
+   * to the end of a sign's playback could be beneficial to users.
+   */
+  const val VIDEO_PREVIEW_ENDING_BUFFER_TIME: Long = 500
+
+  const val UPLOAD_NOTIFICATION_ID = 1
+  const val UPLOAD_NOTIFICATION_CHANNEL_ID = "upload_service"
+
+  private const val SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
+
+  val UPLOAD_RESUME_ON_START_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
+  val UPLOAD_LOOP_TIMEOUT = if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
+  val UPLOAD_RESUME_ON_IDLE_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 60L * 1000L else 60L * 60L * 1000L
+  val UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
 }

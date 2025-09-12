@@ -26,22 +26,22 @@ package edu.gatech.ccg.recordthesehands.upload
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_LOOP_TIMEOUT
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_START_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 import java.util.Date
-import kotlin.concurrent.thread
 
 /**
  * The upload service.
@@ -51,24 +51,7 @@ class UploadService : LifecycleService() {
   companion object {
     private val TAG = UploadService::class.simpleName
 
-    val NOTIFICATION_ID = 1
-    val NOTIFICATION_CHANNEL_ID = "upload_service"
-
     private var pauseUntil: Date? = null
-
-    private var SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
-
-    private var UPLOAD_RESUME_ON_START_TIMEOUT =
-      if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
-
-    private var UPLOAD_LOOP_TIMEOUT =
-      if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
-
-    var UPLOAD_RESUME_ON_IDLE_TIMEOUT =
-      if (SHORT_TIMEOUTS) 5L * 60L * 1000L else 60L * 60L * 1000L
-
-    var UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT =
-      if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
 
     fun pauseUploadTimeout(millis: Long) {
       pauseUploadUntil(Date(Calendar.getInstance().timeInMillis + millis))
@@ -96,7 +79,7 @@ class UploadService : LifecycleService() {
   override fun onCreate() {
     super.onCreate()
     val channel = NotificationChannel(
-      NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
+      UPLOAD_NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
     )
     channel.description = "Uploads Sign Language Videos."
     notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -112,7 +95,7 @@ class UploadService : LifecycleService() {
   }
 
   fun createNotification(title: String, message: String): Notification {
-    return Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+    return Notification.Builder(this, UPLOAD_NOTIFICATION_CHANNEL_ID)
       .setSmallIcon(R.drawable.upload_service_notification_icon)
       .setContentTitle(title)
       .setContentText(message)
@@ -126,7 +109,7 @@ class UploadService : LifecycleService() {
    */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     super.onStartCommand(intent, flags, startId)
-    startForeground(NOTIFICATION_ID, createNotification("Upload Service started", ""))
+    startForeground(UPLOAD_NOTIFICATION_ID, createNotification("Upload Service started", ""))
 
     lifecycleScope.launch(Dispatchers.IO) {
       val dataManager = DataManager(applicationContext)
@@ -147,7 +130,7 @@ class UploadService : LifecycleService() {
               }) {
               if (!notifiedOfCompletion) {
                 notificationManager!!.notify(
-                  NOTIFICATION_ID,
+                  UPLOAD_NOTIFICATION_ID,
                   createNotification("Uploading complete", "")
                 )
                 notifiedOfCompletion = true

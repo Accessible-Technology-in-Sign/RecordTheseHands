@@ -72,10 +72,19 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
+import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
+import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
+import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
+import edu.gatech.ccg.recordthesehands.Constants.MAXIMUM_RESOLUTION
+import edu.gatech.ccg.recordthesehands.Constants.RECORDER_VIDEO_BITRATE
+import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_SURFACE_DESTROYED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.padZeroes
@@ -277,30 +286,6 @@ suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
 class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayModeListener {
   companion object {
     private val TAG = RecordingActivity::class.java.simpleName
-
-    /**
-     * Record video at 15 Mbps. At 1944x2592 @ 30 fps, this level of detail should be more
-     * than high enough.
-     */
-    private const val RECORDER_VIDEO_BITRATE: Int = 30_000_000
-
-    /**
-     * Camera resolution and framerate parameters.
-     */
-    private const val RECORDING_FRAMERATE = 30
-    private const val MAXIMUM_RESOLUTION = 9_000_000
-
-    /**
-     * The length of the countdown (in milliseconds), after which the recording will end
-     * automatically. Currently configured to be 15 minutes.
-     */
-    private const val COUNTDOWN_DURATION = 15 * 60 * 1000L
-
-    /**
-     * The number of prompts to use in each recording session.
-     */
-    private const val DEFAULT_SESSION_LENGTH = 30
-    private const val DEFAULT_TUTORIAL_SESSION_LENGTH = 5
   }
 
 
@@ -1005,7 +990,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     session.setRepeatingRequest(cameraRequest, null, null)
 
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     isRecording = true
 
     recorder.start()
@@ -1108,7 +1093,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     } catch (exc: Throwable) {
       Log.e(TAG, "Error in RecordingActivity.onStop()", exc)
     }
-    UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     CoroutineScope(Dispatchers.IO).launch {
       // It's important that UploadService has a pause signal at this point, so that in the
       // unlikely event that we have been idle for the full amount of time and the video is
@@ -1349,7 +1334,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
           stopRecorder()
-          UploadService.pauseUploadTimeout(UploadService.UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
         }
       }
     })
@@ -1770,7 +1755,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val notification = dataManager.createNotification(
       "Recording Session Completed", "still need to upload"
     )
-    notificationManager.notify(UploadService.NOTIFICATION_ID, notification)
+    notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
 
     finish()
   }

@@ -44,6 +44,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.fromHex
 import edu.gatech.ccg.recordthesehands.padZeroes
@@ -1136,7 +1138,7 @@ class DataManager(val context: Context) {
   }
 
   fun createNotification(title: String, message: String): Notification {
-    return Notification.Builder(context, UploadService.NOTIFICATION_CHANNEL_ID)
+    return Notification.Builder(context, UPLOAD_NOTIFICATION_CHANNEL_ID)
       .setSmallIcon(R.drawable.upload_service_notification_icon)
       .setContentTitle(title)
       .setContentText(message)
@@ -1209,7 +1211,7 @@ class DataManager(val context: Context) {
         Log.i(TAG, "entries was null")
       } else if (entries.isNotEmpty()) {
         notificationManager?.notify(
-          UploadService.NOTIFICATION_ID,
+          UPLOAD_NOTIFICATION_ID,
           createNotification("Uploading key/values", "${entries.size} key/values uploading")
         )
         val jsonArray = JSONArray()
@@ -1243,7 +1245,7 @@ class DataManager(val context: Context) {
         var i = 0
         for (entry in fileEntries.iterator()) {
           notificationManager?.notify(
-            UploadService.NOTIFICATION_ID,
+            UPLOAD_NOTIFICATION_ID,
             createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
           )
 

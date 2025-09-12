@@ -27,8 +27,6 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
-import java.io.File
-import java.security.MessageDigest
 import java.util.Calendar
 import java.util.Properties
 import javax.mail.Authenticator
@@ -41,7 +39,6 @@ import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
 import javax.mail.internet.MimeMultipart
-import kotlin.random.Random
 
 /**
  * Prefixes a number with zeros so that the total length of the output string is at least
