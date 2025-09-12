@@ -34,12 +34,13 @@ import android.widget.VideoView
 import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileInputStream
-import java.util.Calendar
-import java.util.Timer
-import java.util.TimerTask
 
 /**
  * Represents a video preview box. We use Android's built-in modals to allow us to easily
@@ -92,12 +93,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   private var isTablet = false
 
   /**
-   * A timer and associated task to loop the video.
-   */
-  private lateinit var timer: Timer
-  private lateinit var timerTask: TimerTask
-
-  /**
    * Time within the full recording that the clip starts.
    */
   var startTimeMs: Long = 0
@@ -123,8 +118,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
       TAG,
       "startTimeMs $startTimeMs endTimeMs $endTimeMs landscape $landscape isTablet $isTablet"
     )
-
-    timer = Timer()
   }
 
   override fun onDestroyView() {
@@ -207,7 +200,6 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
   override fun surfaceDestroyed(holder: SurfaceHolder) {
     Log.d(TAG, "surfaceDestroyed")
     view?.findViewById<VideoView>(R.id.videoPreview)?.holder?.removeCallback(this)
-    timer.cancel()
     mediaPlayer?.let {
       it.stop()
       it.reset()
@@ -236,22 +228,15 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout),
 
     // If the startTimeMs and endTimeMs properties are set, set up a looper for the video.
     if (endTimeMs > startTimeMs) {
-      // Task to set playback to the beginning of the looped segment
-      timerTask = object : TimerTask() {
-        override fun run() {
-          if (mediaPlayer?.isPlaying == true) {
-            Log.i("VideoPreviewFragment", "Looping!")
-            mediaPlayer!!.seekTo(startTimeMs.toInt())
+      viewLifecycleOwner.lifecycleScope.launch {
+        while (isActive) {
+          delay(endTimeMs - startTimeMs + ENDING_BUFFER_TIME)
+          if (isAdded && mediaPlayer?.isPlaying == true) {
+            mediaPlayer?.seekTo(startTimeMs.toInt())
+            Log.i(TAG, "Looping video!")
           }
         }
       }
-
-      // Initializes the playback
-      timer.schedule(
-        timerTask,
-        Calendar.getInstance().time,
-        endTimeMs - startTimeMs + ENDING_BUFFER_TIME
-      )
     }
   } // onPrepared()
 
