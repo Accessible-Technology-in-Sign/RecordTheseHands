@@ -216,23 +216,6 @@ class HomeScreenActivity : ComponentActivity() {
    */
   private fun setupUI() {
     lifecycleScope.launch {
-//      val backArrow = findViewById<ImageButton>(R.id.backButton)
-//      backArrow.setOnClickListener {
-//        lifecycleScope.launch(Dispatchers.IO) {
-//          dataManager.setTutorialMode(false)
-//          dataManager.getPrompts()?.also {
-//            it.promptIndex = 0
-//            it.savePromptIndex()
-//          }
-//
-//          withContext(Dispatchers.Main) {
-//            val intent = Intent(this@HomeScreenActivity, PromptSelectActivity::class.java)
-//            startActivity(intent)
-//            Log.i(TAG, "Going back to prompt selection")
-//            finish()
-//          }
-//        }
-//      }
 
       val loadingText = findViewById<TextView>(R.id.loadingText)
       loadingText.visibility = View.GONE
