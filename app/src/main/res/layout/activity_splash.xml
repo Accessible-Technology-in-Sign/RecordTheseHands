@@ -123,6 +123,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="@string/internet_status"
+            android:textColor="@color/alert_yellow"
             android:textStyle="italic"
             android:textSize="20sp"
             android:paddingRight="50dp" />
@@ -133,6 +134,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="@string/server_status"
+            android:textColor="@color/alert_yellow"
             android:textStyle="italic"
             android:textSize="20sp"
             android:paddingLeft="50dp" />

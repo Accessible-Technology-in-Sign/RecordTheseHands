@@ -207,13 +207,43 @@ class HomeScreenActivity : ComponentActivity() {
 
         if (network == null) {
           internetConnectionText.text = getString(R.string.internet_failed)
+          internetConnectionText.setTextColor(
+            ContextCompat.getColor(
+              this@HomeScreenActivity,
+              R.color.alert_red
+            )
+          )
           serverConnectionText.text = getString(R.string.server_failed)
+          serverConnectionText.setTextColor(
+            ContextCompat.getColor(
+              this@HomeScreenActivity,
+              R.color.alert_red
+            )
+          )
         } else {
           internetConnectionText.text = getString(R.string.internet_success)
+          internetConnectionText.setTextColor(
+            ContextCompat.getColor(
+              this@HomeScreenActivity,
+              R.color.alert_green
+            )
+          )
           if (isConnected) {
             serverConnectionText.text = getString(R.string.server_success)
+            serverConnectionText.setTextColor(
+              ContextCompat.getColor(
+                this@HomeScreenActivity,
+                R.color.alert_green
+              )
+            )
           } else {
             serverConnectionText.text = getString(R.string.server_failed)
+            serverConnectionText.setTextColor(
+              ContextCompat.getColor(
+                this@HomeScreenActivity,
+                R.color.alert_red
+              )
+            )
           }
         }
       }

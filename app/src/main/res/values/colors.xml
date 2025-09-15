@@ -10,4 +10,7 @@
     <color name="blue">#FF4423FC</color>
     <color name="lightgray">#FFAAAAAA</color>
     <color name="gray">#FF666666</color>
+    <color name="alert_yellow">#FBC02D</color>
+    <color name="alert_green">#388E3C</color>
+    <color name="alert_red">#D32F2F</color>
 </resources>
