@@ -59,6 +59,9 @@
     <string name="upload_failed">Upload Failed, Click to try again</string>
     <string name="upload_successful">Uploading…</string>
 
+    <!-- Time formatting -->
+    <string name="time_format_min_sec">%1$02dm %2$02ds</string>
+
     <!-- Recording Session Page-->
     <string name="record">Start</string>
     <string name="restart">Mistake\nRestart</string>

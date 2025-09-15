@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
@@ -182,6 +183,9 @@ class HomeScreenActivity : ComponentActivity() {
   /**
    * Sets up all of the UI elements.
    */
+  // The `setOnTouchListener` is used for haptic feedback and the click is handled by a separate
+  // `setOnClickListener`, so `performClick` does not need to be called manually.
+  @SuppressLint("ClickableViewAccessibility")
   private fun setupUI() {
     lifecycleScope.launch {
 
@@ -369,7 +373,7 @@ class HomeScreenActivity : ComponentActivity() {
               }
             }
             requestRecordingPermissions.launch(arrayOf(CAMERA))
-          } else if (permissionRequestedPreviously && shouldAsk(CAMERA)) {
+          } else if (shouldAsk(CAMERA)) {
             // We've asked the user for permissions before, and the prior `when` case failed,
             // so we are allowed to ask for at least one of the required permissions
 
@@ -396,7 +400,7 @@ class HomeScreenActivity : ComponentActivity() {
               }
               show()
             }
-          } else if (permissionRequestedPreviously && cannotGetPermission(CAMERA)) {
+          } else if (cannotGetPermission(CAMERA)) {
             // We've asked the user for permissions before, they haven't been granted,
             // and we cannot ask the user for either camera or storage permissions (we already
             // asked them before)
@@ -460,7 +464,7 @@ class HomeScreenActivity : ComponentActivity() {
                   }
                 }
               } catch (e: InterruptedUploadException) {
-                Log.w(TAG, "Upload Data was interrupted.")
+                Log.w(TAG, "Upload Data was interrupted.", e)
                 runOnUiThread {
                   val textFinish = "Upload interrupted"
                   val toastFinish =
@@ -495,8 +499,7 @@ class HomeScreenActivity : ComponentActivity() {
   fun lifetimeMSTimeFormatter(milliseconds: Long): String {
     val min = milliseconds / 60000
     val sec = (milliseconds % 60000) / 1000
-    val formattedTime = String.format("%02dm %02ds", min, sec)
-    return formattedTime
+    return getString(R.string.time_format_min_sec, min, sec)
   }
 
   /**
@@ -513,6 +516,9 @@ class HomeScreenActivity : ComponentActivity() {
     val view = binding.root
     setContentView(view)
 
+    // `resources.getIdentifier` is used intentionally to check for the existence of optional
+    // credentials defined in a `credentials.xml` file, which may not be present at compile time.
+    @SuppressLint("DiscouragedApi")
     fun hasResource(label: String, type: String = "string"): Boolean {
       return resources.getIdentifier(label, type, packageName) != 0
     }
