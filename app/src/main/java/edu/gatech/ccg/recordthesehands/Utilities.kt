@@ -45,7 +45,7 @@ import javax.mail.internet.MimeMultipart
  * `digits` characters long.
  */
 fun padZeroes(number: Int, digits: Int = 5): String {
-    return "%0${digits}d".format(number)
+  return "%0${digits}d".format(number)
 }
 
 /**

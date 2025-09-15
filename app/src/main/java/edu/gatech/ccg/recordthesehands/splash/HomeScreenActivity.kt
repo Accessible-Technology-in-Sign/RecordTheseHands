@@ -40,13 +40,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -162,38 +162,6 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
 
-  private fun updateConnectionUi() {
-    // TODO When reloading the app, this will generally run before dataManager.runDirectives
-    // runs.  This means, that the data will be incorrect and won't be reloaded until
-    // the upload now button is pressed or the app is restarted.  The best way to fix this
-    // would be to have dataManager broadcast a message every time the server is pinged.
-    val connectivityManager =
-      applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-    val network = connectivityManager.activeNetwork
-    runOnUiThread {
-      val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
-      if (network == null) {
-        internetConnectionText.visibility = View.VISIBLE
-        internetConnectionText.text = getString(R.string.internet_failed)
-      } else {
-        if (dataManager.connectedToServer()) {
-          internetConnectionText.visibility = View.INVISIBLE
-        } else {
-          internetConnectionText.visibility = View.VISIBLE
-        }
-        internetConnectionText.text = getString(R.string.internet_success)
-      }
-
-      val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
-      if (dataManager.connectedToServer()) {
-        serverConnectionText.visibility = View.INVISIBLE
-        serverConnectionText.text = getString(R.string.server_success)
-      } else {
-        serverConnectionText.visibility = View.VISIBLE
-        serverConnectionText.text = getString(R.string.server_failed)
-      }
-    }
-  }
 
   /**
    * Sets up the UI with a loading screen
@@ -227,7 +195,29 @@ class HomeScreenActivity : ComponentActivity() {
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
 //      exitTutorialModeButton.visibility = View.GONE
 
-      updateConnectionUi()
+      dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
+        val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
+        val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
+        val connectivityManager =
+          applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork
+
+        internetConnectionText.visibility = View.VISIBLE
+        serverConnectionText.visibility = View.VISIBLE
+
+        if (network == null) {
+          internetConnectionText.text = getString(R.string.internet_failed)
+          serverConnectionText.text = getString(R.string.server_failed)
+        } else {
+          internetConnectionText.text = getString(R.string.internet_success)
+          if (isConnected) {
+            serverConnectionText.text = getString(R.string.server_success)
+          } else {
+            serverConnectionText.text = getString(R.string.server_failed)
+          }
+        }
+      }
+      dataManager.checkServerConnection()
 
       val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
       deviceIdBox.text = deviceId
@@ -419,8 +409,6 @@ class HomeScreenActivity : ComponentActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
               UploadService.pauseUploadUntil(null)
               try {
-                updateConnectionUi()
-
                 val uploadSucceeded = dataManager.uploadData { progress ->
                   runOnUiThread {
                     Log.d(TAG, "Updating ProgressBar to $progress%")
@@ -453,7 +441,6 @@ class HomeScreenActivity : ComponentActivity() {
                   uploadButton.text = getString(R.string.upload_button)
                 }
               }
-              updateConnectionUi()
             }
           }
 
@@ -565,7 +552,7 @@ class HomeScreenActivity : ComponentActivity() {
     val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
     windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
     windowInsetsController.systemBarsBehavior =
-        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
     Log.d(TAG, "Recording sessions in current sitting: $currentRecordingSessions")
     if (currentRecordingSessions >= MAX_RECORDINGS_IN_SITTING) {

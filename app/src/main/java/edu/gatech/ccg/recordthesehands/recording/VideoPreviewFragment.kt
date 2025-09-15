@@ -131,7 +131,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     val relativePath = arguments?.getString("filepath")
     if (relativePath == null) {
       Log.e(TAG, "VideoPreviewFragment created without a filepath argument.")
-      Toast.makeText(requireContext(), "Cannot play video: file path is missing.", Toast.LENGTH_LONG).show()
+      Toast.makeText(
+        requireContext(),
+        "Cannot play video: file path is missing.",
+        Toast.LENGTH_LONG
+      ).show()
       dismiss()
       return
     }
@@ -139,7 +143,8 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     val filepath = File(requireContext().filesDir, relativePath)
     if (!filepath.exists()) {
       Log.e(TAG, "Video file not found at path: $filepath")
-      Toast.makeText(requireContext(), "Cannot play video: file not found.", Toast.LENGTH_LONG).show()
+      Toast.makeText(requireContext(), "Cannot play video: file not found.", Toast.LENGTH_LONG)
+        .show()
       dismiss()
       return
     }

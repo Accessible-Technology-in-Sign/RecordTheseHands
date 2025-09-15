@@ -421,6 +421,7 @@ class UploadSession(
 
     var code: Int = -1
     var output: String? = null
+    var interrupted = false
     try {
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(fileSize!! - numSavedBytes)
@@ -463,10 +464,14 @@ class UploadSession(
       }
     } catch (e: InterruptedUploadException) {
       Log.i(TAG, "InterruptedUploadException caught and being rethrown: ${e.message}")
+      interrupted = true
       throw e
     } catch (e: IOException) {
       Log.e(TAG, "Upload Failed: $e")
     } finally {
+      if (!interrupted) {
+        dataManager._serverStatus.postValue(code >= 200 && code < 400)
+      }
       urlConnection.disconnect()
     }
     return true
@@ -803,6 +808,7 @@ class DataManager(val context: Context) {
     setAppropriateTrust(urlConnection)
 
     var code: Int = -1
+    var interrupted = false
     try {
       urlConnection.setDoOutput(false)
       urlConnection.requestMethod = "GET"
@@ -819,10 +825,16 @@ class DataManager(val context: Context) {
         Log.e(TAG, "Failed to get url.  Response code: $code ")
         return false
       }
+    } catch (e: InterruptedUploadException) {
+      interrupted = true
+      throw e
     } catch (e: IOException) {
       Log.e(TAG, "Get request failed: $e")
       return false
     } finally {
+      if (!interrupted) {
+        _serverStatus.postValue(code >= 200 && code < 400)
+      }
       urlConnection.disconnect()
     }
     return true
@@ -838,6 +850,7 @@ class DataManager(val context: Context) {
 
     var code: Int = -1
     var output: String? = null
+    var interrupted = false
     try {
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(data.size)
@@ -863,9 +876,15 @@ class DataManager(val context: Context) {
       if (urlConnection.responseCode >= 400) {
         Log.e(TAG, "Response code: $code " + output)
       }
+    } catch (e: InterruptedUploadException) {
+      interrupted = true
+      throw e
     } catch (e: IOException) {
       Log.e(TAG, "Post request failed: $e")
     } finally {
+      if (!interrupted) {
+        _serverStatus.postValue(code >= 200 && code < 400)
+      }
       urlConnection.disconnect()
     }
     return Triple(code, output, outputFromHeader)
@@ -1016,13 +1035,13 @@ class DataManager(val context: Context) {
     }
 
     try {
-        Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
-        FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
-          stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
-        }
+      Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
+      FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
+        stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+      }
     } catch (e: IOException) {
-        Log.e(TAG, "Failed to write login token to file", e)
-        return false
+      Log.e(TAG, "Failed to write login token to file", e)
+      return false
     }
 
     dataManagerData.loginToken = newLoginToken
@@ -1561,7 +1580,6 @@ class DataManager(val context: Context) {
       throw InterruptedUploadException("runDirective was interrupted.")
     }
 
-    checkServerConnection()
     Log.i(TAG, "Download the directives from server.")
     val url = URL(getServer() + "/directives")
     val (code, data) = serverFormPostRequest(
@@ -1829,7 +1847,7 @@ class DataManager(val context: Context) {
   /**
    * Store server status with LiveData
    */
-  private val _serverStatus = MutableLiveData<Boolean>()
+  internal val _serverStatus = MutableLiveData<Boolean>()
   val serverStatus: LiveData<Boolean> get() = _serverStatus
 
   /**
@@ -1840,12 +1858,8 @@ class DataManager(val context: Context) {
    */
   fun checkServerConnection() {
     CoroutineScope(Dispatchers.IO).launch {
-      val isConnected = pingServer()
-      _serverStatus.postValue(isConnected) // Update LiveData on the main thread
-      // Debugging
-      Log.d(TAG, "Check server connection: $isConnected")
+      pingServer()
     }
-
   }
 
   /**
@@ -1860,9 +1874,12 @@ class DataManager(val context: Context) {
       urlConnection.connectTimeout = 5000
       urlConnection.readTimeout = 5000
       val responseCode = urlConnection.responseCode
-      return responseCode == HttpURLConnection.HTTP_OK
+      val success = responseCode == HttpURLConnection.HTTP_OK
+      _serverStatus.postValue(success)
+      return success
     } catch (e: Exception) {
       Log.d(TAG, e.toString())
+      _serverStatus.postValue(false)
       return false
     }
   }
