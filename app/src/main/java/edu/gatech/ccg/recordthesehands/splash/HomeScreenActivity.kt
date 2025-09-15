@@ -44,6 +44,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -574,6 +577,13 @@ class HomeScreenActivity : ComponentActivity() {
    */
   override fun onResume() {
     super.onResume()
+
+    WindowCompat.setDecorFitsSystemWindows(window, false)
+    val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+    windowInsetsController.systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
     Log.d(TAG, "Recording sessions in current sitting: $currentRecordingSessions")
     if (currentRecordingSessions >= MAX_RECORDINGS_IN_SITTING) {
       setContentView(R.layout.end_of_sitting_message)
