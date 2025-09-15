@@ -172,7 +172,7 @@ class HomeScreenActivity : ComponentActivity() {
     startRecordingButton.isClickable = false
     startRecordingButton.text = getString(R.string.start_failed)
     val versionText = findViewById<TextView>(R.id.versionText)
-    versionText.text = "v$APP_VERSION"
+    versionText.text = getString(R.string.version_text, APP_VERSION)
     val loadingText = findViewById<TextView>(R.id.loadingText)
     loadingText.visibility = View.VISIBLE
     val mainGroup = findViewById<Group>(R.id.mainGroup)

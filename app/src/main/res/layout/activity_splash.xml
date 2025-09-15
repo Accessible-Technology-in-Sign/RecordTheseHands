@@ -23,7 +23,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:layout_marginEnd="12dp"
-        android:text="@string/version"
         android:textColor="@color/gray"
         android:textSize="20sp"
         app:layout_constraintTop_toTopOf="parent"
