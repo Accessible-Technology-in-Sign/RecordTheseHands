@@ -940,10 +940,12 @@ class DataManager(val context: Context) {
   }
 
   suspend fun setTutorialMode(mode: Boolean) {
+    Log.d(TAG, "setTutorialMode($mode)")
     val keyObject = booleanPreferencesKey("tutorialMode")
     context.prefStore.edit {
       it[keyObject] = mode
     }
+    _tutorialModeStatus.postValue(mode)
   }
 
   suspend fun newSessionId(): String {
@@ -1767,7 +1769,7 @@ class DataManager(val context: Context) {
   suspend fun ensureResources(prompts: Prompts): Boolean {
     Log.i(TAG, "ensureResources")
     for (prompt in prompts.array) {
-      Log.d(TAG, "prompt ${prompt.toJson()}")
+      // Log.d(TAG, "prompt ${prompt.toJson()}")
       if (prompt.resourcePath != null) {
         if (!ensureResource(prompt.resourcePath)) {
           Log.e(TAG, "failed to acquire resource ${prompt.resourcePath}")
@@ -1851,6 +1853,12 @@ class DataManager(val context: Context) {
   val serverStatus: LiveData<Boolean> get() = _serverStatus
 
   /**
+   * Store tutorial mode status with LiveData
+   */
+  internal val _tutorialModeStatus = MutableLiveData<Boolean>()
+  val tutorialModeStatus: LiveData<Boolean> get() = _tutorialModeStatus
+
+  /**
    * Check server connection by pinging server
    * method must be called whenever you want to check the server status
    * TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
@@ -1859,6 +1867,12 @@ class DataManager(val context: Context) {
   fun checkServerConnection() {
     CoroutineScope(Dispatchers.IO).launch {
       pingServer()
+    }
+  }
+
+  fun checkTutorialMode() {
+    CoroutineScope(Dispatchers.IO).launch {
+      _tutorialModeStatus.postValue(getTutorialMode())
     }
   }
 

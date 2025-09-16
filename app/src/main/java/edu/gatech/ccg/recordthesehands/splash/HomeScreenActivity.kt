@@ -195,9 +195,20 @@ class HomeScreenActivity : ComponentActivity() {
       mainGroup.visibility = View.VISIBLE
 
       val startRecordingButton = findViewById<Button>(R.id.startButton)
-//      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
+      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
-//      exitTutorialModeButton.visibility = View.GONE
+
+      exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      exitTutorialModeButton.setOnClickListener {
+        CoroutineScope(Dispatchers.IO).launch {
+          dataManager.setTutorialMode(false)
+          dataManager.getPrompts()?.also {
+            it.promptIndex = 0
+            it.savePromptIndex()
+          }
+          finish()
+        }
+      }
 
       dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
         val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
@@ -264,11 +275,22 @@ class HomeScreenActivity : ComponentActivity() {
         val usernameBox = findViewById<TextView>(R.id.usernameBox)
         usernameBox.text = username
       }
-      val tutorialMode = dataManager.getTutorialMode()
-      if (tutorialMode) {
-        tutorialModeText.visibility = View.VISIBLE
-      } else {
-        tutorialModeText.visibility = View.GONE
+      dataManager.tutorialModeStatus.observe(this@HomeScreenActivity) { tutorialMode ->
+        Log.d(TAG, "observed state change of tutorialMode to ${tutorialMode}")
+        if (tutorialMode) {
+          tutorialModeText.visibility = View.VISIBLE
+        } else {
+          tutorialModeText.visibility = View.GONE
+        }
+        val numPrompts = prompts?.array?.size
+        val promptIndex = prompts?.promptIndex
+        if (tutorialMode && (currentRecordingSessions > 0 ||
+              (promptIndex ?: 0) >= (numPrompts ?: 0))
+        ) {
+          exitTutorialModeButton.visibility = View.VISIBLE
+        } else {
+          exitTutorialModeButton.visibility = View.GONE
+        }
       }
 
       val numPrompts = prompts?.array?.size
@@ -303,24 +325,6 @@ class HomeScreenActivity : ComponentActivity() {
         val completedPrompts = prompts!!.promptIndex.toString()
         val totalPrompts = prompts!!.array.size.toString()
         promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
-
-//        if (tutorialMode && (currentRecordingSessions > 0 ||
-//              (promptIndex ?: 0) >= (numPrompts ?: 0))
-//        )
-//        {
-//          exitTutorialModeButton.visibility = View.VISIBLE
-//          exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-//          exitTutorialModeButton.setOnClickListener {
-//            CoroutineScope(Dispatchers.IO).launch {
-//              dataManager.setTutorialMode(false)
-//              dataManager.getPrompts()?.also {
-//                it.promptIndex = 0
-//                it.savePromptIndex()
-//              }
-//              finish()
-//            }
-//          }
-//        }
       }
 
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
@@ -596,6 +600,7 @@ class HomeScreenActivity : ComponentActivity() {
       return
     }
     setupLoadingUI()
+    dataManager.checkTutorialMode()
     thread {
       runBlocking {
         username = dataManager.getUsername()

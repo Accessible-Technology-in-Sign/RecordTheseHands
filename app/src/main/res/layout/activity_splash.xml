@@ -306,10 +306,10 @@
         android:text="@string/start_button"
         android:textColor="@color/white"
         android:textSize="24sp"
-        app:layout_constraintStart_toEndOf="@id/uploadButton"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHorizontal_chainStyle="packed" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toEndOf="@id/uploadButton" />
 
 
     <TextView
@@ -326,21 +326,21 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!--    <Button-->
-    <!--        android:id="@+id/exitTutorialModeButton"-->
-    <!--        android:layout_width="wrap_content"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:layout_marginStart="60dp"-->
-    <!--        android:layout_marginBottom="24dp"-->
-    <!--        android:text="Exit Tutorial"-->
-    <!--        android:enabled="true"-->
-    <!--        android:visibility="visible"-->
-    <!--        android:background="@drawable/rounded_corners"-->
-    <!--        android:backgroundTint="@color/button_color"-->
-    <!--        android:textColor="@color/white"-->
-    <!--        android:textSize="24sp"-->
-    <!--        android:paddingLeft="30dp"-->
-    <!--        android:paddingRight="30dp"-->
-    <!--        app:layout_constraintBottom_toBottomOf="parent"-->
-    <!--        app:layout_constraintStart_toStartOf="parent" />-->
+    <Button
+        android:id="@+id/exitTutorialModeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="60dp"
+        android:layout_marginBottom="24dp"
+        android:text="Exit Tutorial"
+        android:enabled="true"
+        android:visibility="gone"
+        android:background="@drawable/rounded_corners"
+        android:backgroundTint="@color/button_color"
+        android:textColor="@color/white"
+        android:textSize="24sp"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>
