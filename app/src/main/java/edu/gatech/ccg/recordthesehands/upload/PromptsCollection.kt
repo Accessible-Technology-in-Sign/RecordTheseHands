@@ -49,16 +49,42 @@ class PromptsCollection(val context: Context) {
     }
     return true
   }
+
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    val sectionsJson = JSONObject()
+    for ((key, value) in sections) {
+      sectionsJson.put(key, value.toJson())
+    }
+    json.put("sections", sectionsJson)
+    return json
+  }
 }
 
 data class PromptsSectionMetadata(
   val dataCollectionId: String?,
   val useSummaryPage: Boolean
-)
+) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("dataCollectionId", dataCollectionId)
+    json.put("useSummaryPage", useSummaryPage)
+    return json
+  }
+}
 
 class PromptsSection(
   val name: String,
   val metadata: PromptsSectionMetadata,
   val mainPrompts: Prompts,
   val tutorialPrompts: Prompts
-)
+) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("name", name)
+    json.put("metadata", metadata.toJson())
+    json.put("mainPrompts", mainPrompts.toJson())
+    json.put("tutorialPrompts", tutorialPrompts.toJson())
+    return json
+  }
+}

@@ -1184,10 +1184,9 @@ class DataManager(val context: Context) {
       }
     }
 
-    // TODO save the entire promptsCollection along with
-    // the state of the currently used section name and all the
-    // prompt progress.
-    json.put("prompts", getCurrentPrompts()?.first?.toJson())
+    json.put("prompts", getPromptsCollection()?.toJson())
+    json.put("currentSectionName", getCurrentSectionName())
+    json.put("promptProgress", JSONObject(getPromptProgress()))
 
     val url = URL(getServer() + "/save_state")
     val (code, _) =
