@@ -156,6 +156,7 @@ def main():
   print(f'Using username: {username}')
   if sys.argv[2] == 'noop':
     create_directive(sys.argv[1], sys.argv[2], '{}')
+
   elif sys.argv[2] == 'printDirectives':
     print_directives(sys.argv[1])
   elif sys.argv[2] == 'changeUser':
@@ -168,7 +169,7 @@ def main():
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'updateApk':
     create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'downloadPrompts':
+  elif sys.argv[2] == 'setPrompts':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     prompts_data = {
         'path': sys.argv[3],
@@ -185,21 +186,6 @@ def main():
   elif sys.argv[2] == 'deleteFile':
     output = {'filepath': sys.argv[3]}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
-  elif sys.argv[2] == 'downloadTutorialPrompts':
-    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    prompts_data = {
-        'path': sys.argv[3],
-        'creationTimestamp': timestamp,
-        'tutorialMode': True,
-    }
-    db = firestore.Client()
-    doc_ref = db.document(f'collector/users/{username}/data/prompts/tutorial')
-    doc_ref.set(prompts_data)
-    doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/all/all/{timestamp}'
-    )
-    doc_ref.set(prompts_data)
-    create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':
     output = {'filepath': sys.argv[3]}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))

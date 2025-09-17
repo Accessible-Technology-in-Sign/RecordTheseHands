@@ -122,10 +122,7 @@ class LoadDataActivity : ComponentActivity() {
     enableTutorialModeButton.setOnClickListener {
       CoroutineScope(Dispatchers.IO).launch {
         dataManager.setTutorialMode(true)
-        dataManager.getPrompts()?.also {
-          it.promptIndex = 0
-          it.savePromptIndex()
-        }
+        dataManager.saveCurrentPromptIndex(0)
         finish()
       }
     }

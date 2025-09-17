@@ -105,6 +105,11 @@ object Constants {
   const val UPLOAD_NOTIFICATION_ID = 1
   const val UPLOAD_NOTIFICATION_CHANNEL_ID = "upload_service"
 
+  /**
+   * The filename for the prompts file.
+   */
+  const val PROMPTS_FILENAME = "prompts.json"
+
   private const val SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
 
   val UPLOAD_RESUME_ON_START_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L

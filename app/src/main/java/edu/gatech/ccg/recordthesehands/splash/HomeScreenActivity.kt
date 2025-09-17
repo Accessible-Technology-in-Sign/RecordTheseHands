@@ -202,11 +202,8 @@ class HomeScreenActivity : ComponentActivity() {
       exitTutorialModeButton.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
           dataManager.setTutorialMode(false)
-          dataManager.getPrompts()?.also {
-            it.promptIndex = 0
-            it.savePromptIndex()
-          }
-          finish()
+          // TODO Verify that all the relevant state updates naturally and
+          // that we don't need to call finish to reboot the Activity.
         }
       }
 
@@ -282,19 +279,21 @@ class HomeScreenActivity : ComponentActivity() {
         } else {
           tutorialModeText.visibility = View.GONE
         }
-        val numPrompts = prompts?.array?.size
-        val promptIndex = prompts?.promptIndex
-        if (tutorialMode && (currentRecordingSessions > 0 ||
-              (promptIndex ?: 0) >= (numPrompts ?: 0))
-        ) {
-          exitTutorialModeButton.visibility = View.VISIBLE
-        } else {
-          exitTutorialModeButton.visibility = View.GONE
+        lifecycleScope.launch {
+          val numPrompts = prompts?.array?.size
+          val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
+          if (tutorialMode && (currentRecordingSessions > 0 ||
+                promptIndex >= (numPrompts ?: 0))
+          ) {
+            exitTutorialModeButton.visibility = View.VISIBLE
+          } else {
+            exitTutorialModeButton.visibility = View.GONE
+          }
         }
       }
 
       val numPrompts = prompts?.array?.size
-      val promptIndex = prompts?.promptIndex
+      val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
       if (prompts != null && username != null) {
         if (promptIndex!! < numPrompts!!) {
           startRecordingButton.isEnabled = true
@@ -322,7 +321,7 @@ class HomeScreenActivity : ComponentActivity() {
       sessionCounterBox.text = currentRecordingSessions.toString()
       if (prompts != null) {
         val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
-        val completedPrompts = prompts!!.promptIndex.toString()
+        val completedPrompts = dataManager.getCurrentPromptIndex().toString()
         val totalPrompts = prompts!!.array.size.toString()
         promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
       }
@@ -604,14 +603,14 @@ class HomeScreenActivity : ComponentActivity() {
     thread {
       runBlocking {
         username = dataManager.getUsername()
-        prompts = dataManager.getPrompts()
+        prompts = dataManager.getCurrentPrompts()?.first
         if (username == null) {
           val intent = Intent(applicationContext, LoadDataActivity::class.java)
           startActivity(intent)
         }
         deviceId = dataManager.getDeviceId()
         val numPrompts = prompts?.array?.size
-        val promptIndex = prompts?.promptIndex
+        val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
         dataManager.logToServer(
           "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )

@@ -44,6 +44,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
+import edu.gatech.ccg.recordthesehands.Constants.PROMPTS_FILENAME
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.R
@@ -649,8 +650,7 @@ class DataManagerData() {
   val lock = Mutex()
   var deviceId: String? = null
   var loginToken: String? = null
-  var promptsData: Prompts? = null
-  var tutorialPromptsData: Prompts? = null
+  var promptsCollection: PromptsCollection? = null
   var keyValues = mutableMapOf<String, JSONObject>()
   var registeredFiles = mutableMapOf<String, JSONObject>()
   var connectedToServer = false
@@ -948,6 +948,99 @@ class DataManager(val context: Context) {
     _tutorialModeStatus.postValue(mode)
   }
 
+  suspend fun getCurrentSectionName(): String? {
+    val keyObject = stringPreferencesKey("currentSectionName")
+    return context.prefStore.data.map {
+      it[keyObject]
+    }.firstOrNull()
+  }
+
+  suspend fun setCurrentSection(sectionName: String) {
+    val keyObject = stringPreferencesKey("currentSectionName")
+    context.prefStore.edit {
+      it[keyObject] = sectionName
+    }
+  }
+
+  suspend fun getPromptProgress(): Map<String, Map<String, Int>> {
+    val keyObject = stringPreferencesKey("promptProgress")
+    val jsonString = context.prefStore.data.map {
+      it[keyObject]
+    }.firstOrNull() ?: return emptyMap()
+
+    val progressMap = mutableMapOf<String, Map<String, Int>>()
+    val json = JSONObject(jsonString)
+    json.keys().forEach { sectionName ->
+      val sectionJson = json.getJSONObject(sectionName)
+      val sectionMap = mutableMapOf<String, Int>()
+      if (sectionJson.has("mainIndex")) {
+        sectionMap["mainIndex"] = sectionJson.getInt("mainIndex")
+      }
+      if (sectionJson.has("tutorialIndex")) {
+        sectionMap["tutorialIndex"] = sectionJson.getInt("tutorialIndex")
+      }
+      progressMap[sectionName] = sectionMap
+    }
+    return progressMap
+  }
+
+  suspend fun savePromptProgress(progress: Map<String, Map<String, Int>>) {
+    val keyObject = stringPreferencesKey("promptProgress")
+    val json = JSONObject()
+    progress.forEach { (sectionName, sectionMap) ->
+      val sectionJson = JSONObject()
+      sectionMap.forEach { (key, value) ->
+        sectionJson.put(key, value)
+      }
+      json.put(sectionName, sectionJson)
+    }
+    context.prefStore.edit {
+      it[keyObject] = json.toString()
+    }
+  }
+
+  suspend fun getCurrentPromptIndex(): Int {
+    val sectionName = getCurrentSectionName() ?: return 0
+    val progress = getPromptProgress()
+    val sectionProgress = progress[sectionName] ?: return 0
+    val tutorialMode = getTutorialMode()
+    return if (tutorialMode) {
+      sectionProgress["tutorialIndex"] ?: 0
+    } else {
+      sectionProgress["mainIndex"] ?: 0
+    }
+  }
+
+  suspend fun saveCurrentPromptIndex(index: Int) {
+    val sectionName = getCurrentSectionName() ?: return
+    val progress = getPromptProgress().toMutableMap()
+    val sectionProgress = progress[sectionName]?.toMutableMap() ?: mutableMapOf()
+    val tutorialMode = getTutorialMode()
+    if (tutorialMode) {
+      sectionProgress["tutorialIndex"] = index
+    } else {
+      sectionProgress["mainIndex"] = index
+    }
+    progress[sectionName] = sectionProgress
+    savePromptProgress(progress)
+  }
+
+  suspend fun getCurrentSection(): PromptSection? {
+    val sectionName = getCurrentSectionName() ?: return null
+    val promptsCollection = getPromptsCollection() ?: return null
+    return promptsCollection.sections[sectionName]
+  }
+
+  suspend fun getCurrentPrompts(): Pair<Prompts, PromptSectionMetadata>? {
+    val section = getCurrentSection() ?: return null
+    val tutorialMode = getTutorialMode()
+    return if (tutorialMode) {
+      Pair(section.tutorialPrompts, section.metadata)
+    } else {
+      Pair(section.mainPrompts, section.metadata)
+    }
+  }
+
   suspend fun newSessionId(): String {
     val deviceId = getDeviceId()
     val keyObject = intPreferencesKey("sessionIdIndex")
@@ -968,36 +1061,17 @@ class DataManager(val context: Context) {
   }
 
   private suspend fun reloadPromptsFromServer(): Boolean {
-    dataManagerData.tutorialPromptsData = null
-    dataManagerData.promptsData = null
-    val key1Object = stringPreferencesKey("promptsFilename")
-    val key2Object = stringPreferencesKey("tutorialPromptsFilename")
-    val key3Object = intPreferencesKey("promptIndex")
+    dataManagerData.promptsCollection = null
     context.prefStore.edit { preferences ->
-      preferences.remove(key1Object)
-      preferences.remove(key2Object)
-      preferences.remove(key3Object)
+      // Remove old, now unused, preference keys.
+      preferences.remove(stringPreferencesKey("promptsFilename"))
+      preferences.remove(stringPreferencesKey("tutorialPromptsFilename"))
+      preferences.remove(intPreferencesKey("promptIndex"))
+      // Remove current prompt state.
+      preferences.remove(stringPreferencesKey("currentSectionName"))
+      preferences.remove(stringPreferencesKey("promptProgress"))
     }
-    var returnValue = true
-    if (!downloadPrompts(
-        false,
-        "promptsFilename",
-        "promptIndex"
-      )
-    ) {
-      Log.w(TAG, "Unable to download normal prompts file.")
-      returnValue = false
-    }
-    if (!downloadPrompts(
-        true,
-        "tutorialPromptsFilename",
-        "promptIndex"
-      )
-    ) {
-      Log.w(TAG, "Unable to download tutorial prompts file.")
-      returnValue = false
-    }
-    return returnValue
+    return downloadPrompts()
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -1111,7 +1185,10 @@ class DataManager(val context: Context) {
       }
     }
 
-    json.put("prompts", getPrompts()?.toJson())
+    // TODO save the entire promptsCollection along with
+    // the state of the currently used section name and all the
+    // prompt progress.
+    json.put("prompts", getCurrentPrompts()?.first?.toJson())
 
     val url = URL(getServer() + "/save_state")
     val (code, _) =
@@ -1414,30 +1491,8 @@ class DataManager(val context: Context) {
       if (!directiveCompleted(id)) {
         return false
       }
-    } else if (op == "reloadPrompts") {
+    } else if (op == "setPrompts" || op == "reloadPrompts") {
       if (!reloadPromptsFromServer()) {
-        return false
-      }
-      if (!directiveCompleted(id)) {
-        return false
-      }
-    } else if (op == "downloadPrompts") {
-      if (!downloadPrompts(
-          false, "promptsFilename", "promptIndex"
-        )
-      ) {
-        return false
-      }
-      if (!directiveCompleted(id)) {
-        return false
-      }
-    } else if (op == "downloadTutorialPrompts") {
-      if (!downloadPrompts(
-          true,
-          "tutorialPromptsFilename",
-          "promptIndex"
-        )
-      ) {
         return false
       }
       if (!directiveCompleted(id)) {
@@ -1481,14 +1536,10 @@ class DataManager(val context: Context) {
     return true
   }
 
-  private suspend fun downloadPrompts(
-    useTutorialMode: Boolean, promptsFilenameKey: String, promptIndexKey: String
-  ): Boolean {
+  private suspend fun downloadPrompts(): Boolean {
     val url = URL(getServer() + "/prompts")
     Log.i(TAG, "downloading prompt data at $url.")
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    val relativePath = "prompts" + File.separator + timestamp + ".json"
-    val filepath = File(context.filesDir, relativePath)
+    val filepath = File(context.filesDir, PROMPTS_FILENAME)
 
     filepath.parentFile?.let { parentDir ->
       if (!parentDir.exists()) {
@@ -1496,13 +1547,12 @@ class DataManager(val context: Context) {
         parentDir.mkdirs()
       }
     }
-    Log.i(TAG, "downloading prompt data to $filepath (useTutorialMode = ${useTutorialMode})")
+    Log.i(TAG, "downloading prompt data to $filepath")
     val (code, data) = serverFormPostRequest(
       url,
       mapOf(
         "app_version" to APP_VERSION,
         "login_token" to dataManagerData.loginToken!!,
-        "tutorial_mode" to useTutorialMode.toString(),
       )
     )
     if (code >= 200 && code < 300) {
@@ -1524,17 +1574,8 @@ class DataManager(val context: Context) {
     }
     Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
 
-    val resetTheIndex = (useTutorialMode == getTutorialMode())
-    val keyObject = stringPreferencesKey(promptsFilenameKey)
-    val key2Object = intPreferencesKey(promptIndexKey)
-    context.prefStore.edit { preferences ->
-      preferences[keyObject] = relativePath
-      if (resetTheIndex) {
-        preferences[key2Object] = 0
-      }
-    }
-    dataManagerData.promptsData = null
-    dataManagerData.tutorialPromptsData = null
+    // Clear the cached prompts collection so it will be reloaded.
+    dataManagerData.promptsCollection = null
     return true
   }
 
@@ -1711,59 +1752,37 @@ class DataManager(val context: Context) {
     return dataManagerData.connectedToServer
   }
 
-  suspend fun getPrompts(): Prompts? {
-    val tutorialMode = getTutorialMode()
-    if (tutorialMode) {
-      return getTutorialPrompts()
-    } else {
-      return getNormalPrompts()
+  suspend fun getPromptsCollection(): PromptsCollection? {
+    if (dataManagerData.promptsCollection != null) {
+      return dataManagerData.promptsCollection
+    }
+    dataManagerData.lock.withLock {
+      if (dataManagerData.promptsCollection != null) {
+        return dataManagerData.promptsCollection
+      }
+      val newPromptsCollection = PromptsCollection(context)
+      if (!newPromptsCollection.initialize()) {
+        return null
+      }
+      if (!ensureResources(newPromptsCollection)) {
+        return null
+      }
+      dataManagerData.promptsCollection = newPromptsCollection
+      return dataManagerData.promptsCollection
     }
   }
 
-  private suspend fun getTutorialPrompts(): Prompts? {
-    if (dataManagerData.tutorialPromptsData != null) {
-      return dataManagerData.tutorialPromptsData
+  suspend fun ensureResources(promptsCollection: PromptsCollection): Boolean {
+    Log.i(TAG, "ensureResources for promptsCollection")
+    for (section in promptsCollection.sections.values) {
+      if (!ensureResources(section.mainPrompts)) {
+        return false
+      }
+      if (!ensureResources(section.tutorialPrompts)) {
+        return false
+      }
     }
-    dataManagerData.lock.withLock {
-      if (dataManagerData.tutorialPromptsData != null) {
-        return dataManagerData.tutorialPromptsData
-      }
-      val newPromptsData = Prompts(
-        context, "tutorialPromptsFilename", "promptIndex"
-      )
-      if (!newPromptsData.initialize()) {
-        Log.w(TAG, "Tutorial prompts not initialized!")
-        return null
-      }
-      if (!ensureResources(newPromptsData)) {
-        Log.w(TAG, "Tutorial prompt resources not initialized!")
-        return null
-      }
-      dataManagerData.tutorialPromptsData = newPromptsData
-      return dataManagerData.tutorialPromptsData
-    }
-  }
-
-  private suspend fun getNormalPrompts(): Prompts? {
-    if (dataManagerData.promptsData != null) {
-      return dataManagerData.promptsData
-    }
-    dataManagerData.lock.withLock {
-      if (dataManagerData.promptsData != null) {
-        return dataManagerData.promptsData
-      }
-      val newPromptsData = Prompts(
-        context, "promptsFilename", "promptIndex"
-      )
-      if (!newPromptsData.initialize()) {
-        return null
-      }
-      if (!ensureResources(newPromptsData)) {
-        return null
-      }
-      dataManagerData.promptsData = newPromptsData
-      return dataManagerData.promptsData
-    }
+    return true
   }
 
   suspend fun ensureResources(prompts: Prompts): Boolean {
@@ -1926,32 +1945,28 @@ class Prompt(
 
 }
 
-class Prompts(val context: Context, val promptsFilenameKey: String, val promptIndexKey: String) {
+/**
+ * A class which encapsulates the raw prompts data obtained from the server.
+ * No mutable state such as which index is being used is contained within this class.
+ */
+class Prompts(val context: Context) {
   companion object {
     private val TAG = Prompts::class.simpleName
   }
 
   var array = ArrayList<Prompt>()
-  var promptIndex = -1
-  var useSummaryPage = false
 
-  suspend fun initialize(): Boolean {
-    Log.i(TAG, "Getting prompt data with key ${promptsFilenameKey}.")
-    val keyObject = stringPreferencesKey(promptsFilenameKey)
-    val key2Object = intPreferencesKey(promptIndexKey)
-    val promptsData = context.prefStore.data.map {
-      Pair(it[keyObject], it[key2Object])
-    }.firstOrNull() ?: return false
-    val promptsRelativePath = promptsData.first ?: return false
-    promptIndex = promptsData.second ?: return false
-    Log.d(TAG, "Prefs: path=$promptsRelativePath, index=$promptIndex")
+  fun populateFrom(promptsJsonArray: JSONArray) {
+    array.clear()
     try {
-      val promptsJson = JSONObject(File(context.filesDir, promptsRelativePath).readText())
-      val promptsJsonArray = promptsJson.getJSONArray("prompts")
       array.ensureCapacity(promptsJsonArray.length())
-      for (i in 0..promptsJsonArray.length() - 1) {
+      for (i in 0 until promptsJsonArray.length()) {
         val data = promptsJsonArray.getJSONObject(i)
-        val key = data.getString("key")
+        val key = if (data.has("promptId")) {
+          data.getString("promptId")
+        } else {
+          data.getString("key")
+        }
         var promptType = PromptType.TEXT
         if (data.has("type")) {
           promptType = PromptType.valueOf(data.getString("type"))
@@ -1966,30 +1981,13 @@ class Prompts(val context: Context, val promptsFilenameKey: String, val promptIn
         }
         array.add(Prompt(i, key, promptType, prompt, resourcePath))
       }
-      if (promptsJson.has("useSummaryPage")) {
-        useSummaryPage = promptsJson.getBoolean("useSummaryPage")
-      }
-    } catch (e: IOException) {
-      Log.e(TAG, "failed to load prompts, encountered IOException $e")
-      return false
     } catch (e: JSONException) {
-      Log.e(TAG, "failed to load prompts, encountered JSONException $e")
-      return false
-    }
-
-    return true
-  }
-
-  suspend fun savePromptIndex() {
-    val key2Object = intPreferencesKey(promptIndexKey)
-    context.prefStore.edit { preferences ->
-      preferences[key2Object] = promptIndex
+      Log.e(TAG, "failed to parse prompts, encountered JSONException $e")
     }
   }
 
   fun toJson(): JSONObject {
     val json = JSONObject()
-    json.put("promptIndex", promptIndex)
     val arrayJson = JSONArray()
     for (prompt in array) {
       arrayJson.put(prompt.toJson())

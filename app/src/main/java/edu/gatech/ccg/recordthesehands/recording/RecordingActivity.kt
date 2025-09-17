@@ -380,6 +380,12 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private var currentPage: Int = 0
 
   /**
+   * The current prompt index within the active section. This is updated in memory during the
+   * session and saved to disk only at the end.
+   */
+  private var currentPromptIndex: Int = 0
+
+  /**
    * A timer for the recording, which starts with a time limit of `COUNTDOWN_DURATION` and
    * shows its current value in `countdownText`. When the timer expires, the recording
    * automatically stops and the user is taken to the summary screen.
@@ -391,6 +397,11 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * The prompts data.
    */
   lateinit var prompts: Prompts
+
+  /**
+   * Whether to use the summary page.
+   */
+  var useSummaryPage = false
 
   // Recording and session data
   /**
@@ -824,7 +835,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   fun goToSummaryPage() {
     isSigning = false
 
-    if (!prompts.useSummaryPage) {
+    if (!useSummaryPage) {
       concludeRecordingSession()
     }
     runOnUiThread {
@@ -1159,9 +1170,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         json.put("endTimestamp", timestamp)
         dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
         dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
-        prompts.savePromptIndex()
         sessionInfo.endTimestamp = now
-        sessionInfo.finalPromptIndex = prompts.promptIndex
+        sessionInfo.finalPromptIndex = currentPromptIndex
+        dataManager.saveCurrentPromptIndex(currentPromptIndex)
         dataManager.saveSessionInfo(sessionInfo)
         dataManager.updateLifetimeStatistics(
           Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
@@ -1221,7 +1232,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
 
     runBlocking {
-      prompts = dataManager.getPrompts() ?: throw IllegalStateException("prompts not available.")
+      val (prompts, metadata) = dataManager.getCurrentPrompts()
+        ?: throw IllegalStateException("prompts not available.")
+      this@RecordingActivity.prompts = prompts
+      this@RecordingActivity.useSummaryPage = metadata.useSummaryPage
       username = dataManager.getUsername() ?: throw IllegalStateException("username not available.")
       tutorialMode = dataManager.getTutorialMode()
       val sessionType = if (tutorialMode) "tutorial" else "normal"
@@ -1231,10 +1245,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       } else {
         filename = "${username}-${sessionId}-${timestamp}.mp4"
       }
-      sessionStartIndex = prompts.promptIndex
+      sessionStartIndex = dataManager.getCurrentPromptIndex()
       val sessionLength =
         if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
-      sessionLimit = min(prompts.array.size, prompts.promptIndex + sessionLength)
+      sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)
       sessionInfo = RecordingSessionInfo(
         sessionId, filename, dataManager.getDeviceId(), username, sessionType,
         sessionStartIndex, sessionLimit
@@ -1244,7 +1258,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     dataManager.logToServer(
       "Setting up recording with filename ${filename} for prompts " +
-          "[${prompts.promptIndex}, ${sessionLimit})"
+          "[${sessionStartIndex}, ${sessionLimit})"
     )
 
     val aspectRatioLayout = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
@@ -1253,7 +1267,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
 
     // Set title bar text
-    title = "${prompts.promptIndex + 1} of ${prompts.array.size}"
+    title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
     // Enable record button
     recordButton = findViewById<Button>(R.id.recordButton)
@@ -1277,7 +1291,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // Instantiate recording indicator
     recordingLightView = findViewById(R.id.recordingLight)
 
-    sessionPager.adapter = WordPagerAdapter(this, prompts.useSummaryPage)
+    sessionPager.adapter = WordPagerAdapter(this, useSummaryPage)
 
     // Set up swipe handler for the word selector UI
     sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -1309,7 +1323,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         currentPage = sessionPager.currentItem
         super.onPageSelected(currentPage)
         if (endSessionOnClipEnd) {
-          prompts.promptIndex += 1
+          currentPromptIndex += 1
           goToSummaryPage()
           return
         }
@@ -1317,9 +1331,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
         if (promptIndex < sessionLimit) {
           dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-          prompts.promptIndex = promptIndex
+          currentPromptIndex = promptIndex
           runOnUiThread {
-            title = "${prompts.promptIndex + 1} of ${prompts.array.size}"
+            title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
             setButtonState(recordButton, true)
             setButtonState(restartButton, false)
@@ -1328,7 +1342,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           }
         } else if (promptIndex == sessionLimit) {
           dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
-          prompts.promptIndex = sessionLimit
+          currentPromptIndex = promptIndex
           /**
            * Page to give the user a chance to swipe back and record more before
            * finishing.
@@ -1341,7 +1355,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           recordingLightView.visibility = View.GONE
         } else {
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-          if (!prompts.useSummaryPage) {
+          if (!useSummaryPage) {
             // Shouldn't happen, but just in case.
             concludeRecordingSession()
           }

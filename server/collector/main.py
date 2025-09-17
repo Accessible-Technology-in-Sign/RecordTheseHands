@@ -351,40 +351,29 @@ def prompts_page():
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
     return 'login_token invalid', 400
-  tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
-      '1',
-      't',
-      'true',
-  ]
-  if tutorial_mode:
-    prompts_key = 'tutorial'
-  else:
-    prompts_key = 'active'
 
   assert username
 
-  logging.info(f'/prompts {username} tutorial_mode={tutorial_mode}')
+  logging.info(f'/prompts {username}')
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data/prompts/{prompts_key}'
+      f'collector/users/{username}/data/prompts/active'
   )
   doc_data = doc_ref.get()
   if not doc_data.exists:
     return (
         f'no prompts found for user {username}'
-        f' with tutorial_mode {tutorial_mode}'
     ), 404
   doc_dict = doc_data.to_dict()
   path = doc_dict.get('path')
   if not path:
     return (
         f'prompt file not found for user {username}'
-        f' with tutorial_mode {tutorial_mode}'
     ), 404
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-  server_log_key = f'downloadPrompts-{timestamp}'
+  server_log_key = f'prompts-{timestamp}'
   app_version = flask.request.values.get('app_version', 'unknown')
   doc_ref = db.document(
       f'collector/users/{username}/data/server/{server_log_key}'
@@ -392,7 +381,6 @@ def prompts_page():
       {
           'appVersion': app_version,
           'path': path,
-          'tutorialMode': tutorial_mode,
           'timestamp': timestamp,
       }
   )
