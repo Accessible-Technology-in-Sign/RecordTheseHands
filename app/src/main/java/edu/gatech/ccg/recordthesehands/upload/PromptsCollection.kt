@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.io.File
 
 class PromptsCollection(val context: Context) {
-  var sections = mutableMapOf<String, PromptSection>()
+  var sections = mutableMapOf<String, PromptsSection>()
 
   suspend fun initialize(): Boolean {
     val promptsFile = File(context.filesDir, Constants.PROMPTS_FILENAME)
@@ -19,7 +19,7 @@ class PromptsCollection(val context: Context) {
       val metadataJson = sectionJson.optJSONObject("metadata") ?: JSONObject()
 
       // Create metadata object
-      val metadata = PromptSectionMetadata(
+      val metadata = PromptsSectionMetadata(
         dataCollectionId = metadataJson.opt("dataCollectionId") as? String,
         useSummaryPage = metadataJson.optBoolean("useSummaryPage", false)
       )
@@ -45,20 +45,20 @@ class PromptsCollection(val context: Context) {
         }
       }
 
-      sections[sectionName] = PromptSection(sectionName, metadata, mainPrompts, tutorialPrompts)
+      sections[sectionName] = PromptsSection(sectionName, metadata, mainPrompts, tutorialPrompts)
     }
     return true
   }
 }
 
-data class PromptSectionMetadata(
+data class PromptsSectionMetadata(
   val dataCollectionId: String?,
   val useSummaryPage: Boolean
 )
 
-class PromptSection(
+class PromptsSection(
   val name: String,
-  val metadata: PromptSectionMetadata,
+  val metadata: PromptsSectionMetadata,
   val mainPrompts: Prompts,
   val tutorialPrompts: Prompts
 )

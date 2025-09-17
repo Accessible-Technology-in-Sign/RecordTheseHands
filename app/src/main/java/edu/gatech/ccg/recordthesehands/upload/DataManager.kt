@@ -1024,13 +1024,13 @@ class DataManager(val context: Context) {
     savePromptProgress(progress)
   }
 
-  suspend fun getCurrentSection(): PromptSection? {
+  suspend fun getCurrentSection(): PromptsSection? {
     val sectionName = getCurrentSectionName() ?: return null
     val promptsCollection = getPromptsCollection() ?: return null
     return promptsCollection.sections[sectionName]
   }
 
-  suspend fun getCurrentPrompts(): Pair<Prompts, PromptSectionMetadata>? {
+  suspend fun getCurrentPrompts(): Pair<Prompts, PromptsSectionMetadata>? {
     val section = getCurrentSection() ?: return null
     val tutorialMode = getTutorialMode()
     return if (tutorialMode) {
