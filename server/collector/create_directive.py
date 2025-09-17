@@ -128,7 +128,30 @@ def cancel_directive(username, directive_id):
   return True
 
 
-if __name__ == '__main__':
+def main():
+  """The main function."""
+  if len(sys.argv) < 3:
+    print(
+        'USAGE: USERNAME OPERATION [ARGS...]',
+        file=sys.stderr,
+    )
+    print(
+        '  operations:',
+        '    noop',
+        '    printDirectives',
+        '    changeUser NEW_USERNAME NEW_PASSWORD',
+        '    updateApk',
+        '    setPrompts PROMPT_FILE_PATH',
+        '    deleteFile FILE_PATH',
+        '    uploadState',
+        '    setTutorialMode [true|false]',
+        '    cancel DIRECTIVE_ID',
+        '    deleteUser',
+        '    getState',
+        sep='\n      ',
+        file=sys.stderr,
+    )
+    sys.exit(1)
   username = sys.argv[1]
   print(f'Using username: {username}')
   if sys.argv[2] == 'noop':
@@ -194,3 +217,7 @@ if __name__ == '__main__':
     print_state(sys.argv[1])
   else:
     raise AssertionError('Did not understand arguments: ' + ' '.join(sys.argv))
+
+
+if __name__ == '__main__':
+  main()

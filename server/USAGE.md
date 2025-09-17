@@ -94,10 +94,9 @@ Valid operations:
 - `printDirectives` – Print out all existing directives for a user (in your
   console).
 - `updateApk` – Tells the device to download the latest APK on the DPAN Server
-- `downloadPrompts /path/to/prompt` – Tells the device to download prompts from
-  the path provided (Path is GCP bucket path)
-- `downloadTutorialPrompts /path/to/prompt` – Similar but for “tutorial”
-  prompts.
+- `setPrompts /path/to/prompt` – Tells the device to download prompts from
+  the path provided (Path is GCP bucket path). This is used for both tutorial
+  and regular prompts.
 - `deleteFile` – Instructs the device to delete a file from local storage.
 - `setTutorialMode` – Enables a user to enter into tutorial mode
 - `cancel` – Marks a specific directive (by ID) as canceled.
