@@ -683,6 +683,36 @@ class DataManager(val context: Context) {
 
   val dataManagerData = DataManagerData.getInstance(LOGIN_TOKEN_FULL_PATH)
 
+  init {
+    initializePromptState()
+  }
+
+  fun initializePromptState() {
+    CoroutineScope(Dispatchers.IO).launch {
+      // TODO verify that this works when multiple DataManager classes are active.
+      val tutorialMode = getTutorialMode()
+      val promptsCollection = getPromptsCollection()
+      val promptProgress = getPromptProgress()
+      val currentSectionName = getCurrentSectionName()
+      val username = getUsername()
+      val deviceId = getDeviceId()
+
+      val initialState = PromptState(
+        tutorialMode = tutorialMode,
+        promptsCollection = promptsCollection,
+        promptProgress = promptProgress,
+        currentSectionName = currentSectionName,
+        username = username,
+        deviceId = deviceId,
+        // Derived fields will be calculated by updatePromptState
+        currentPrompts = null,
+        currentPromptIndex = null,
+        totalPromptsInCurrentSection = null
+      )
+      updatePromptState(initialState)
+    }
+  }
+
   fun hasServer(): Boolean {
     val serverStringId = context.resources.getIdentifier(
       "backend_server",
@@ -940,11 +970,16 @@ class DataManager(val context: Context) {
 
   suspend fun setTutorialMode(mode: Boolean) {
     Log.d(TAG, "setTutorialMode($mode)")
+    val currentState = _promptState.value
+      ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
+
+    updatePromptState(currentState.copy(tutorialMode = mode))
+
     val keyObject = booleanPreferencesKey("tutorialMode")
     context.prefStore.edit {
       it[keyObject] = mode
     }
-    _tutorialModeStatus.postValue(mode)
+
   }
 
   suspend fun getCurrentSectionName(): String? {
@@ -955,6 +990,11 @@ class DataManager(val context: Context) {
   }
 
   suspend fun setCurrentSection(sectionName: String) {
+    val currentState = _promptState.value
+      ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
+
+    updatePromptState(currentState.copy(currentSectionName = sectionName))
+
     val keyObject = stringPreferencesKey("currentSectionName")
     context.prefStore.edit {
       it[keyObject] = sectionName
@@ -998,47 +1038,31 @@ class DataManager(val context: Context) {
     }
   }
 
-  suspend fun getCurrentPromptIndex(): Int? {
-    val sectionName = getCurrentSectionName() ?: return null
-    val progress = getPromptProgress()
-    val sectionProgress = progress[sectionName] ?: return 0
-    val tutorialMode = getTutorialMode()
-    return if (tutorialMode) {
-      sectionProgress["tutorialIndex"] ?: 0
-    } else {
-      sectionProgress["mainIndex"] ?: 0
-    }
-  }
 
   suspend fun saveCurrentPromptIndex(index: Int) {
-    val sectionName = getCurrentSectionName() ?: return
-    val progress = getPromptProgress().toMutableMap()
-    val sectionProgress = progress[sectionName]?.toMutableMap() ?: mutableMapOf()
-    val tutorialMode = getTutorialMode()
-    if (tutorialMode) {
+    val currentState = _promptState.value
+      ?: throw IllegalStateException(
+        "Attempted to save prompt index before prompt state was initialized."
+      )
+    val sectionName = currentState.currentSectionName
+      ?: throw IllegalStateException(
+        "Attempted to save prompt index without a current section set."
+      )
+
+    val newProgress = currentState.promptProgress.toMutableMap()
+    val sectionProgress = newProgress[sectionName]?.toMutableMap() ?: mutableMapOf()
+
+    if (currentState.tutorialMode) {
       sectionProgress["tutorialIndex"] = index
     } else {
       sectionProgress["mainIndex"] = index
     }
-    progress[sectionName] = sectionProgress
-    savePromptProgress(progress)
+    newProgress[sectionName] = sectionProgress
+
+    updatePromptState(currentState.copy(promptProgress = newProgress))
+    savePromptProgress(newProgress) // Persist to storage
   }
 
-  suspend fun getCurrentSection(): PromptsSection? {
-    val sectionName = getCurrentSectionName() ?: return null
-    val promptsCollection = getPromptsCollection() ?: return null
-    return promptsCollection.sections[sectionName]
-  }
-
-  suspend fun getCurrentPrompts(): Pair<Prompts, PromptsSectionMetadata>? {
-    val section = getCurrentSection() ?: return null
-    val tutorialMode = getTutorialMode()
-    return if (tutorialMode) {
-      Pair(section.tutorialPrompts, section.metadata)
-    } else {
-      Pair(section.mainPrompts, section.metadata)
-    }
-  }
 
   suspend fun newSessionId(): String {
     val deviceId = getDeviceId()
@@ -1070,7 +1094,12 @@ class DataManager(val context: Context) {
       preferences.remove(stringPreferencesKey("currentSectionName"))
       preferences.remove(stringPreferencesKey("promptProgress"))
     }
-    return downloadPrompts()
+    if (!downloadPrompts()) {
+      return false
+    }
+    // Re-initialize the state from scratch after download
+    initializePromptState()
+    return true
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -1869,11 +1898,39 @@ class DataManager(val context: Context) {
   internal val _serverStatus = MutableLiveData<Boolean>()
   val serverStatus: LiveData<Boolean> get() = _serverStatus
 
-  /**
-   * Store tutorial mode status with LiveData
-   */
-  internal val _tutorialModeStatus = MutableLiveData<Boolean>()
-  val tutorialModeStatus: LiveData<Boolean> get() = _tutorialModeStatus
+
+  internal val _promptState = MutableLiveData<PromptState>()
+  val promptState: LiveData<PromptState> get() = _promptState
+
+  private fun updatePromptState(newState: PromptState) {
+    val section = newState.promptsCollection?.sections?.get(newState.currentSectionName)
+    val currentPrompts = if (section != null) {
+      if (newState.tutorialMode) section.tutorialPrompts else section.mainPrompts
+    } else {
+      null
+    }
+    val currentPromptIndex = if (section != null) {
+      val sectionProgress = newState.promptProgress[newState.currentSectionName]
+      if (newState.tutorialMode) {
+        sectionProgress?.get("tutorialIndex") ?: 0
+      } else {
+        sectionProgress?.get("mainIndex") ?: 0
+      }
+    } else {
+      null
+    }
+    val totalPrompts = currentPrompts?.array?.size
+
+    _promptState.postValue(
+      newState.copy(
+        currentPrompts = currentPrompts,
+        currentPromptIndex = currentPromptIndex,
+        totalPromptsInCurrentSection = totalPrompts,
+        username = newState.username,
+        deviceId = newState.deviceId
+      )
+    )
+  }
 
   /**
    * Check server connection by pinging server
@@ -1887,11 +1944,6 @@ class DataManager(val context: Context) {
     }
   }
 
-  fun checkTutorialMode() {
-    CoroutineScope(Dispatchers.IO).launch {
-      _tutorialModeStatus.postValue(getTutorialMode())
-    }
-  }
 
   /**
    * Ping server by calling server and checking connectivity
@@ -1915,7 +1967,4 @@ class DataManager(val context: Context) {
     }
   }
 }
-
-
-
 

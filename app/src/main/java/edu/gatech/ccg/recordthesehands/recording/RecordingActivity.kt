@@ -1231,31 +1231,32 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
 
-    runBlocking {
-      val (prompts, metadata) = dataManager.getCurrentPrompts()
-        ?: throw IllegalStateException("prompts not available.")
-      this@RecordingActivity.prompts = prompts
-      this@RecordingActivity.useSummaryPage = metadata.useSummaryPage
-      username = dataManager.getUsername() ?: throw IllegalStateException("username not available.")
-      tutorialMode = dataManager.getTutorialMode()
-      val sessionType = if (tutorialMode) "tutorial" else "normal"
-      val sessionId = dataManager.newSessionId()
-      if (tutorialMode) {
-        filename = "tutorial-${username}-${sessionId}-${timestamp}.mp4"
-      } else {
-        filename = "${username}-${sessionId}-${timestamp}.mp4"
-      }
-      sessionStartIndex = dataManager.getCurrentPromptIndex()
-        ?: throw IllegalStateException("promptIndex not available.")
-      val sessionLength =
-        if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
-      sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)
-      sessionInfo = RecordingSessionInfo(
-        sessionId, filename, dataManager.getDeviceId(), username, sessionType,
-        sessionStartIndex, sessionLimit
-      )
-      dataManager.saveSessionInfo(sessionInfo)
+    val initialState = dataManager.promptState.value
+    if (initialState == null || initialState.currentPrompts == null || initialState.currentPromptIndex == null) {
+      throw IllegalStateException("Prompt state not available.")
     }
+    this.prompts = initialState.currentPrompts
+    this.sessionStartIndex = initialState.currentPromptIndex
+    this.useSummaryPage =
+      initialState.promptsCollection?.sections?.get(initialState.currentSectionName)?.metadata?.useSummaryPage
+        ?: false
+    username = dataManager.getUsername() ?: throw IllegalStateException("username not available.")
+    tutorialMode = initialState.tutorialMode
+    val sessionType = if (tutorialMode) "tutorial" else "normal"
+    val sessionId = runBlocking { dataManager.newSessionId() }
+    if (tutorialMode) {
+      filename = "tutorial-${username}-${sessionId}-${timestamp}.mp4"
+    } else {
+      filename = "${username}-${sessionId}-${timestamp}.mp4"
+    }
+    val sessionLength =
+      if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
+    sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)
+    sessionInfo = RecordingSessionInfo(
+      sessionId, filename, runBlocking { dataManager.getDeviceId() }, username, sessionType,
+      sessionStartIndex, sessionLimit
+    )
+    runBlocking { dataManager.saveSessionInfo(sessionInfo) }
 
     dataManager.logToServer(
       "Setting up recording with filename ${filename} for prompts " +

@@ -41,9 +41,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -51,7 +48,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
-import edu.gatech.ccg.recordthesehands.Constants.MAX_RECORDINGS_IN_SITTING
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
@@ -59,7 +55,6 @@ import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
-import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +63,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlin.concurrent.thread
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -107,10 +101,6 @@ class HomeScreenActivity : ComponentActivity() {
    * for too long without a restart.
    */
   private var currentRecordingSessions = 0
-
-  private var prompts: Prompts? = null
-  private var username: String? = null
-  private lateinit var deviceId: String
 
   /**
    * Handler for what happens when the recording activity finishes.
@@ -163,7 +153,6 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
 
-
   /**
    * Sets up the UI with a loading screen
    */
@@ -194,115 +183,30 @@ class HomeScreenActivity : ComponentActivity() {
       val mainGroup = findViewById<Group>(R.id.mainGroup)
       mainGroup.visibility = View.VISIBLE
 
-      val startRecordingButton = findViewById<Button>(R.id.startButton)
-      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
-      val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
+      // Listener for the super secret admin menu accessed by touching the
+      // titleText (i.e. "RecordTheseHands") 5 times in a row.
+      val titleText = findViewById<TextView>(R.id.header)
+      var numTitleClicks = 0
+      titleText.setOnClickListener {
+        numTitleClicks += 1
+        if (numTitleClicks == 5) {
+          numTitleClicks = 0
+          val intent = Intent(this@HomeScreenActivity, LoadDataActivity::class.java)
+          startActivity(intent)
+        }
+      }
+      titleText.isSoundEffectsEnabled = false
 
+      // exitTutorialMode button listener.
+      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       exitTutorialModeButton.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
           dataManager.setTutorialMode(false)
-          // TODO Verify that all the relevant state updates naturally and
-          // that we don't need to call finish to reboot the Activity.
         }
       }
 
-      dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
-        val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
-        val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
-        val connectivityManager =
-          applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork
-
-        internetConnectionText.visibility = View.VISIBLE
-        serverConnectionText.visibility = View.VISIBLE
-
-        if (network == null) {
-          internetConnectionText.text = getString(R.string.internet_failed)
-          internetConnectionText.setTextColor(
-            ContextCompat.getColor(
-              this@HomeScreenActivity,
-              R.color.alert_red
-            )
-          )
-          serverConnectionText.text = getString(R.string.server_failed)
-          serverConnectionText.setTextColor(
-            ContextCompat.getColor(
-              this@HomeScreenActivity,
-              R.color.alert_red
-            )
-          )
-        } else {
-          internetConnectionText.text = getString(R.string.internet_success)
-          internetConnectionText.setTextColor(
-            ContextCompat.getColor(
-              this@HomeScreenActivity,
-              R.color.alert_green
-            )
-          )
-          if (isConnected) {
-            serverConnectionText.text = getString(R.string.server_success)
-            serverConnectionText.setTextColor(
-              ContextCompat.getColor(
-                this@HomeScreenActivity,
-                R.color.alert_green
-              )
-            )
-          } else {
-            serverConnectionText.text = getString(R.string.server_failed)
-            serverConnectionText.setTextColor(
-              ContextCompat.getColor(
-                this@HomeScreenActivity,
-                R.color.alert_red
-              )
-            )
-          }
-        }
-      }
-      dataManager.checkServerConnection()
-
-      val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
-      deviceIdBox.text = deviceId
-
-      if (prompts == null) {
-        startRecordingButton.isEnabled = true
-        startRecordingButton.isClickable = true
-        startRecordingButton.text = getString(R.string.start_failed)
-      } else if (username != null) {
-        val usernameBox = findViewById<TextView>(R.id.usernameBox)
-        usernameBox.text = username
-      }
-      dataManager.tutorialModeStatus.observe(this@HomeScreenActivity) { tutorialMode ->
-        Log.d(TAG, "observed state change of tutorialMode to ${tutorialMode}")
-        if (tutorialMode) {
-          tutorialModeText.visibility = View.VISIBLE
-        } else {
-          tutorialModeText.visibility = View.GONE
-        }
-        lifecycleScope.launch {
-          val numPrompts = prompts?.array?.size
-          val promptIndex = dataManager.getCurrentPromptIndex() ?: 0
-          if (tutorialMode && (currentRecordingSessions > 0 ||
-                promptIndex >= (numPrompts ?: 0))
-          ) {
-            exitTutorialModeButton.visibility = View.VISIBLE
-          } else {
-            exitTutorialModeButton.visibility = View.GONE
-          }
-        }
-      }
-
-      val promptIndex = dataManager.getCurrentPromptIndex() ?: 0
-      if (prompts != null && username != null) {
-        val numPrompts = prompts!!.array.size
-        if (promptIndex < numPrompts) {
-          startRecordingButton.isEnabled = true
-          startRecordingButton.isClickable = true
-          startRecordingButton.text = getString(R.string.start_button)
-        } else {
-          startRecordingButton.visibility = View.GONE
-        }
-      }
+      // Setup the statistics.
       val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
       val lifetimeRecordingCount = applicationContext.prefStore.data
         .map {
@@ -319,104 +223,91 @@ class HomeScreenActivity : ComponentActivity() {
       recordingTimeBox.text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
       val sessionCounterBox = findViewById<TextView>(R.id.sessionCounterBox)
       sessionCounterBox.text = currentRecordingSessions.toString()
-      if (prompts != null) {
-        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
-        val completedPrompts = dataManager.getCurrentPromptIndex().toString()
-        val totalPrompts = prompts!!.array.size.toString()
-        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
-      }
 
+      val startRecordingButton = findViewById<Button>(R.id.startButton)
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
-        if (prompts == null) {
-          AlertDialog.Builder(this@HomeScreenActivity)
-            .setTitle("No Prompts Available")
-            .setMessage("No prompts have been downloaded. Please download prompts before starting.")
-            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
-            .show()
+        fun checkPermission(perm: String): Boolean {
+          return ContextCompat.checkSelfPermission(applicationContext, perm) ==
+              PackageManager.PERMISSION_GRANTED
+        }
+
+        fun shouldAsk(perm: String): Boolean {
+          return shouldShowRequestPermissionRationale(perm)
+        }
+
+        fun cannotGetPermission(perm: String): Boolean {
+          return !checkPermission(perm) && !shouldAsk(perm)
+        }
+
+        Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
+        Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
+
+        if (checkPermission(CAMERA)) {
+          lifecycleScope.launch {
+            // You can use the API that requires the permission.
+            val intent = Intent(
+              this@HomeScreenActivity, RecordingActivity::class.java
+            ).also {
+              it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
+            }
+            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
+            dataManager.waitForDataLock()
+            Log.d(TAG, "Data lock was available.")
+
+            handleRecordingResult.launch(intent)
+          }
+        } else if (!permissionRequestedPreviously) {
+          // No permissions, and we haven't asked for permissions before
+          permissionRequestedPreviously = true
+          CoroutineScope(Dispatchers.IO).launch {
+            val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
+            applicationContext.prefStore.edit {
+              it[keyObject] = true
+            }
+          }
+          requestRecordingPermissions.launch(arrayOf(CAMERA))
+        } else if (shouldAsk(CAMERA)) {
+          // We've asked the user for permissions before, and the prior `when` case failed,
+          // so we are allowed to ask for at least one of the required permissions
+
+          // Send an alert prompting the user that they need to grant permissions
+          val builder = AlertDialog.Builder(applicationContext).apply {
+            setTitle(getString(R.string.perm_alert))
+            setMessage(getString(R.string.perm_alert_message))
+
+            setPositiveButton(getString(R.string.ok)) { dialog, _ ->
+              requestRecordingPermissions.launch(
+                arrayOf(CAMERA)
+              )
+              dialog.dismiss()
+            }
+          }
+
+          val dialog = builder.create()
+          dialog.apply {
+            setCanceledOnTouchOutside(true)
+            setOnCancelListener {
+              requestRecordingPermissions.launch(
+                arrayOf(CAMERA)
+              )
+            }
+            show()
+          }
+        } else if (cannotGetPermission(CAMERA)) {
+          // We've asked the user for permissions before, they haven't been granted,
+          // and we cannot ask the user for either camera or storage permissions (we already
+          // asked them before)
+          val text = "Please enable camera access in Settings"
+          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+          toast.show()
         } else {
-          fun checkPermission(perm: String): Boolean {
-            return ContextCompat.checkSelfPermission(applicationContext, perm) ==
-                PackageManager.PERMISSION_GRANTED
-          }
-
-          fun shouldAsk(perm: String): Boolean {
-            return shouldShowRequestPermissionRationale(perm)
-          }
-
-          fun cannotGetPermission(perm: String): Boolean {
-            return !checkPermission(perm) && !shouldAsk(perm)
-          }
-
-          Log.d(TAG, "Camera allowed: ${checkPermission(CAMERA)}")
-          Log.d(TAG, "Ask for camera permission: ${shouldAsk(CAMERA)}")
-
-          if (checkPermission(CAMERA)) {
-            lifecycleScope.launch {
-              // You can use the API that requires the permission.
-              val intent = Intent(
-                this@HomeScreenActivity, RecordingActivity::class.java
-              ).also {
-                it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
-              }
-              UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-              Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
-              dataManager.waitForDataLock()
-              Log.d(TAG, "Data lock was available.")
-
-              handleRecordingResult.launch(intent)
-            }
-          } else if (!permissionRequestedPreviously) {
-            // No permissions, and we haven't asked for permissions before
-            permissionRequestedPreviously = true
-            CoroutineScope(Dispatchers.IO).launch {
-              val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
-              applicationContext.prefStore.edit {
-                it[keyObject] = true
-              }
-            }
-            requestRecordingPermissions.launch(arrayOf(CAMERA))
-          } else if (shouldAsk(CAMERA)) {
-            // We've asked the user for permissions before, and the prior `when` case failed,
-            // so we are allowed to ask for at least one of the required permissions
-
-            // Send an alert prompting the user that they need to grant permissions
-            val builder = AlertDialog.Builder(applicationContext).apply {
-              setTitle(getString(R.string.perm_alert))
-              setMessage(getString(R.string.perm_alert_message))
-
-              setPositiveButton(getString(R.string.ok)) { dialog, _ ->
-                requestRecordingPermissions.launch(
-                  arrayOf(CAMERA)
-                )
-                dialog.dismiss()
-              }
-            }
-
-            val dialog = builder.create()
-            dialog.apply {
-              setCanceledOnTouchOutside(true)
-              setOnCancelListener {
-                requestRecordingPermissions.launch(
-                  arrayOf(CAMERA)
-                )
-              }
-              show()
-            }
-          } else if (cannotGetPermission(CAMERA)) {
-            // We've asked the user for permissions before, they haven't been granted,
-            // and we cannot ask the user for either camera or storage permissions (we already
-            // asked them before)
-            val text = "Please enable camera access in Settings"
-            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-            toast.show()
-          } else {
-            Log.e(TAG, "Invalid permission state.")
-            val text =
-              "The app is in a bad state, you likely need to enable camera access in Settings."
-            val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-            toast.show()
-          }
+          Log.e(TAG, "Invalid permission state.")
+          val text =
+            "The app is in a bad state, you likely need to enable camera access in Settings."
+          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+          toast.show()
         }
       } // setRecordingButton.onClickListener
 
@@ -560,64 +451,113 @@ class HomeScreenActivity : ComponentActivity() {
       )
     }
 
-    runBlocking {
+    lifecycleScope.launch {
       val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
       permissionRequestedPreviously = applicationContext.prefStore.data
         .map {
           it[keyObject]
         }.firstOrNull() ?: false
+      setupUI()
     }
 
-    val titleText = findViewById<TextView>(R.id.header)
-    var numTitleClicks = 0
-    titleText.setOnClickListener {
-      numTitleClicks += 1
-      if (numTitleClicks == 5) {
-        numTitleClicks = 0
-        val intent = Intent(this, LoadDataActivity::class.java)
-        startActivity(intent)
+    dataManager.promptState.observe(this@HomeScreenActivity) { state ->
+      val startRecordingButton = findViewById<Button>(R.id.startButton)
+      val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
+      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
+      tutorialModeText.visibility = if (state.tutorialMode) View.VISIBLE else View.GONE
+
+      if (state.tutorialMode && ((state.currentPromptIndex ?: 0) > 0 ||
+            (state.totalPromptsInCurrentSection ?: 0) == 0)
+      ) {
+        exitTutorialModeButton.visibility = View.VISIBLE
+      } else {
+        exitTutorialModeButton.visibility = View.GONE
       }
-    }
-    titleText.isSoundEffectsEnabled = false
-  }
 
-  /**
-   * onResume() function from Activity - used when opening the app from multitasking
-   */
-  override fun onResume() {
-    super.onResume()
-
-    WindowCompat.setDecorFitsSystemWindows(window, false)
-    val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-    windowInsetsController.systemBarsBehavior =
-      WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-    Log.d(TAG, "Recording sessions in current sitting: $currentRecordingSessions")
-    if (currentRecordingSessions >= MAX_RECORDINGS_IN_SITTING) {
-      setContentView(R.layout.end_of_sitting_message)
-      return
-    }
-    setupLoadingUI()
-    dataManager.checkTutorialMode()
-    thread {
-      runBlocking {
-        username = dataManager.getUsername()
-        prompts = dataManager.getCurrentPrompts()?.first
-        if (username == null) {
-          val intent = Intent(applicationContext, LoadDataActivity::class.java)
-          startActivity(intent)
+      if (state.currentPrompts != null && state.username != null) {
+        if ((state.currentPromptIndex ?: 0) < (state.totalPromptsInCurrentSection ?: 0)) {
+          startRecordingButton.isEnabled = true
+          startRecordingButton.isClickable = true
+          startRecordingButton.text = getString(R.string.start_button)
+        } else {
+          startRecordingButton.visibility = View.GONE
         }
-        deviceId = dataManager.getDeviceId()
-        val numPrompts = prompts?.array?.size
-        val promptIndex = dataManager.getCurrentPromptIndex()
-        dataManager.logToServer(
-          "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
-        )
+      } else {
+        startRecordingButton.isEnabled = true
+        startRecordingButton.isClickable = true
+        startRecordingButton.text = getString(R.string.start_failed)
+      }
 
-        setupUI()
+      if (state.username != null) {
+        val usernameBox = findViewById<TextView>(R.id.usernameBox)
+        usernameBox.text = state.username
+      }
+
+      if (state.deviceId != null) {
+        val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
+        deviceIdBox.text = state.deviceId
+      }
+
+      if (state.currentPrompts != null) {
+        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+        val completedPrompts = state.currentPromptIndex.toString()
+        val totalPrompts = state.totalPromptsInCurrentSection.toString()
+        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
       }
     }
-  }
 
+    dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
+      val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
+      val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
+      val connectivityManager =
+        applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+      val network = connectivityManager.activeNetwork
+
+      internetConnectionText.visibility = View.VISIBLE
+      serverConnectionText.visibility = View.VISIBLE
+
+      if (network == null) {
+        internetConnectionText.text = getString(R.string.internet_failed)
+        internetConnectionText.setTextColor(
+          ContextCompat.getColor(
+            this@HomeScreenActivity,
+            R.color.alert_red
+          )
+        )
+        serverConnectionText.text = getString(R.string.server_failed)
+        serverConnectionText.setTextColor(
+          ContextCompat.getColor(
+            this@HomeScreenActivity,
+            R.color.alert_red
+          )
+        )
+      } else {
+        internetConnectionText.text = getString(R.string.internet_success)
+        internetConnectionText.setTextColor(
+          ContextCompat.getColor(
+            this@HomeScreenActivity,
+            R.color.alert_green
+          )
+        )
+        if (isConnected) {
+          serverConnectionText.text = getString(R.string.server_success)
+          serverConnectionText.setTextColor(
+            ContextCompat.getColor(
+              this@HomeScreenActivity,
+              R.color.alert_green
+            )
+          )
+        } else {
+          serverConnectionText.text = getString(R.string.server_failed)
+          serverConnectionText.setTextColor(
+            ContextCompat.getColor(
+              this@HomeScreenActivity,
+              R.color.alert_red
+            )
+          )
+        }
+      }
+    }
+    dataManager.checkServerConnection()
+  }
 }
