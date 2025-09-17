@@ -281,7 +281,7 @@ class HomeScreenActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
           val numPrompts = prompts?.array?.size
-          val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
+          val promptIndex = dataManager.getCurrentPromptIndex() ?: 0
           if (tutorialMode && (currentRecordingSessions > 0 ||
                 promptIndex >= (numPrompts ?: 0))
           ) {
@@ -292,10 +292,10 @@ class HomeScreenActivity : ComponentActivity() {
         }
       }
 
-      val numPrompts = prompts?.array?.size
-      val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
+      val promptIndex = dataManager.getCurrentPromptIndex() ?: 0
       if (prompts != null && username != null) {
-        if (promptIndex!! < numPrompts!!) {
+        val numPrompts = prompts!!.array.size
+        if (promptIndex < numPrompts) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
           startRecordingButton.text = getString(R.string.start_button)
@@ -610,7 +610,7 @@ class HomeScreenActivity : ComponentActivity() {
         }
         deviceId = dataManager.getDeviceId()
         val numPrompts = prompts?.array?.size
-        val promptIndex = if (prompts == null) 0 else dataManager.getCurrentPromptIndex()
+        val promptIndex = dataManager.getCurrentPromptIndex()
         dataManager.logToServer(
           "Started Application phoneId=${deviceId} username=${username} promptIndex=${promptIndex} numPrompts=${numPrompts}"
         )

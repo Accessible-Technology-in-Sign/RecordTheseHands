@@ -1246,6 +1246,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         filename = "${username}-${sessionId}-${timestamp}.mp4"
       }
       sessionStartIndex = dataManager.getCurrentPromptIndex()
+        ?: throw IllegalStateException("promptIndex not available.")
       val sessionLength =
         if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
       sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)

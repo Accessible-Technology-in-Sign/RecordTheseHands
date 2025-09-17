@@ -998,8 +998,8 @@ class DataManager(val context: Context) {
     }
   }
 
-  suspend fun getCurrentPromptIndex(): Int {
-    val sectionName = getCurrentSectionName() ?: return 0
+  suspend fun getCurrentPromptIndex(): Int? {
+    val sectionName = getCurrentSectionName() ?: return null
     val progress = getPromptProgress()
     val sectionProgress = progress[sectionName] ?: return 0
     val tutorialMode = getTutorialMode()
