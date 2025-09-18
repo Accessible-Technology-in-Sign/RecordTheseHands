@@ -35,68 +35,69 @@ import edu.gatech.ccg.recordthesehands.upload.PromptState
 import kotlinx.coroutines.launch
 
 class PromptSelectActivity : ComponentActivity() {
-    private lateinit var dataManager: DataManager
-    private lateinit var binding: ActivityPromptPickerBinding
+  private lateinit var dataManager: DataManager
+  private lateinit var binding: ActivityPromptPickerBinding
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityPromptPickerBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        dataManager = DataManager(applicationContext)
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    binding = ActivityPromptPickerBinding.inflate(layoutInflater)
+    setContentView(binding.root)
+    dataManager = DataManager(applicationContext)
 
-        // Observe the overall prompt state
-        dataManager.promptState.observe(this) { state ->
-            if (state == null) return@observe
-            updateTutorialButton(state.tutorialMode)
-            populateSections(state)
-        }
-
-        binding.toggleTutorialButton.setOnClickListener {
-            val currentMode = dataManager.promptState.value?.tutorialMode ?: false
-            lifecycleScope.launch {
-                dataManager.setTutorialMode(!currentMode)
-            }
-        }
+    // Observe the overall prompt state
+    dataManager.promptState.observe(this) { state ->
+      if (state == null) return@observe
+      updateTutorialButton(state.tutorialMode)
+      populateSections(state)
     }
 
-    private fun updateTutorialButton(isTutorialMode: Boolean) {
-        binding.toggleTutorialButton.text = if (isTutorialMode) {
-            getString(R.string.switch_to_normal_prompts)
-        } else {
-            getString(R.string.switch_to_tutorial_prompts)
-        }
+    binding.toggleTutorialButton.setOnClickListener {
+      val currentMode = dataManager.promptState.value?.tutorialMode ?: false
+      lifecycleScope.launch {
+        dataManager.setTutorialMode(!currentMode)
+      }
     }
+  }
 
-    private fun populateSections(state: PromptState) {
-        binding.promptSectionsLayout.removeAllViews()
-        val sections = state.promptsCollection?.sections ?: return
-
-        for (sectionName in sections.keys.sorted()) {
-            val section = sections[sectionName]!!
-            val prompts = section.mainPrompts
-            val total = prompts.array.size
-            val sectionProgress = state.promptProgress[sectionName]
-            val completed = sectionProgress?.get("mainIndex") ?: 0
-            val isCompleted = total > 0 && completed >= total
-
-            val sectionView = layoutInflater.inflate(R.layout.section_list_item, binding.promptSectionsLayout, false)
-
-            val sectionButton = sectionView.findViewById<Button>(R.id.sectionButton)
-            val progressText = sectionView.findViewById<TextView>(R.id.progressText)
-
-            sectionButton.text = sectionName
-            progressText.text = getString(R.string.prompts_completed_progress, completed, total)
-            sectionButton.isEnabled = !isCompleted
-
-            if (!isCompleted) {
-                sectionButton.setOnClickListener {
-                    lifecycleScope.launch {
-                        dataManager.setCurrentSection(sectionName)
-                        finish() // Return to HomeScreen
-                    }
-                }
-            }
-            binding.promptSectionsLayout.addView(sectionView)
-        }
+  private fun updateTutorialButton(isTutorialMode: Boolean) {
+    binding.toggleTutorialButton.text = if (isTutorialMode) {
+      getString(R.string.switch_to_normal_prompts)
+    } else {
+      getString(R.string.switch_to_tutorial_prompts)
     }
+  }
+
+  private fun populateSections(state: PromptState) {
+    binding.promptSectionsLayout.removeAllViews()
+    val sections = state.promptsCollection?.sections ?: return
+
+    for (sectionName in sections.keys.sorted()) {
+      val section = sections[sectionName]!!
+      val prompts = section.mainPrompts
+      val total = prompts.array.size
+      val sectionProgress = state.promptProgress[sectionName]
+      val completed = sectionProgress?.get("mainIndex") ?: 0
+      val isCompleted = total > 0 && completed >= total
+
+      val sectionView =
+        layoutInflater.inflate(R.layout.section_list_item, binding.promptSectionsLayout, false)
+
+      val sectionButton = sectionView.findViewById<Button>(R.id.sectionButton)
+      val progressText = sectionView.findViewById<TextView>(R.id.progressText)
+
+      sectionButton.text = sectionName
+      progressText.text = getString(R.string.prompts_completed_progress, completed, total)
+      sectionButton.isEnabled = !isCompleted
+
+      if (!isCompleted) {
+        sectionButton.setOnClickListener {
+          lifecycleScope.launch {
+            dataManager.setCurrentSection(sectionName)
+            finish() // Return to HomeScreen
+          }
+        }
+      }
+      binding.promptSectionsLayout.addView(sectionView)
+    }
+  }
 }

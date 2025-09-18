@@ -107,4 +107,5 @@ dependencies {
     implementation "com.google.auto.value:auto-value-annotations:$auto_value_version"
     kapt "com.google.auto.value:auto-value:$auto_value_version"
 
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
 }

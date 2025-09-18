@@ -47,7 +47,6 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
-import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
@@ -62,7 +61,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -446,11 +444,10 @@ class HomeScreenActivity : ComponentActivity() {
 
     val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
     switchPromptsButton.setOnClickListener {
-        startActivity(Intent(this, PromptSelectActivity::class.java))
+      startActivity(Intent(this, PromptSelectActivity::class.java))
     }
 
     dataManager.promptState.observe(this@HomeScreenActivity) { state ->
-      updateOtherSectionsList(state)
       val startRecordingButton = findViewById<Button>(R.id.startButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
       val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
@@ -488,12 +485,55 @@ class HomeScreenActivity : ComponentActivity() {
         deviceIdBox.text = state.deviceId
       }
 
-      if (state.currentPrompts != null) {
-        val promptsProgressBox = findViewById<TextView>(R.id.completedAndTotalPromptsText)
-        val completedPrompts = state.currentPromptIndex.toString()
-        val totalPrompts = state.totalPromptsInCurrentSection.toString()
-        promptsProgressBox.text = getString(R.string.ratio, completedPrompts, totalPrompts)
+      val tutorialProgressText = findViewById<TextView>(R.id.tutorialProgressText)
+      val completedAndTotalPromptsText = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+
+      if (state.tutorialMode) {
+        tutorialProgressText.visibility = View.VISIBLE
+        completedAndTotalPromptsText.visibility = View.GONE
+      } else {
+        tutorialProgressText.visibility = View.GONE
+        completedAndTotalPromptsText.visibility = View.VISIBLE
+        val completedPrompts = (state.currentPromptIndex ?: 0).toString()
+        val totalPrompts = (state.totalPromptsInCurrentSection ?: 0).toString()
+        completedAndTotalPromptsText.text =
+          getString(R.string.ratio, completedPrompts, totalPrompts)
       }
+
+      // Total Progress Calculation
+      var totalCompleted = 0
+      var totalPrompts = 0
+      val sectionsCompletedLayout =
+        findViewById<com.google.android.flexbox.FlexboxLayout>(R.id.sectionsCompletedLayout)
+      sectionsCompletedLayout.removeAllViews()
+
+      val sections =
+        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: return@observe
+
+      sections.forEachIndexed { index, section ->
+        val prompts = section.mainPrompts
+        val total = prompts.array.size
+        val sectionProgress = state.promptProgress[section.name]
+        val completed = sectionProgress?.get("mainIndex") ?: 0
+        totalCompleted += completed
+        totalPrompts += total
+
+        if (index > 0) {
+          val space = TextView(this).apply { text = " " }
+          sectionsCompletedLayout.addView(space)
+        }
+
+        val textView = TextView(this).apply {
+          text = section.name
+          val color = if (completed >= total) R.color.alert_green else R.color.alert_red
+          setTextColor(ContextCompat.getColor(this@HomeScreenActivity, color))
+        }
+        sectionsCompletedLayout.addView(textView)
+      }
+
+      val totalProgressCountText = findViewById<TextView>(R.id.totalProgressCountText)
+      totalProgressCountText.text =
+        getString(R.string.ratio, totalCompleted.toString(), totalPrompts.toString())
     }
 
     dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
@@ -550,42 +590,5 @@ class HomeScreenActivity : ComponentActivity() {
     }
     dataManager.checkServerConnection()
   }
-
-  private fun updateCurrentSectionStats(state: edu.gatech.ccg.recordthesehands.upload.PromptState) {
-    val completed = state.currentPromptIndex ?: 0
-    val total = state.totalPromptsInCurrentSection ?: 0
-    findViewById<TextView>(R.id.completedAndTotalPromptsText).text = getString(R.string.ratio, completed.toString(), total.toString())
-    // Update other UI elements like username, deviceId etc.
-  }
-
-  private fun updateOtherSectionsList(state: edu.gatech.ccg.recordthesehands.upload.PromptState) {
-    val otherSectionsLayout = findViewById<android.widget.LinearLayout>(R.id.otherSectionsLayout)
-    otherSectionsLayout.removeAllViews()
-
-    val allSections = state.promptsCollection?.sections ?: return
-    val currentSectionName = state.currentSectionName
-
-    for (sectionName in allSections.keys.sorted()) {
-      if (sectionName == currentSectionName) continue
-
-      val section = allSections[sectionName]!!
-      // We will display progress for the "main" prompts on the home screen
-      val prompts = section.mainPrompts
-      val total = prompts.array.size
-      val sectionProgress = state.promptProgress[sectionName]
-      val completed = sectionProgress?.get("mainIndex") ?: 0
-
-      val statusText = if (total > 0 && completed >= total) {
-        getString(R.string.section_status_completed)
-      } else {
-        getString(R.string.section_status_in_progress, completed, total)
-      }
-
-      val textView = TextView(this).apply {
-        text = "$sectionName: $statusText"
-        // Add styling as needed
-      }
-      otherSectionsLayout.addView(textView)
-    }
-  }
 }
+

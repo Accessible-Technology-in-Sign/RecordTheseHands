@@ -151,143 +151,163 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusInformation" />
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/statisticsInformation"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintStart_toStartOf="@id/header"
-        app:layout_constraintEnd_toEndOf="@id/header"
-        app:layout_constraintTop_toBottomOf="@id/statisticsHeader">
-
-        <LinearLayout
-            android:id="@+id/promptsGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="center"
-            android:paddingTop="15dp">
-
-            <TextView
-                android:id="@+id/promptsProgressText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textStyle="bold"
-                android:text="@string/prompts_completed"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/completedAndTotalPromptsText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/ratio"
-                android:textSize="18sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/recordingsGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="center"
-            android:paddingTop="15dp">
-
-            <TextView
-                android:id="@+id/recordingsProgressText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textStyle="bold"
-                android:text="@string/total_recordings"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/recordingCountText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/counter"
-                android:textSize="18sp" />
-        </LinearLayout>
-
-
-        <LinearLayout
-            android:id="@+id/recordingTimeGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="center"
-            android:paddingTop="15dp">
-
-            <TextView
-                android:id="@+id/recordingTimeText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textStyle="bold"
-                android:text="@string/total_time"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/recordingTimeParsedText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/counter"
-                android:textSize="18sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/sessionCounterGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="center"
-            android:paddingTop="15dp">
-
-
-            <TextView
-                android:id="@+id/sessionCounterText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textStyle="bold"
-                android:text="@string/total_sessions"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/sessionCounterBox"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/counter"
-                android:textSize="18sp" />
-        </LinearLayout>
-
-
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/otherSectionsHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/other_sections_header"
-        android:textStyle="bold"
-        android:layout_marginTop="24dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statisticsInformation" />
-
-    <LinearLayout
-        android:id="@+id/otherSectionsLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/otherSectionsHeader" />
+        app:layout_constraintTop_toBottomOf="@id/statisticsHeader"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
+
+        <TextView
+            android:id="@+id/promptsProgressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/prompts_completed"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/completedAndTotalPromptsText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ratio"
+            android:textSize="18sp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/tutorialProgressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tutorial_mode"
+            android:textColor="@color/blue"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/totalProgressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/total_progress"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/promptsProgressText"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/totalProgressCountText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ratio"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/promptsProgressText"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/recordingsProgressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/total_recordings"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/totalProgressText"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/recordingCountText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/counter"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/totalProgressText"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/recordingTimeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/total_time"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/recordingsProgressText"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/recordingTimeParsedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/counter"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/recordingsProgressText"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/sessionCounterText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/total_sessions"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/recordingTimeText"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/sessionCounterBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/counter"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/recordingTimeText"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <TextView
+            android:id="@+id/sectionsCompletedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sections_completed"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            app:layout_constraintTop_toBottomOf="@id/sessionCounterText"
+            app:layout_constraintEnd_toStartOf="@id/guideline"
+            android:paddingTop="15dp" />
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/sectionsCompletedLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:flexWrap="wrap"
+            app:layout_constraintTop_toBottomOf="@id/sessionCounterText"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:paddingTop="15dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <ProgressBar
         android:id="@+id/uploadProgressBar"
@@ -302,7 +322,7 @@
         android:progressDrawable="@drawable/progress_bar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/otherSectionsLayout" />
+        app:layout_constraintTop_toBottomOf="@+id/statisticsInformation" />
 
     <Button
         android:id="@+id/switchPromptsButton"

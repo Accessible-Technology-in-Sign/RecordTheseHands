@@ -39,7 +39,9 @@
     <string name="server_success">Server Connected</string>
     <!-- Statistics -->
     <string name="statistics_header">Statistics</string>
-    <string name="prompts_completed">Prompts Completed:&#160;</string>
+    <string name="prompts_completed">Section Progress:&#160;</string>
+    <string name="total_progress">Total Progress:&#160;</string>
+    <string name="sections_completed">Sections:&#160;</string>
     <string name="total_recordings">Total Recordings:&#160;</string>
     <string name="total_time">Total Time Spent:&#160;</string>
     <string name="total_sessions">Session Completed This Sitting:&#160;</string>
