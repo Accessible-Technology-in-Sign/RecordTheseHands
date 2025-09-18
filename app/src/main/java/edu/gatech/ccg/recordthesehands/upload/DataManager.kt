@@ -57,7 +57,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
@@ -620,51 +619,6 @@ class UploadSession(
   }
 }
 
-class DataManagerData() {
-  companion object {
-    private val TAG = DataManagerData::class.simpleName
-
-    @Volatile
-    private var instance: DataManagerData? = null
-    fun getInstance(login_token_path: String): DataManagerData {
-      val checkInstance = instance
-      if (checkInstance != null) {
-        return checkInstance
-      }
-
-      return synchronized(this) {
-        val checkInstanceAgain = instance
-        if (checkInstanceAgain != null) {
-          checkInstanceAgain
-        } else {
-          val created = DataManagerData()
-          created.initialize(login_token_path)
-          instance = created
-          created
-        }
-      }
-    }
-  }
-
-  val lock = Mutex()
-  var deviceId: String? = null
-  var loginToken: String? = null
-  var promptsCollection: PromptsCollection? = null
-  var keyValues = mutableMapOf<String, JSONObject>()
-  var registeredFiles = mutableMapOf<String, JSONObject>()
-  var connectedToServer = false
-
-  fun initialize(login_token_path: String) {
-    try {
-      FileInputStream(login_token_path).use { stream ->
-        loginToken = stream.readBytes().toString(Charsets.UTF_8)
-      }
-    } catch (e: FileNotFoundException) {
-      Log.i(TAG, "loginToken not found.")
-    }
-  }
-}
-
 
 /**
  * class to upload files and key value pairs to the server.
@@ -683,33 +637,47 @@ class DataManager(val context: Context) {
 
   val dataManagerData = DataManagerData.getInstance(LOGIN_TOKEN_FULL_PATH)
 
+  // Public getters for LiveData now point to the singleton instance.
+  val serverStatus: LiveData<Boolean> get() = dataManagerData.serverStatus
+  val promptState: LiveData<PromptState> get() = dataManagerData.promptState
+
   init {
     initializePromptState()
   }
 
   fun initializePromptState() {
     CoroutineScope(Dispatchers.IO).launch {
-      // TODO verify that this works when multiple DataManager classes are active.
-      val tutorialMode = getTutorialMode()
-      val promptsCollection = getPromptsCollection()
-      val promptProgress = getPromptProgress()
-      val currentSectionName = getCurrentSectionName()
-      val username = getUsername()
-      val deviceId = getDeviceId()
+      dataManagerData.lock.withLock {
+        val tutorialMode = getTutorialModeFromPrefStore()
+        val promptsCollection = getPromptsCollectionFromDisk()
+        val promptProgress = getPromptProgressFromPrefStore()
+        val currentSectionName = getCurrentSectionNameFromPrefStore()
+        val username = getUsername()
 
-      val initialState = PromptState(
-        tutorialMode = tutorialMode,
-        promptsCollection = promptsCollection,
-        promptProgress = promptProgress,
-        currentSectionName = currentSectionName,
-        username = username,
-        deviceId = deviceId,
-        // Derived fields will be calculated by updatePromptState
-        currentPrompts = null,
-        currentPromptIndex = null,
-        totalPromptsInCurrentSection = null
-      )
-      updatePromptState(initialState)
+        // Special handling for first-time device ID initialization.
+        val deviceIdKey = stringPreferencesKey("deviceId")
+        var deviceId = context.prefStore.data.map { it[deviceIdKey] }.firstOrNull()
+        if (deviceId == null) {
+          deviceId = toHex(SecureRandom().generateSeed(4))
+          context.prefStore.edit { preferences ->
+            preferences[deviceIdKey] = deviceId
+          }
+        }
+
+        val initialState = PromptState(
+          tutorialMode = tutorialMode,
+          promptsCollection = promptsCollection,
+          promptProgress = promptProgress,
+          currentSectionName = currentSectionName,
+          username = username,
+          deviceId = deviceId,
+          // Derived fields will be calculated by updatePromptState
+          currentPrompts = null,
+          currentPromptIndex = null,
+          totalPromptsInCurrentSection = null
+        )
+        updatePromptStateUnderLock(initialState)
+      }
     }
   }
 
@@ -862,7 +830,7 @@ class DataManager(val context: Context) {
       return false
     } finally {
       if (!interrupted) {
-        _serverStatus.postValue(code >= 200 && code < 400)
+        dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
       }
       urlConnection.disconnect()
     }
@@ -912,7 +880,7 @@ class DataManager(val context: Context) {
       Log.e(TAG, "Post request failed: $e")
     } finally {
       if (!interrupted) {
-        _serverStatus.postValue(code >= 200 && code < 400)
+        dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
       }
       urlConnection.disconnect()
     }
@@ -927,33 +895,19 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getDeviceId(): String {
-    if (dataManagerData.deviceId != null) {
-      return dataManagerData.deviceId!!
-    }
-    dataManagerData.lock.withLock {
-      if (dataManagerData.deviceId != null) {
-        return dataManagerData.deviceId!!
-      }
-      val keyObject = stringPreferencesKey("deviceId")
-      val deviceId = context.prefStore.data.map {
-        it[keyObject]
-      }.firstOrNull()
-      if (deviceId != null) {
-        dataManagerData.deviceId = deviceId
-        return deviceId
-      }
-      val newDeviceId = toHex(SecureRandom().generateSeed(4))
-      context.prefStore.edit { preferences ->
-        preferences[keyObject] = newDeviceId
-      }
-      dataManagerData.deviceId = newDeviceId
-      return dataManagerData.deviceId!!
-    }
+    // The initial value is loaded into the container by initializePromptState.
+    // Subsequent reads should come directly from the container.
+    return dataManagerData.lock.withLock {
+      dataManagerData.promptStateContainer?.deviceId
+    } ?: throw IllegalStateException("Device ID not initialized.")
   }
 
   suspend fun setDeviceId(deviceId: String) {
     dataManagerData.lock.withLock {
-      dataManagerData.deviceId = deviceId
+      val currentState = dataManagerData.promptStateContainer
+        ?: throw IllegalStateException("Prompt state not initialized before setting device ID.")
+      updatePromptStateUnderLock(currentState.copy(deviceId = deviceId))
+
       val keyObject = stringPreferencesKey("deviceId")
       context.prefStore.edit {
         it[keyObject] = deviceId
@@ -961,47 +915,58 @@ class DataManager(val context: Context) {
     }
   }
 
-  suspend fun getTutorialMode(): Boolean {
+  private suspend fun getTutorialModeFromPrefStore(): Boolean {
     val keyObject = booleanPreferencesKey("tutorialMode")
     return context.prefStore.data.map {
       it[keyObject]
     }.firstOrNull() ?: TUTORIAL_MODE_DEFAULT
   }
 
+  suspend fun getTutorialMode(): Boolean = dataManagerData.lock.withLock {
+    // Read directly from the in-memory state container.
+    dataManagerData.promptStateContainer?.tutorialMode ?: TUTORIAL_MODE_DEFAULT
+  }
+
   suspend fun setTutorialMode(mode: Boolean) {
     Log.d(TAG, "setTutorialMode($mode)")
-    val currentState = _promptState.value
-      ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
-
-    updatePromptState(currentState.copy(tutorialMode = mode))
-
-    val keyObject = booleanPreferencesKey("tutorialMode")
-    context.prefStore.edit {
-      it[keyObject] = mode
+    dataManagerData.lock.withLock {
+      val currentState = dataManagerData.promptStateContainer
+        ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
+      updatePromptStateUnderLock(currentState.copy(tutorialMode = mode))
+      val keyObject = booleanPreferencesKey("tutorialMode")
+      // This is a suspending call, but it's okay inside withLock.
+      context.prefStore.edit {
+        it[keyObject] = mode
+      }
     }
 
   }
 
-  suspend fun getCurrentSectionName(): String? {
+  private suspend fun getCurrentSectionNameFromPrefStore(): String? {
     val keyObject = stringPreferencesKey("currentSectionName")
     return context.prefStore.data.map {
       it[keyObject]
     }.firstOrNull()
   }
 
+  suspend fun getCurrentSectionName(): String? = dataManagerData.lock.withLock {
+    // Read directly from the in-memory state container.
+    dataManagerData.promptStateContainer?.currentSectionName
+  }
+
   suspend fun setCurrentSection(sectionName: String) {
-    val currentState = _promptState.value
-      ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
-
-    updatePromptState(currentState.copy(currentSectionName = sectionName))
-
-    val keyObject = stringPreferencesKey("currentSectionName")
-    context.prefStore.edit {
-      it[keyObject] = sectionName
+    dataManagerData.lock.withLock {
+      val currentState = dataManagerData.promptStateContainer
+        ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
+      updatePromptStateUnderLock(currentState.copy(currentSectionName = sectionName))
+      val keyObject = stringPreferencesKey("currentSectionName")
+      context.prefStore.edit {
+        it[keyObject] = sectionName
+      }
     }
   }
 
-  suspend fun getPromptProgress(): Map<String, Map<String, Int>> {
+  private suspend fun getPromptProgressFromPrefStore(): Map<String, Map<String, Int>> {
     val keyObject = stringPreferencesKey("promptProgress")
     val jsonString = context.prefStore.data.map {
       it[keyObject]
@@ -1023,6 +988,11 @@ class DataManager(val context: Context) {
     return progressMap
   }
 
+  suspend fun getPromptProgress(): Map<String, Map<String, Int>> = dataManagerData.lock.withLock {
+    // Read directly from the in-memory state container.
+    dataManagerData.promptStateContainer?.promptProgress ?: emptyMap()
+  }
+
   suspend fun savePromptProgress(progress: Map<String, Map<String, Int>>) {
     val keyObject = stringPreferencesKey("promptProgress")
     val json = JSONObject()
@@ -1040,27 +1010,27 @@ class DataManager(val context: Context) {
 
 
   suspend fun saveCurrentPromptIndex(index: Int) {
-    val currentState = _promptState.value
-      ?: throw IllegalStateException(
-        "Attempted to save prompt index before prompt state was initialized."
-      )
-    val sectionName = currentState.currentSectionName
-      ?: throw IllegalStateException(
-        "Attempted to save prompt index without a current section set."
-      )
+    dataManagerData.lock.withLock {
+      val currentState = dataManagerData.promptStateContainer
+        ?: throw IllegalStateException(
+          "Attempted to save prompt index before prompt state was initialized."
+        )
+      val sectionName = currentState.currentSectionName
+        ?: throw IllegalStateException(
+          "Attempted to save prompt index without a current section set."
+        )
+      val newProgress = currentState.promptProgress.toMutableMap()
+      val sectionProgress = newProgress[sectionName]?.toMutableMap() ?: mutableMapOf()
 
-    val newProgress = currentState.promptProgress.toMutableMap()
-    val sectionProgress = newProgress[sectionName]?.toMutableMap() ?: mutableMapOf()
-
-    if (currentState.tutorialMode) {
-      sectionProgress["tutorialIndex"] = index
-    } else {
-      sectionProgress["mainIndex"] = index
+      if (currentState.tutorialMode) {
+        sectionProgress["tutorialIndex"] = index
+      } else {
+        sectionProgress["mainIndex"] = index
+      }
+      newProgress[sectionName] = sectionProgress
+      updatePromptStateUnderLock(currentState.copy(promptProgress = newProgress))
+      savePromptProgress(newProgress) // Persist to storage
     }
-    newProgress[sectionName] = sectionProgress
-
-    updatePromptState(currentState.copy(promptProgress = newProgress))
-    savePromptProgress(newProgress) // Persist to storage
   }
 
 
@@ -1084,22 +1054,23 @@ class DataManager(val context: Context) {
   }
 
   private suspend fun reloadPromptsFromServer(): Boolean {
-    dataManagerData.promptsCollection = null
-    context.prefStore.edit { preferences ->
-      // Remove old, now unused, preference keys.
-      preferences.remove(stringPreferencesKey("promptsFilename"))
-      preferences.remove(stringPreferencesKey("tutorialPromptsFilename"))
-      preferences.remove(intPreferencesKey("promptIndex"))
-      // Remove current prompt state.
-      preferences.remove(stringPreferencesKey("currentSectionName"))
-      preferences.remove(stringPreferencesKey("promptProgress"))
+    dataManagerData.lock.withLock {
+      val currentState = dataManagerData.promptStateContainer
+      if (currentState != null) {
+        updatePromptStateUnderLock(currentState.copy(promptsCollection = null))
+      }
+      context.prefStore.edit { preferences ->
+        // Remove current prompt state.
+        preferences.remove(stringPreferencesKey("currentSectionName"))
+        preferences.remove(stringPreferencesKey("promptProgress"))
+      }
+      if (!downloadPrompts()) {
+        return false
+      }
+      // Re-initialize the state from scratch after download
+      initializePromptState()
+      return true
     }
-    if (!downloadPrompts()) {
-      return false
-    }
-    // Re-initialize the state from scratch after download
-    initializePromptState()
-    return true
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -1600,9 +1571,6 @@ class DataManager(val context: Context) {
       return false
     }
     Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
-
-    // Clear the cached prompts collection so it will be reloaded.
-    dataManagerData.promptsCollection = null
     return true
   }
 
@@ -1780,22 +1748,31 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPromptsCollection(): PromptsCollection? {
-    if (dataManagerData.promptsCollection != null) {
-      return dataManagerData.promptsCollection
+    return dataManagerData.lock.withLock {
+      dataManagerData.promptStateContainer?.promptsCollection
     }
-    dataManagerData.lock.withLock {
-      if (dataManagerData.promptsCollection != null) {
-        return dataManagerData.promptsCollection
-      }
+  }
+
+  private suspend fun getPromptsCollectionFromDisk(): PromptsCollection? {
+    return dataManagerData.lock.withLock {
+      // First, check the in-memory state.
+      val collection = dataManagerData.promptStateContainer?.promptsCollection
+      if (collection != null) return@withLock collection
+
+      // If not in memory, load from disk. This should only happen once.
       val newPromptsCollection = PromptsCollection(context)
       if (!newPromptsCollection.initialize()) {
-        return null
+        return@withLock null
       }
       if (!ensureResources(newPromptsCollection)) {
-        return null
+        return@withLock null
       }
-      dataManagerData.promptsCollection = newPromptsCollection
-      return dataManagerData.promptsCollection
+      // Update the state container with the newly loaded collection.
+      val currentState = dataManagerData.promptStateContainer
+      if (currentState != null) {
+        updatePromptStateUnderLock(currentState.copy(promptsCollection = newPromptsCollection))
+      }
+      newPromptsCollection
     }
   }
 
@@ -1908,32 +1885,28 @@ class DataManager(val context: Context) {
    * Store server status with LiveData
    */
   internal val _serverStatus = MutableLiveData<Boolean>()
-  val serverStatus: LiveData<Boolean> get() = _serverStatus
 
-
-  internal val _promptState = MutableLiveData<PromptState>()
-  val promptState: LiveData<PromptState> get() = _promptState
-
-  private fun updatePromptState(newState: PromptState) {
+  private fun updatePromptStateUnderLock(newState: PromptState) {
     val section = newState.promptsCollection?.sections?.get(newState.currentSectionName)
     val currentPrompts = if (section != null) {
       if (newState.tutorialMode) section.tutorialPrompts else section.mainPrompts
     } else {
       null
     }
-    val currentPromptIndex = if (section != null) {
-      val sectionProgress = newState.promptProgress[newState.currentSectionName]
-      if (newState.tutorialMode) {
-        sectionProgress?.get("tutorialIndex") ?: 0
+    val currentPromptIndex =
+      if (section != null) {
+        val sectionProgress = newState.promptProgress[newState.currentSectionName]
+        if (newState.tutorialMode) {
+          sectionProgress?.get("tutorialIndex") ?: 0
+        } else {
+          sectionProgress?.get("mainIndex") ?: 0
+        }
       } else {
-        sectionProgress?.get("mainIndex") ?: 0
+        null
       }
-    } else {
-      null
-    }
     val totalPrompts = currentPrompts?.array?.size
 
-    _promptState.postValue(
+    val finalState =
       newState.copy(
         currentPrompts = currentPrompts,
         currentPromptIndex = currentPromptIndex,
@@ -1941,7 +1914,8 @@ class DataManager(val context: Context) {
         username = newState.username,
         deviceId = newState.deviceId
       )
-    )
+    dataManagerData.promptStateContainer = finalState
+    dataManagerData._promptState.postValue(finalState)
   }
 
   /**
@@ -1957,11 +1931,11 @@ class DataManager(val context: Context) {
       urlConnection.readTimeout = 5000
       val responseCode = urlConnection.responseCode
       val success = responseCode == HttpURLConnection.HTTP_OK
-      _serverStatus.postValue(success)
+      dataManagerData._serverStatus.postValue(success)
       return success
     } catch (e: Exception) {
       Log.d(TAG, e.toString())
-      _serverStatus.postValue(false)
+      dataManagerData._serverStatus.postValue(false)
       return false
     }
   }

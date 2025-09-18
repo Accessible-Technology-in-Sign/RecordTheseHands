@@ -188,7 +188,7 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toEndOf="@id/guideline"
             android:paddingTop="15dp"
-            android:paddingEnd="8dp"/>
+            android:paddingEnd="8dp" />
 
         <TextView
             android:id="@+id/completedAndTotalPromptsText"
