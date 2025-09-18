@@ -24,17 +24,24 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.PromptState
 import kotlinx.coroutines.launch
 
 class PromptSelectActivity : ComponentActivity() {
+
+  companion object {
+    private val TAG = PromptSelectActivity::class.simpleName
+  }
+
   private lateinit var dataManager: DataManager
   private lateinit var binding: ActivityPromptPickerBinding
 
@@ -51,10 +58,13 @@ class PromptSelectActivity : ComponentActivity() {
       populateSections(state)
     }
 
+    binding.toggleTutorialButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     binding.toggleTutorialButton.setOnClickListener {
+      Log.d(TAG, "Toggle Tutorial Mode button pressed.")
       val currentMode = dataManager.promptState.value?.tutorialMode ?: false
       lifecycleScope.launch {
         dataManager.setTutorialMode(!currentMode)
+        finish() // Return to HomeScreen
       }
     }
   }
@@ -92,6 +102,7 @@ class PromptSelectActivity : ComponentActivity() {
       if (!isCompleted) {
         sectionButton.setOnClickListener {
           lifecycleScope.launch {
+            Log.d(TAG, "Clicked on button to set Prompts Section to ${sectionName}")
             dataManager.setCurrentSection(sectionName)
             finish() // Return to HomeScreen
           }

@@ -180,13 +180,24 @@
             android:paddingTop="15dp" />
 
         <TextView
+            android:id="@+id/sectionNameText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="18sp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/guideline"
+            android:paddingTop="15dp"
+            android:paddingEnd="8dp"/>
+
+        <TextView
             android:id="@+id/completedAndTotalPromptsText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/ratio"
             android:textSize="18sp"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/guideline"
+            app:layout_constraintStart_toEndOf="@id/sectionNameText"
             android:paddingTop="15dp" />
 
         <TextView
@@ -199,7 +210,7 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="@id/guideline"
+            app:layout_constraintStart_toEndOf="@id/sectionNameText"
             android:paddingTop="15dp" />
 
         <TextView

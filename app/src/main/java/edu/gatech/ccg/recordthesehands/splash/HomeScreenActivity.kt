@@ -487,6 +487,9 @@ class HomeScreenActivity : ComponentActivity() {
 
       val tutorialProgressText = findViewById<TextView>(R.id.tutorialProgressText)
       val completedAndTotalPromptsText = findViewById<TextView>(R.id.completedAndTotalPromptsText)
+      val sectionNameText = findViewById<TextView>(R.id.sectionNameText)
+
+      sectionNameText.text = state.currentSectionName ?: ""
 
       if (state.tutorialMode) {
         tutorialProgressText.visibility = View.VISIBLE
