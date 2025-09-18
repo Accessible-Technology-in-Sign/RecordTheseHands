@@ -154,22 +154,6 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
   /**
-   * Sets up the UI with a loading screen
-   */
-  private fun setupLoadingUI() {
-    val startRecordingButton = findViewById<Button>(R.id.startButton)
-    startRecordingButton.isEnabled = false
-    startRecordingButton.isClickable = false
-    startRecordingButton.text = getString(R.string.start_failed)
-    val versionText = findViewById<TextView>(R.id.versionText)
-    versionText.text = getString(R.string.version_text, APP_VERSION)
-    val loadingText = findViewById<TextView>(R.id.loadingText)
-    loadingText.visibility = View.VISIBLE
-    val mainGroup = findViewById<Group>(R.id.mainGroup)
-    mainGroup.visibility = View.GONE
-  }
-
-  /**
    * Sets up all of the UI elements.
    */
   // The `setOnTouchListener` is used for haptic feedback and the click is handled by a separate
