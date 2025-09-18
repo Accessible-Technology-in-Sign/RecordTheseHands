@@ -41,6 +41,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -66,6 +69,8 @@ import kotlinx.coroutines.launch
  * The home page for the app. The user can see statistics and start recording from this page.
  */
 class HomeScreenActivity : ComponentActivity() {
+
+  private var windowInsetsController: WindowInsetsControllerCompat? = null
 
   companion object {
     private val TAG = HomeScreenActivity::class.simpleName
@@ -383,6 +388,13 @@ class HomeScreenActivity : ComponentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    windowInsetsController =
+      WindowCompat.getInsetsController(window, window.decorView)?.also {
+        it.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
+
     dataManager = DataManager(applicationContext)
 
     // Start the UploadService (which should already be running anyway).
@@ -592,6 +604,16 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
     dataManager.checkServerConnection()
+  }
+
+  override fun onResume() {
+    super.onResume()
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+  }
+
+  override fun onStop() {
+    super.onStop()
+    windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
   }
 }
 

@@ -28,6 +28,9 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
@@ -38,6 +41,8 @@ import kotlinx.coroutines.launch
 
 class PromptSelectActivity : ComponentActivity() {
 
+  private var windowInsetsController: WindowInsetsControllerCompat? = null
+
   companion object {
     private val TAG = PromptSelectActivity::class.simpleName
   }
@@ -47,6 +52,13 @@ class PromptSelectActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    windowInsetsController =
+      WindowCompat.getInsetsController(window, window.decorView)?.also {
+        it.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
+
     binding = ActivityPromptPickerBinding.inflate(layoutInflater)
     setContentView(binding.root)
     dataManager = DataManager(applicationContext)
@@ -110,5 +122,15 @@ class PromptSelectActivity : ComponentActivity() {
       }
       binding.promptSectionsLayout.addView(sectionView)
     }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+  }
+
+  override fun onStop() {
+    super.onStop()
+    windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
   }
 }
