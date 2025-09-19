@@ -1802,6 +1802,7 @@ class DataManager(val context: Context) {
   suspend fun ensureResources(promptsCollection: PromptsCollection): Boolean {
     Log.i(TAG, "ensureResources for promptsCollection")
     for (section in promptsCollection.sections.values) {
+      Log.i(TAG, "processing ensureResources for section ${section.name}")
       if (!ensureResources(section.mainPrompts)) {
         return false
       }
@@ -1813,7 +1814,6 @@ class DataManager(val context: Context) {
   }
 
   suspend fun ensureResources(prompts: Prompts): Boolean {
-    Log.i(TAG, "ensureResources")
     for (prompt in prompts.array) {
       // Log.d(TAG, "prompt ${prompt.toJson()}")
       if (prompt.resourcePath != null) {
@@ -1893,6 +1893,18 @@ class DataManager(val context: Context) {
   }
 
   /**
+   * Check server connection by pinging server
+   * method must be called whenever you want to check the server status
+   * TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
+   * other server calls (which could just set this directly).
+   */
+  fun checkServerConnection() {
+    CoroutineScope(Dispatchers.IO).launch {
+      pingServer()
+    }
+  }
+
+  /**
    * Store server status with LiveData
    */
   internal val _serverStatus = MutableLiveData<Boolean>()
@@ -1931,19 +1943,6 @@ class DataManager(val context: Context) {
       )
     )
   }
-
-  /**
-   * Check server connection by pinging server
-   * method must be called whenever you want to check the server status
-   * TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
-   * other server calls (which could just set this directly).
-   */
-  fun checkServerConnection() {
-    CoroutineScope(Dispatchers.IO).launch {
-      pingServer()
-    }
-  }
-
 
   /**
    * Ping server by calling server and checking connectivity

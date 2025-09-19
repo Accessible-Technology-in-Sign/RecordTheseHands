@@ -444,7 +444,13 @@ class HomeScreenActivity : ComponentActivity() {
       setupUI()
     }
 
+    val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
+    switchPromptsButton.setOnClickListener {
+        startActivity(Intent(this, PromptSelectActivity::class.java))
+    }
+
     dataManager.promptState.observe(this@HomeScreenActivity) { state ->
+      updateOtherSectionsList(state)
       val startRecordingButton = findViewById<Button>(R.id.startButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
       val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
@@ -543,5 +549,43 @@ class HomeScreenActivity : ComponentActivity() {
       }
     }
     dataManager.checkServerConnection()
+  }
+
+  private fun updateCurrentSectionStats(state: edu.gatech.ccg.recordthesehands.upload.PromptState) {
+    val completed = state.currentPromptIndex ?: 0
+    val total = state.totalPromptsInCurrentSection ?: 0
+    findViewById<TextView>(R.id.completedAndTotalPromptsText).text = getString(R.string.ratio, completed.toString(), total.toString())
+    // Update other UI elements like username, deviceId etc.
+  }
+
+  private fun updateOtherSectionsList(state: edu.gatech.ccg.recordthesehands.upload.PromptState) {
+    val otherSectionsLayout = findViewById<android.widget.LinearLayout>(R.id.otherSectionsLayout)
+    otherSectionsLayout.removeAllViews()
+
+    val allSections = state.promptsCollection?.sections ?: return
+    val currentSectionName = state.currentSectionName
+
+    for (sectionName in allSections.keys.sorted()) {
+      if (sectionName == currentSectionName) continue
+
+      val section = allSections[sectionName]!!
+      // We will display progress for the "main" prompts on the home screen
+      val prompts = section.mainPrompts
+      val total = prompts.array.size
+      val sectionProgress = state.promptProgress[sectionName]
+      val completed = sectionProgress?.get("mainIndex") ?: 0
+
+      val statusText = if (total > 0 && completed >= total) {
+        getString(R.string.section_status_completed)
+      } else {
+        getString(R.string.section_status_in_progress, completed, total)
+      }
+
+      val textView = TextView(this).apply {
+        text = "$sectionName: $statusText"
+        // Add styling as needed
+      }
+      otherSectionsLayout.addView(textView)
+    }
   }
 }

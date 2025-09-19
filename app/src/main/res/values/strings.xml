@@ -59,6 +59,18 @@
     <string name="upload_failed">Upload Failed, Click to try again</string>
     <string name="upload_successful">Uploading…</string>
 
+    <!-- HomeScreenActivity -->
+    <string name="switch_prompts">Switch Prompts</string>
+    <string name="other_sections_header">Other Sections</string>
+    <string name="section_status_completed">Completed</string>
+    <string name="section_status_in_progress">%1$d / %2$d</string>
+
+    <!-- PromptSelectActivity -->
+    <string name="prompt_select_title">Select a Prompt Section</string>
+    <string name="switch_to_tutorial_prompts">Switch to Tutorial Prompts</string>
+    <string name="switch_to_normal_prompts">Switch to Normal Prompts</string>
+    <string name="prompts_completed_progress">%1$d / %2$d prompts completed</string>
+
     <!-- Time formatting -->
     <string name="time_format_min_sec">%1$02dm %2$02ds</string>
 

@@ -1,7 +1,7 @@
 /**
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-2024
+ * Copyright (c) 2025
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,94 +23,80 @@
  */
 package edu.gatech.ccg.recordthesehands.splash
 
-import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Button
-import android.widget.ImageButton
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
-import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import edu.gatech.ccg.recordthesehands.upload.PromptState
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class PromptSelectActivity : ComponentActivity() {
+    private lateinit var dataManager: DataManager
+    private lateinit var binding: ActivityPromptPickerBinding
 
-  companion object {
-    private val TAG = PromptSelectActivity::class.simpleName
-  }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityPromptPickerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        dataManager = DataManager(applicationContext)
 
-  private lateinit var dataManager: DataManager
-
-  // TODO: Separate statistics for tutorial and loaded prompts.
-
-  // TODO: Need variables to keep track of session completion count for both tutorial and loaded prompts when back arrowing to selection page
-
-  // TODO: Adapt updateConnectionUi() function in HomeScreenActivity.kt for this class
-
-  private fun setupUI() {
-    lifecycleScope.launch {
-      val backArrow = findViewById<ImageButton>(R.id.backButton)
-      backArrow.setOnClickListener {
-        CoroutineScope(Dispatchers.IO).launch {
-          dataManager.setTutorialMode(false)
-          dataManager.saveCurrentPromptIndex(0)
-
-          // startActivity is configured so that it will not run on anything but the main thread. So, this will create the intent and start it on the main thread.
-          withContext(Dispatchers.Main) {
-            val intent = Intent(this@PromptSelectActivity, LoadDataActivity::class.java)
-            startActivity(intent)
-            Log.i(TAG, "Logging out")
-            // TODO: Implement a proper logout system
-//            dataManager.deleteLoginToken()
-            finish()
-          }
+        // Observe the overall prompt state
+        dataManager.promptState.observe(this) { state ->
+            if (state == null) return@observe
+            updateTutorialButton(state.tutorialMode)
+            populateSections(state)
         }
-      }
 
-      val loadedPrompts = findViewById<Button>(R.id.loadedPrompts)
-      loadedPrompts.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      loadedPrompts.setOnClickListener {
-        CoroutineScope(Dispatchers.IO).launch {
-          dataManager.setTutorialMode(false)
-          dataManager.saveCurrentPromptIndex(0)
-          withContext(Dispatchers.Main) {
-            val intent = Intent(this@PromptSelectActivity, HomeScreenActivity::class.java)
-            startActivity(intent)
-            Log.i(TAG, "Moving from prompt selector to loaded prompts")
-            finish()
-          }
+        binding.toggleTutorialButton.setOnClickListener {
+            val currentMode = dataManager.promptState.value?.tutorialMode ?: false
+            lifecycleScope.launch {
+                dataManager.setTutorialMode(!currentMode)
+            }
         }
-      }
-
-      val tutorialPrompts = findViewById<Button>(R.id.tutorialModePrompts)
-      tutorialPrompts.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      tutorialPrompts.setOnClickListener {
-        CoroutineScope(Dispatchers.IO).launch {
-          dataManager.setTutorialMode(true)
-          dataManager.saveCurrentPromptIndex(0)
-          withContext(Dispatchers.Main) {
-            val intent = Intent(this@PromptSelectActivity, HomeScreenActivity::class.java)
-            startActivity(intent)
-            Log.i(TAG, "Moving from prompt selector to tutorial prompts")
-            finish()
-          }
-        }
-      }
     }
-  }
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    dataManager = DataManager(applicationContext)
-    val binding = ActivityPromptPickerBinding.inflate(layoutInflater)
-    val view = binding.root
-    setContentView(view)
-    setupUI()
-  }
+    private fun updateTutorialButton(isTutorialMode: Boolean) {
+        binding.toggleTutorialButton.text = if (isTutorialMode) {
+            getString(R.string.switch_to_normal_prompts)
+        } else {
+            getString(R.string.switch_to_tutorial_prompts)
+        }
+    }
+
+    private fun populateSections(state: PromptState) {
+        binding.promptSectionsLayout.removeAllViews()
+        val sections = state.promptsCollection?.sections ?: return
+
+        for (sectionName in sections.keys.sorted()) {
+            val section = sections[sectionName]!!
+            val prompts = section.mainPrompts
+            val total = prompts.array.size
+            val sectionProgress = state.promptProgress[sectionName]
+            val completed = sectionProgress?.get("mainIndex") ?: 0
+            val isCompleted = total > 0 && completed >= total
+
+            val sectionView = layoutInflater.inflate(R.layout.section_list_item, binding.promptSectionsLayout, false)
+
+            val sectionButton = sectionView.findViewById<Button>(R.id.sectionButton)
+            val progressText = sectionView.findViewById<TextView>(R.id.progressText)
+
+            sectionButton.text = sectionName
+            progressText.text = getString(R.string.prompts_completed_progress, completed, total)
+            sectionButton.isEnabled = !isCompleted
+
+            if (!isCompleted) {
+                sectionButton.setOnClickListener {
+                    lifecycleScope.launch {
+                        dataManager.setCurrentSection(sectionName)
+                        finish() // Return to HomeScreen
+                    }
+                }
+            }
+            binding.promptSectionsLayout.addView(sectionView)
+        }
+    }
 }
