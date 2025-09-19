@@ -27,38 +27,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.sync.Mutex
 import org.json.JSONObject
-import java.io.FileInputStream
-import java.io.FileNotFoundException
+import java.util.concurrent.atomic.AtomicBoolean
 
-class DataManagerData private constructor() {
-  companion object {
-    @Volatile
-    private var instance: DataManagerData? = null
-    fun getInstance(login_token_path: String): DataManagerData {
-      val checkInstance = instance
-      if (checkInstance != null) {
-        return checkInstance
-      }
-
-      return synchronized(this) {
-        val checkInstanceAgain = instance
-        if (checkInstanceAgain != null) {
-          checkInstanceAgain
-        } else {
-          val created = DataManagerData()
-          created.initialize(login_token_path)
-          instance = created
-          created
-        }
-      }
-    }
-  }
+object DataManagerData {
+  val isInitialized = AtomicBoolean(false)
 
   val lock = Mutex()
   var loginToken: String? = null
   var keyValues = mutableMapOf<String, JSONObject>()
   var registeredFiles = mutableMapOf<String, JSONObject>()
-  var connectedToServer = false
 
   // All UI visible State.
   var promptStateContainer: PromptState? = null
@@ -68,15 +45,4 @@ class DataManagerData private constructor() {
 
   internal val _promptState = MutableLiveData<PromptState>()
   val promptState: LiveData<PromptState> get() = _promptState
-
-
-  fun initialize(login_token_path: String) {
-    try {
-      FileInputStream(login_token_path).use { stream ->
-        loginToken = stream.readBytes().toString(Charsets.UTF_8)
-      }
-    } catch (e: FileNotFoundException) {
-      // Log.i(TAG, "loginToken not found.")
-    }
-  }
 }
