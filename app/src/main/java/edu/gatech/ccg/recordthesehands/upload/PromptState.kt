@@ -9,8 +9,32 @@ data class PromptState(
   val username: String?,
   val deviceId: String?,
 
+) {
   // Derived State (for UI convenience)
-  val currentPrompts: Prompts?,
-  val currentPromptIndex: Int?,
+  val currentPrompts: Prompts?
+    get() {
+      val section = promptsCollection?.sections?.get(currentSectionName)
+      return if (section != null) {
+        if (tutorialMode) section.tutorialPrompts else section.mainPrompts
+      } else {
+        null
+      }
+    }
+
+  val currentPromptIndex: Int?
+    get() {
+      return if (currentSectionName != null) {
+        val sectionProgress = promptProgress[currentSectionName]
+        if (tutorialMode) {
+          sectionProgress?.get("tutorialIndex") ?: 0
+        } else {
+          sectionProgress?.get("mainIndex") ?: 0
+        }
+      } else {
+        null
+      }
+    }
+
   val totalPromptsInCurrentSection: Int?
-)
+    get() = currentPrompts?.array?.size
+}

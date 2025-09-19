@@ -1232,11 +1232,17 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
 
     val initialState = dataManager.promptState.value
-    if (initialState == null || initialState.currentPrompts == null || initialState.currentPromptIndex == null) {
+    if (initialState == null) {
       throw IllegalStateException("Prompt state not available.")
     }
-    this.prompts = initialState.currentPrompts
-    this.sessionStartIndex = initialState.currentPromptIndex
+    val tmpCurrentPrompts = initialState.currentPrompts
+    val tmpCurrentPromptIndex = initialState.currentPromptIndex
+    if (tmpCurrentPrompts == null || tmpCurrentPromptIndex == null) {
+      throw IllegalStateException("Prompt state not available.")
+    }
+    this.prompts = tmpCurrentPrompts
+    this.sessionStartIndex = tmpCurrentPromptIndex
+    this.currentPromptIndex = tmpCurrentPromptIndex
     this.useSummaryPage =
       initialState.promptsCollection?.sections?.get(initialState.currentSectionName)?.metadata?.useSummaryPage
         ?: false

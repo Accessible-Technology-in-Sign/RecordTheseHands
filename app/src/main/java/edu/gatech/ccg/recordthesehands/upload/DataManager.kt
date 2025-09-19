@@ -42,7 +42,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.PROMPTS_FILENAME
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
@@ -687,12 +686,8 @@ class DataManager(val context: Context) {
       currentSectionName = currentSectionName,
       username = username,
       deviceId = deviceId,
-      // Derived fields will be calculated by updatePromptState
-      currentPrompts = null,
-      currentPromptIndex = null,
-      totalPromptsInCurrentSection = null
     )
-    updatePromptStateUnderLock(initialState)
+    updatePromptStateAndPost(initialState)
   }
 
   fun hasServer(): Boolean {
@@ -920,7 +915,7 @@ class DataManager(val context: Context) {
     dataManagerData.lock.withLock {
       val currentState = dataManagerData.promptStateContainer
         ?: throw IllegalStateException("Prompt state not initialized before setting device ID.")
-      updatePromptStateUnderLock(currentState.copy(deviceId = deviceId))
+      updatePromptStateAndPost(currentState.copy(deviceId = deviceId))
 
       val keyObject = stringPreferencesKey("deviceId")
       context.prefStore.edit {
@@ -946,7 +941,7 @@ class DataManager(val context: Context) {
     dataManagerData.lock.withLock {
       val currentState = dataManagerData.promptStateContainer
         ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
-      updatePromptStateUnderLock(currentState.copy(tutorialMode = mode))
+      updatePromptStateAndPost(currentState.copy(tutorialMode = mode))
       val keyObject = booleanPreferencesKey("tutorialMode")
       // This is a suspending call, but it's okay inside withLock.
       context.prefStore.edit {
@@ -972,7 +967,7 @@ class DataManager(val context: Context) {
     dataManagerData.lock.withLock {
       val currentState = dataManagerData.promptStateContainer
         ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
-      updatePromptStateUnderLock(currentState.copy(currentSectionName = sectionName))
+      updatePromptStateAndPost(currentState.copy(currentSectionName = sectionName))
       val keyObject = stringPreferencesKey("currentSectionName")
       context.prefStore.edit {
         it[keyObject] = sectionName
@@ -1042,7 +1037,7 @@ class DataManager(val context: Context) {
         sectionProgress["mainIndex"] = index
       }
       newProgress[sectionName] = sectionProgress
-      updatePromptStateUnderLock(currentState.copy(promptProgress = newProgress))
+      updatePromptStateAndPost(currentState.copy(promptProgress = newProgress))
       savePromptProgress(newProgress) // Persist to storage
     }
   }
@@ -1071,7 +1066,7 @@ class DataManager(val context: Context) {
     dataManagerData.lock.withLock {
       val currentState = dataManagerData.promptStateContainer
       if (currentState != null) {
-        updatePromptStateUnderLock(currentState.copy(promptsCollection = null))
+        updatePromptStateAndPost(currentState.copy(promptsCollection = null))
       }
       context.prefStore.edit { preferences ->
         // Remove current prompt state.
@@ -1875,34 +1870,9 @@ class DataManager(val context: Context) {
     }
   }
 
-  private fun updatePromptStateUnderLock(newState: PromptState) {
-    val section = newState.promptsCollection?.sections?.get(newState.currentSectionName)
-    val currentPrompts = if (section != null) {
-      if (newState.tutorialMode) section.tutorialPrompts else section.mainPrompts
-    } else {
-      null
-    }
-    val currentPromptIndex =
-      if (section != null) {
-        val sectionProgress = newState.promptProgress[newState.currentSectionName]
-        if (newState.tutorialMode) {
-          sectionProgress?.get("tutorialIndex") ?: 0
-        } else {
-          sectionProgress?.get("mainIndex") ?: 0
-        }
-      } else {
-        null
-      }
-    val totalPrompts = currentPrompts?.array?.size
-
-    val finalState =
-      newState.copy(
-        currentPrompts = currentPrompts,
-        currentPromptIndex = currentPromptIndex,
-        totalPromptsInCurrentSection = totalPrompts
-      )
-    dataManagerData.promptStateContainer = finalState
-    dataManagerData._promptState.postValue(finalState)
+  private fun updatePromptStateAndPost(newState: PromptState) {
+    dataManagerData.promptStateContainer = newState
+    dataManagerData._promptState.postValue(newState)
   }
 
   /**
@@ -1927,4 +1897,3 @@ class DataManager(val context: Context) {
     }
   }
 }
-

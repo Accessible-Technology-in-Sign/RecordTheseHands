@@ -142,6 +142,8 @@ class HomeScreenActivity : ComponentActivity() {
             it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
           }
           UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          // TODO this does not work the second time through.  Or at least not when the network
+          // isn't working.  Probably some thread has acquired the lock twice and is deadlocked.
           Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
           dataManager.waitForDataLock()
           Log.d(TAG, "Data lock was available.")
