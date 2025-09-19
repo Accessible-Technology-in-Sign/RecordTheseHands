@@ -58,6 +58,7 @@ class LoadDataActivity : ComponentActivity() {
 
     requestAllPermissions()
 
+    // TODO Use an observer on PromptState to get the necessary information.
     val deviceIdText = findViewById<TextView>(R.id.setDeviceIdText)
     val usernameText = findViewById<TextView>(R.id.usernameTextField)
 
@@ -117,6 +118,7 @@ class LoadDataActivity : ComponentActivity() {
       }
     }
 
+    // TODO remove enableTutorialModeButton it is redundant with functionality in PromptSelectActivity.
     val enableTutorialModeButton = findViewById<Button>(R.id.enableTutorialModeButton)
     enableTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     enableTutorialModeButton.setOnClickListener {

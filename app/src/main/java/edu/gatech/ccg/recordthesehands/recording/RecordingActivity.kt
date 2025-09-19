@@ -1240,7 +1240,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     this.useSummaryPage =
       initialState.promptsCollection?.sections?.get(initialState.currentSectionName)?.metadata?.useSummaryPage
         ?: false
-    username = dataManager.getUsername() ?: throw IllegalStateException("username not available.")
+    username = initialState.username ?: throw IllegalStateException("username not available.")
     tutorialMode = initialState.tutorialMode
     val sessionType = if (tutorialMode) "tutorial" else "normal"
     val sessionId = runBlocking { dataManager.newSessionId() }
