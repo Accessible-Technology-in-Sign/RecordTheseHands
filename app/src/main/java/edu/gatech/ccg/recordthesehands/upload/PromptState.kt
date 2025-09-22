@@ -9,7 +9,7 @@ data class PromptState(
   val username: String?,
   val deviceId: String?,
 
-) {
+  ) {
   // Derived State (for UI convenience)
   val currentPrompts: Prompts?
     get() {

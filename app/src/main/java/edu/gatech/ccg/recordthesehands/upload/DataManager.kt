@@ -904,11 +904,16 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getDeviceId(): String {
+    dataManagerData.lock.withLock {
+      return getDeviceIdUnderLock()
+    }
+  }
+
+  private suspend fun getDeviceIdUnderLock(): String {
     // The initial value is loaded into the container by initializePromptState.
     // Subsequent reads should come directly from the container.
-    return dataManagerData.lock.withLock {
-      dataManagerData.promptStateContainer?.deviceId
-    } ?: throw IllegalStateException("Device ID not initialized.")
+    return dataManagerData.promptStateContainer?.deviceId
+      ?: throw IllegalStateException("Device ID not initialized.")
   }
 
   suspend fun setDeviceId(deviceId: String) {
@@ -931,24 +936,33 @@ class DataManager(val context: Context) {
     }.firstOrNull() ?: TUTORIAL_MODE_DEFAULT
   }
 
-  suspend fun getTutorialMode(): Boolean = dataManagerData.lock.withLock {
+  suspend fun getTutorialMode(): Boolean {
+    dataManagerData.lock.withLock {
+      return getTutorialModeUnderLock()
+    }
+  }
+
+  private suspend fun getTutorialModeUnderLock(): Boolean {
     // Read directly from the in-memory state container.
-    dataManagerData.promptStateContainer?.tutorialMode ?: TUTORIAL_MODE_DEFAULT
+    return dataManagerData.promptStateContainer?.tutorialMode ?: TUTORIAL_MODE_DEFAULT
   }
 
   suspend fun setTutorialMode(mode: Boolean) {
     Log.d(TAG, "setTutorialMode($mode)")
     dataManagerData.lock.withLock {
-      val currentState = dataManagerData.promptStateContainer
-        ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
-      updatePromptStateAndPost(currentState.copy(tutorialMode = mode))
-      val keyObject = booleanPreferencesKey("tutorialMode")
-      // This is a suspending call, but it's okay inside withLock.
-      context.prefStore.edit {
-        it[keyObject] = mode
-      }
+      return setTutorialModeUnderLock(mode)
     }
+  }
 
+  private suspend fun setTutorialModeUnderLock(mode: Boolean) {
+    val currentState = dataManagerData.promptStateContainer
+      ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
+    updatePromptStateAndPost(currentState.copy(tutorialMode = mode))
+    val keyObject = booleanPreferencesKey("tutorialMode")
+    // This is a suspending call, but it's okay inside withLock.
+    context.prefStore.edit {
+      it[keyObject] = mode
+    }
   }
 
   private suspend fun getCurrentSectionNameFromPrefStore(): String? {
@@ -958,9 +972,14 @@ class DataManager(val context: Context) {
     }.firstOrNull()
   }
 
-  suspend fun getCurrentSectionName(): String? = dataManagerData.lock.withLock {
-    // Read directly from the in-memory state container.
-    dataManagerData.promptStateContainer?.currentSectionName
+  suspend fun getCurrentSectionName(): String? {
+    dataManagerData.lock.withLock {
+      return getCurrentSectionNameUnderLock()
+    }
+  }
+
+  private suspend fun getCurrentSectionNameUnderLock(): String? {
+    return dataManagerData.promptStateContainer?.currentSectionName
   }
 
   suspend fun setCurrentSection(sectionName: String) {
@@ -997,9 +1016,14 @@ class DataManager(val context: Context) {
     return progressMap
   }
 
-  suspend fun getPromptProgress(): Map<String, Map<String, Int>> = dataManagerData.lock.withLock {
-    // Read directly from the in-memory state container.
-    dataManagerData.promptStateContainer?.promptProgress ?: emptyMap()
+  suspend fun getPromptProgress(): Map<String, Map<String, Int>> {
+    dataManagerData.lock.withLock {
+      return getPromptProgressUnderLock()
+    }
+  }
+
+  private suspend fun getPromptProgressUnderLock(): Map<String, Map<String, Int>> {
+    return dataManagerData.promptStateContainer?.promptProgress ?: emptyMap()
   }
 
   private suspend fun savePromptProgress(progress: Map<String, Map<String, Int>>) {
@@ -1062,24 +1086,22 @@ class DataManager(val context: Context) {
     return dataManagerData.loginToken != null
   }
 
-  private suspend fun reloadPromptsFromServer(): Boolean {
-    dataManagerData.lock.withLock {
-      val currentState = dataManagerData.promptStateContainer
-      if (currentState != null) {
-        updatePromptStateAndPost(currentState.copy(promptsCollection = null))
-      }
-      context.prefStore.edit { preferences ->
-        // Remove current prompt state.
-        preferences.remove(stringPreferencesKey("currentSectionName"))
-        preferences.remove(stringPreferencesKey("promptProgress"))
-      }
-      if (!downloadPrompts()) {
-        return false
-      }
-      // Re-initialize the state from scratch after download
-      reinitializeDataUnderLock()
-      return true
+  private suspend fun reloadPromptsFromServerUnderLock(): Boolean {
+    val currentState = dataManagerData.promptStateContainer
+    if (currentState != null) {
+      updatePromptStateAndPost(currentState.copy(promptsCollection = null))
     }
+    context.prefStore.edit { preferences ->
+      // Remove current prompt state.
+      preferences.remove(stringPreferencesKey("currentSectionName"))
+      preferences.remove(stringPreferencesKey("promptProgress"))
+    }
+    if (!downloadPrompts()) {
+      return false
+    }
+    // Re-initialize the state from scratch after download
+    reinitializeDataUnderLock()
+    return true
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -1092,47 +1114,49 @@ class DataManager(val context: Context) {
       )
       return false
     }
-    val password = toHex(SecureRandom().generateSeed(32))
-    val newLoginToken = makeToken(username, password)
-    val adminToken = makeToken("admin", adminPassword)
-    val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
-    loginTokenPath.parentFile?.let { parent ->
-      if (!parent.exists()) {
-        Log.i(TAG, "creating directory for loginToken.")
-        parent.mkdirs()
+    return runBlocking {
+      dataManagerData.lock.withLock {
+        val password = toHex(SecureRandom().generateSeed(32))
+        val newLoginToken = makeToken(username, password)
+        val adminToken = makeToken("admin", adminPassword)
+        val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
+        loginTokenPath.parentFile?.let { parent ->
+          if (!parent.exists()) {
+            Log.i(TAG, "creating directory for loginToken.")
+            parent.mkdirs()
+          }
+        }
+
+        val url = URL(getServer() + "/register_login")
+        Log.d(TAG, "Registering login at $url")
+        val (code, _) =
+          serverFormPostRequest(
+            url,
+            mapOf(
+              "app_version" to APP_VERSION,
+              "admin_token" to adminToken,
+              "login_token" to newLoginToken
+            )
+          )
+        if (code < 200 || code >= 300) {
+          return@runBlocking false
+        }
+
+        try {
+          Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
+          FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
+            stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+          }
+        } catch (e: IOException) {
+          Log.e(TAG, "Failed to write login token to file", e)
+          return@runBlocking false
+        }
+
+        dataManagerData.loginToken = newLoginToken
+        reloadPromptsFromServerUnderLock()
+        return@runBlocking true
       }
     }
-
-    val url = URL(getServer() + "/register_login")
-    Log.d(TAG, "Registering login at $url")
-    val (code, _) =
-      serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "admin_token" to adminToken,
-          "login_token" to newLoginToken
-        )
-      )
-    if (code < 200 || code >= 300) {
-      return false
-    }
-
-    try {
-      Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
-      FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
-        stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
-      }
-    } catch (e: IOException) {
-      Log.e(TAG, "Failed to write login token to file", e)
-      return false
-    }
-
-    dataManagerData.loginToken = newLoginToken
-    runBlocking {
-      reloadPromptsFromServer()
-    }
-    return true
   }
 
   private suspend fun uploadState(): Boolean {
@@ -1143,7 +1167,7 @@ class DataManager(val context: Context) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     json.put("timestamp", timestamp)
     json.put("username", getUsername())
-    json.put("deviceId", getDeviceId())
+    json.put("deviceId", getDeviceIdUnderLock())
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val lifetimeRecordingCount = context.prefStore.data
       .map {
@@ -1193,9 +1217,9 @@ class DataManager(val context: Context) {
       }
     }
 
-    json.put("prompts", getPromptsCollection()?.toJson())
-    json.put("currentSectionName", getCurrentSectionName())
-    json.put("promptProgress", JSONObject(getPromptProgress()))
+    json.put("prompts", getPromptsCollectionUnderLock()?.toJson())
+    json.put("currentSectionName", getCurrentSectionNameUnderLock())
+    json.put("promptProgress", JSONObject(getPromptProgressUnderLock()))
 
     val url = URL(getServer() + "/save_state")
     val (code, _) =
@@ -1438,10 +1462,10 @@ class DataManager(val context: Context) {
       stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
       stream.close()
       resetStatistics()
-      setTutorialMode(true)
+      setTutorialModeUnderLock(true)
       directiveCompleted(id)  // Use the old loginToken.
       dataManagerData.loginToken = newLoginToken
-      reloadPromptsFromServer()
+      reloadPromptsFromServerUnderLock()
       return false  // Ignore further directives, the next round will be done with the new login.
     } else if (op == "resetStatistics") {
       resetStatistics()
@@ -1452,7 +1476,7 @@ class DataManager(val context: Context) {
       val json = JSONObject(value)
       val tutorialMode = json.getBoolean("tutorialMode")
       Log.i(TAG, "setTutorialMode to $tutorialMode")
-      setTutorialMode(tutorialMode)
+      setTutorialModeUnderLock(tutorialMode)
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1499,7 +1523,7 @@ class DataManager(val context: Context) {
         return false
       }
     } else if (op == "setPrompts" || op == "reloadPrompts") {
-      if (!reloadPromptsFromServer()) {
+      if (!reloadPromptsFromServerUnderLock()) {
         return false
       }
       if (!directiveCompleted(id)) {
@@ -1512,13 +1536,13 @@ class DataManager(val context: Context) {
 
       if (filepath.exists()) {
         filepath.delete()
-        logToServer("As directed: Deleted file $relativePath")
+        logToServerUnderLock("As directed: Deleted file $relativePath")
       }
       val keyObject = stringPreferencesKey(relativePath)
       context.registerFileStore.edit { preferences ->
         if (preferences.contains(keyObject)) {
           preferences.remove(keyObject)
-          logToServer("As directed: Unregistered file $relativePath")
+          logToServerUnderLock("As directed: Unregistered file $relativePath")
         }
       }
       if (!directiveCompleted(id)) {
@@ -1676,6 +1700,17 @@ class DataManager(val context: Context) {
     }
   }
 
+  fun logToServerUnderLock(message: String) {
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    logToServerAtTimestampUnderLock(timestamp, message)
+  }
+
+  fun logToServerAtTimestampUnderLock(timestamp: String, message: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+      addKeyValue("log-$timestamp", message, "log", holdingLock = true)
+    }
+  }
+
   /**
    * Save a key value pair to the server.  Re-using the same key will overwrite
    * the existing value (either before uploading to the server, or if it has already
@@ -1684,25 +1719,43 @@ class DataManager(val context: Context) {
    * No data will be sent to the server unless persistData() is called (which stores a snapshot
    * of the key values to a dataStore).
    */
-  suspend fun addKeyValue(key: String, value: String, partition: String) {
+  suspend fun addKeyValue(
+    key: String,
+    value: String,
+    partition: String,
+    holdingLock: Boolean = false
+  ) {
     Log.i(TAG, "Storing key: \"$key\", value: \"$value\".")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("message", value)
     saveJson.put("partition", partition)
-    dataManagerData.lock.withLock {
+    if (holdingLock) {
       dataManagerData.keyValues[key] = saveJson
+    } else {
+      dataManagerData.lock.withLock {
+        dataManagerData.keyValues[key] = saveJson
+      }
     }
   }
 
-  suspend fun addKeyValue(key: String, json: JSONObject, partition: String) {
+  suspend fun addKeyValue(
+    key: String,
+    json: JSONObject,
+    partition: String,
+    holdingLock: Boolean = false
+  ) {
     Log.i(TAG, "Storing key: \"$key\", json:\n${json.toString(2)}")
     val saveJson = JSONObject()
     saveJson.put("key", key)
     saveJson.put("data", json)
     saveJson.put("partition", partition)
-    dataManagerData.lock.withLock {
+    if (holdingLock) {
       dataManagerData.keyValues[key] = saveJson
+    } else {
+      dataManagerData.lock.withLock {
+        dataManagerData.keyValues[key] = saveJson
+      }
     }
   }
 
@@ -1722,7 +1775,7 @@ class DataManager(val context: Context) {
    */
   suspend fun persistData() {
     dataManagerData.lock.withLock {
-      val tutorialMode = getTutorialMode()
+      val tutorialMode = getTutorialModeUnderLock()
       Log.i(TAG, "Starting to persist data")
       context.dataStore.edit { preferences ->
         dataManagerData.keyValues.forEach {
@@ -1749,9 +1802,13 @@ class DataManager(val context: Context) {
   }
 
   suspend fun getPromptsCollection(): PromptsCollection? {
-    return dataManagerData.lock.withLock {
-      dataManagerData.promptStateContainer?.promptsCollection
+    dataManagerData.lock.withLock {
+      return getPromptsCollectionUnderLock()
     }
+  }
+
+  private suspend fun getPromptsCollectionUnderLock(): PromptsCollection? {
+    return dataManagerData.promptStateContainer?.promptsCollection
   }
 
   private suspend fun getPromptsCollectionFromDisk(): PromptsCollection? {

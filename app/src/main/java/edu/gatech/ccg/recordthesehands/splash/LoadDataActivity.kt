@@ -93,6 +93,8 @@ class LoadDataActivity : ComponentActivity() {
       val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
       lifecycleScope.launch {
         thread {  // Don't run network on UI thread.
+          // TODO Figure out a better concurrency model.  createAccount could benefit from being
+          // suspending.
           val result = dataManager.createAccount(username, adminPassword)
           runOnUiThread {
             AlertDialog.Builder(this@LoadDataActivity).apply {
