@@ -30,7 +30,7 @@ import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 
 object DataManagerData {
-  val isInitialized = AtomicBoolean(false)
+  val initializationStarted = AtomicBoolean(false)
 
   val lock = Mutex()
   var loginToken: String? = null

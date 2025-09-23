@@ -50,7 +50,7 @@
     <string name="counter">0</string>
     <string name="tutorial_mode">Tutorial Mode</string>
     <string name="start_button">Start</string>
-    <string name="start_failed">Cannot Start</string>
+    <string name="start_disabled">Cannot Start</string>
     <!-- Upload Dialog -->
     <string name="upload_alert">Confirm Upload</string>
     <string name="upload_alert_message">Uploading may take 10 or more minutes and can\'t be interrupted. Are you sure you want to proceed?</string>
@@ -69,8 +69,8 @@
 
     <!-- PromptSelectActivity -->
     <string name="prompt_select_title">Select a Prompt Section</string>
-    <string name="switch_to_tutorial_prompts">Switch to Tutorial Prompts</string>
-    <string name="switch_to_normal_prompts">Switch to Normal Prompts</string>
+    <string name="switch_to_tutorial_prompts">Enter Tutorial Mode</string>
+    <string name="switch_to_normal_prompts">Exit Tutorial Mode</string>
     <string name="prompts_completed_progress">%1$d / %2$d prompts completed</string>
 
     <!-- Time formatting -->
@@ -89,4 +89,5 @@
     <string name="perm_alert_message">In order to record your data, we will need access to the camera and write functionality.</string>
     <string name="ok">OK</string>
     <string name="words_signed">Words signed</string>
+    <string name="no_more_prompts">Cannot start, prompts completed.</string>
 </resources>

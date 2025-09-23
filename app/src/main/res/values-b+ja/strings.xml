@@ -51,7 +51,7 @@
     <string name="counter">0</string>
     <string name="tutorial_mode">チュートリアルモード</string>
     <string name="start_button">開始</string>
-    <string name="start_failed">開始できません</string>
+    <string name="start_disabled">開始できません</string>
     <!-- Upload Dialog -->
     <string name="upload_alert">アップロードの確認</string>
     <string name="upload_alert_message">アップロードには10分以上かかる場合があり、中断できません。本当に続行しますか？</string>

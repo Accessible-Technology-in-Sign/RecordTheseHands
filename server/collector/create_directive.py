@@ -183,6 +183,8 @@ def main():
     )
     doc_ref.set(prompts_data)
     create_directive(sys.argv[1], sys.argv[2], '{}')
+  elif sys.argv[2] == 'reloadPrompts':
+    create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':
     output = {'filepath': sys.argv[3]}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
@@ -202,7 +204,8 @@ def main():
   elif sys.argv[2] == 'getState':
     print_state(sys.argv[1])
   else:
-    raise AssertionError('Did not understand arguments: ' + ' '.join(sys.argv))
+    raise AssertionError(f'Unknown Operation {sys.argv[2]}. Full command line: ' +
+                         ' '.join(sys.argv))
 
 
 if __name__ == '__main__':

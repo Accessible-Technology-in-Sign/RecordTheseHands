@@ -645,7 +645,7 @@ class DataManager(val context: Context) {
   }
 
   fun initializeData() {
-    if (dataManagerData.isInitialized.compareAndSet(false, true)) {
+    if (dataManagerData.initializationStarted.compareAndSet(false, true)) {
       CoroutineScope(Dispatchers.IO).launch {
         dataManagerData.lock.withLock {
           reinitializeDataUnderLock()
@@ -959,7 +959,6 @@ class DataManager(val context: Context) {
       ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
     updatePromptStateAndPost(currentState.copy(tutorialMode = mode))
     val keyObject = booleanPreferencesKey("tutorialMode")
-    // This is a suspending call, but it's okay inside withLock.
     context.prefStore.edit {
       it[keyObject] = mode
     }
@@ -984,13 +983,17 @@ class DataManager(val context: Context) {
 
   suspend fun setCurrentSection(sectionName: String) {
     dataManagerData.lock.withLock {
-      val currentState = dataManagerData.promptStateContainer
-        ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
-      updatePromptStateAndPost(currentState.copy(currentSectionName = sectionName))
-      val keyObject = stringPreferencesKey("currentSectionName")
-      context.prefStore.edit {
-        it[keyObject] = sectionName
-      }
+      setCurrentSectionUnderLock(sectionName)
+    }
+  }
+
+  private suspend fun setCurrentSectionUnderLock(sectionName: String) {
+    val currentState = dataManagerData.promptStateContainer
+      ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
+    updatePromptStateAndPost(currentState.copy(currentSectionName = sectionName))
+    val keyObject = stringPreferencesKey("currentSectionName")
+    context.prefStore.edit {
+      it[keyObject] = sectionName
     }
   }
 
@@ -1041,31 +1044,52 @@ class DataManager(val context: Context) {
     }
   }
 
-
   suspend fun saveCurrentPromptIndex(index: Int) {
     dataManagerData.lock.withLock {
-      val currentState = dataManagerData.promptStateContainer
-        ?: throw IllegalStateException(
-          "Attempted to save prompt index before prompt state was initialized."
-        )
-      val sectionName = currentState.currentSectionName
-        ?: throw IllegalStateException(
-          "Attempted to save prompt index without a current section set."
-        )
-      val newProgress = currentState.promptProgress.toMutableMap()
-      val sectionProgress = newProgress[sectionName]?.toMutableMap() ?: mutableMapOf()
-
-      if (currentState.tutorialMode) {
-        sectionProgress["tutorialIndex"] = index
-      } else {
-        sectionProgress["mainIndex"] = index
-      }
-      newProgress[sectionName] = sectionProgress
-      updatePromptStateAndPost(currentState.copy(promptProgress = newProgress))
-      savePromptProgress(newProgress) // Persist to storage
+      saveCurrentPromptIndexUnderLock(index)
     }
   }
 
+  private suspend fun saveCurrentPromptIndexUnderLock(index: Int) {
+    val currentState = dataManagerData.promptStateContainer
+      ?: throw IllegalStateException(
+        "Attempted to save prompt index before prompt state was initialized."
+      )
+    val sectionName = currentState.currentSectionName
+      ?: throw IllegalStateException(
+        "Attempted to save prompt index without a current section set."
+      )
+    val newProgress = currentState.promptProgress.toMutableMap()
+    val sectionProgress = newProgress[sectionName]?.toMutableMap() ?: mutableMapOf()
+
+    if (currentState.tutorialMode) {
+      sectionProgress["tutorialIndex"] = index
+    } else {
+      sectionProgress["mainIndex"] = index
+    }
+    newProgress[sectionName] = sectionProgress
+    updatePromptStateAndPost(currentState.copy(promptProgress = newProgress))
+    savePromptProgress(newProgress) // Persist to storage
+  }
+
+  suspend fun resetToSection(sectionName: String) {
+    dataManagerData.lock.withLock {
+      setCurrentSectionUnderLock(sectionName)
+      if (getTutorialModeUnderLock()) {
+        saveCurrentPromptIndexUnderLock(0)
+      }
+    }
+  }
+
+  suspend fun toggleTutorialMode() {
+    dataManagerData.lock.withLock {
+      val tutorialMode = !getTutorialModeUnderLock()
+      setTutorialModeUnderLock(tutorialMode)
+      if (tutorialMode) {
+        saveCurrentPromptIndexUnderLock(0)
+      }
+    }
+  }
 
   suspend fun newSessionId(): String {
     val deviceId = getDeviceId()
@@ -1089,19 +1113,23 @@ class DataManager(val context: Context) {
   private suspend fun reloadPromptsFromServerUnderLock(): Boolean {
     val currentState = dataManagerData.promptStateContainer
     if (currentState != null) {
-      updatePromptStateAndPost(currentState.copy(promptsCollection = null))
+      // Clear the fields in promptStateContainer.  Only relevant on some failures
+      // as reinitializeDataUnderLock should set them from the permanent state on disk.
+      dataManagerData.promptStateContainer = currentState.copy(
+        promptsCollection = null,
+        promptProgress = mutableMapOf<String, Map<String, Int>>(),
+        currentSectionName = null
+      )
     }
     context.prefStore.edit { preferences ->
       // Remove current prompt state.
       preferences.remove(stringPreferencesKey("currentSectionName"))
       preferences.remove(stringPreferencesKey("promptProgress"))
     }
-    if (!downloadPrompts()) {
-      return false
-    }
-    // Re-initialize the state from scratch after download
+    val retVal = downloadPrompts()
+    // Re-initialize the state from scratch after download (or failure).
     reinitializeDataUnderLock()
-    return true
+    return retVal
   }
 
   fun createAccount(username: String, adminPassword: String): Boolean {
@@ -1578,6 +1606,7 @@ class DataManager(val context: Context) {
         parentDir.mkdirs()
       }
     }
+    Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
     Log.i(TAG, "downloading prompt data to $filepath")
     val (code, data) = serverFormPostRequest(
       url,
@@ -1597,10 +1626,12 @@ class DataManager(val context: Context) {
         }
       } catch (e: IOException) {
         Log.e(TAG, "Failed to write prompts to file", e)
+        Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
         return false
       }
     } else {
       Log.e(TAG, "unable to fetch prompts.")
+      Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
       return false
     }
     Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")

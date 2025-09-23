@@ -32,11 +32,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.PromptState
+import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.launch
 
 class PromptSelectActivity : ComponentActivity() {
@@ -73,9 +75,8 @@ class PromptSelectActivity : ComponentActivity() {
     binding.toggleTutorialButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     binding.toggleTutorialButton.setOnClickListener {
       Log.d(TAG, "Toggle Tutorial Mode button pressed.")
-      val currentMode = dataManager.promptState.value?.tutorialMode ?: false
       lifecycleScope.launch {
-        dataManager.setTutorialMode(!currentMode)
+        dataManager.toggleTutorialMode()
         finish() // Return to HomeScreen
       }
     }
@@ -83,7 +84,7 @@ class PromptSelectActivity : ComponentActivity() {
 
   private fun updateTutorialButton(isTutorialMode: Boolean) {
     binding.toggleTutorialButton.text = if (isTutorialMode) {
-      getString(R.string.switch_to_normal_prompts)
+      getString(R.string.switch_to_tutorial_prompts)
     } else {
       getString(R.string.switch_to_tutorial_prompts)
     }
@@ -109,13 +110,14 @@ class PromptSelectActivity : ComponentActivity() {
 
       sectionButton.text = sectionName
       progressText.text = getString(R.string.prompts_completed_progress, completed, total)
-      sectionButton.isEnabled = !isCompleted
+      sectionButton.isEnabled = !isCompleted || state.tutorialMode
 
-      if (!isCompleted) {
+      if (sectionButton.isEnabled) {
         sectionButton.setOnClickListener {
           lifecycleScope.launch {
             Log.d(TAG, "Clicked on button to set Prompts Section to ${sectionName}")
-            dataManager.setCurrentSection(sectionName)
+            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            dataManager.resetToSection(sectionName)
             finish() // Return to HomeScreen
           }
         }
@@ -126,6 +128,7 @@ class PromptSelectActivity : ComponentActivity() {
 
   override fun onResume() {
     super.onResume()
+    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 

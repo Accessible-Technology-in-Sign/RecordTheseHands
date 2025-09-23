@@ -320,38 +320,44 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <ProgressBar
-        android:id="@+id/uploadProgressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="169dp"
-        android:layout_height="20dp"
-        android:layout_marginTop="32dp"
-        android:indeterminate="false"
-        android:max="100"
-        android:min="0"
-        android:visibility="gone"
-        android:progressDrawable="@drawable/progress_bar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statisticsInformation" />
+    <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toTopOf="@+id/uploadButton" >
 
-    <Button
-        android:id="@+id/switchPromptsButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/switch_prompts"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp" />
+        <TextView
+            android:id="@+id/uploadProgressBarText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            android:text="Upload Progress: "
+            android:textSize="18sp"
+            android:textColor="@color/blue"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/uploadProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:indeterminate="false"
+            android:max="100"
+            android:min="0"
+            android:visibility="gone"
+            android:progressDrawable="@drawable/progress_bar" />
+    </LinearLayout>
 
     <Button
         android:id="@+id/uploadButton"
+        style="@style/SecondaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:backgroundTint="@color/cardview_dark_background"
-        android:textColor="@color/white"
         android:text="@string/upload_button"
-        android:textSize="24sp"
         android:layout_marginBottom="24dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/startButton"
@@ -359,48 +365,52 @@
 
     <Button
         android:id="@+id/startButton"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        android:backgroundTint="@color/cardview_dark_background"
         android:text="@string/start_button"
-        android:textColor="@color/white"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toEndOf="@id/uploadButton" />
-
-
-    <TextView
-        android:id="@+id/tutorialModeText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="100dp"
-        android:text="@string/tutorial_mode"
-        android:textSize="32sp"
-        android:textColor="@color/blue"
-        android:textStyle="bold"
-        android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
     <Button
-        android:id="@+id/exitTutorialModeButton"
+        android:id="@+id/switchPromptsButton"
+        style="@style/SecondaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="60dp"
         android:layout_marginBottom="24dp"
-        android:text="Exit Tutorial"
-        android:enabled="true"
-        android:visibility="gone"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:textSize="24sp"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:text="@string/switch_prompts"
+        app:layout_constraintStart_toEndOf="@id/startButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/button_group_container"
+        android:layout_marginBottom="24dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/uploadButton" >
+        <TextView
+            android:id="@+id/tutorialModeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tutorial_mode"
+            android:textSize="32sp"
+            android:textColor="@color/blue"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/exitTutorialModeButton"
+            style="@style/SecondaryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Exit Tutorial"
+            android:enabled="true"
+            android:visibility="gone" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

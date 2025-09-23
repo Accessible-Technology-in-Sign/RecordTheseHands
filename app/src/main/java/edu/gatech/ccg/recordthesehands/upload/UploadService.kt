@@ -59,6 +59,7 @@ class UploadService : LifecycleService() {
 
     fun pauseUploadUntil(timestamp: Date?) {
       pauseUntil = timestamp
+      Log.d(TAG, "Paused UploadService until ${pauseUntil}")
     }
 
     fun isPaused(): Boolean {
@@ -84,32 +85,6 @@ class UploadService : LifecycleService() {
     channel.description = "Uploads Sign Language Videos."
     notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     notificationManager!!.createNotificationChannel(channel)
-  }
-
-  /**
-   * onBind is not allowed for this service.
-   */
-  override fun onBind(intent: Intent): IBinder? {
-    super.onBind(intent)
-    return null
-  }
-
-  fun createNotification(title: String, message: String): Notification {
-    return Notification.Builder(this, UPLOAD_NOTIFICATION_CHANNEL_ID)
-      .setSmallIcon(R.drawable.upload_service_notification_icon)
-      .setContentTitle(title)
-      .setContentText(message)
-      .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-      .setTicker("$title: $message")
-      .build()
-  }
-
-  /**
-   * onStartCommand starts the service, which keeps a thread running continuously.
-   */
-  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    super.onStartCommand(intent, flags, startId)
-    startForeground(UPLOAD_NOTIFICATION_ID, createNotification("Upload Service started", ""))
 
     lifecycleScope.launch(Dispatchers.IO) {
       val dataManager = DataManager(applicationContext)
@@ -147,7 +122,33 @@ class UploadService : LifecycleService() {
         delay(UPLOAD_LOOP_TIMEOUT)
       }
     }
+  }
 
+  /**
+   * onBind is not allowed for this service.
+   */
+  override fun onBind(intent: Intent): IBinder? {
+    super.onBind(intent)
+    return null
+  }
+
+  fun createNotification(title: String, message: String): Notification {
+    return Notification.Builder(this, UPLOAD_NOTIFICATION_CHANNEL_ID)
+      .setSmallIcon(R.drawable.upload_service_notification_icon)
+      .setContentTitle(title)
+      .setContentText(message)
+      .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+      .setTicker("$title: $message")
+      .build()
+  }
+
+  /**
+   * onStartCommand starts the service, which keeps a thread running continuously.
+   */
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    Log.i(TAG, "onStartCommand")
+    super.onStartCommand(intent, flags, startId)
+    startForeground(UPLOAD_NOTIFICATION_ID, createNotification("Upload Service started", ""))
     return START_STICKY
   }
 }

@@ -48,7 +48,7 @@
     <string name="counter">0</string>
     <string name="tutorial_mode">ट्युटोरियल मोड</string>
     <string name="start_button">प्रारंभ</string>
-    <string name="start_failed">प्रारंभ करू शकत नाही</string>
+    <string name="start_disabled">प्रारंभ करू शकत नाही</string>
     <!-- Upload Dialog -->
     <string name="upload_alert">अपलोडची पुष्टी करा</string>
     <string name="upload_alert_message">अपलोड करण्यास १० किंवा त्याहून अधिक मिनिटे लागू शकतात आणि प्रक्रिया अडथळा आणता येणार नाही. आपण पुढे जाण्यास खात्री आहे का?</string>

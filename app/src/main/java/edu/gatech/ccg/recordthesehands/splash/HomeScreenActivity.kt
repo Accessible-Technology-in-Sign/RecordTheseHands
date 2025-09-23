@@ -61,9 +61,11 @@ import edu.gatech.ccg.recordthesehands.upload.UploadService
 import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -104,6 +106,11 @@ class HomeScreenActivity : ComponentActivity() {
    * for too long without a restart.
    */
   private var currentRecordingSessions = 0
+
+  /**
+   * Make the startRecording button call switch prompts and return.
+   */
+  private var startRecordingShouldSwitchPrompts = false
 
   /**
    * Handler for what happens when the recording activity finishes.
@@ -216,6 +223,11 @@ class HomeScreenActivity : ComponentActivity() {
       val startRecordingButton = findViewById<Button>(R.id.startButton)
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
+        if(this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
+          val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
+          switchPromptsButton.performClick()
+          return@setOnClickListener
+        }
         fun checkPermission(perm: String): Boolean {
           return ContextCompat.checkSelfPermission(applicationContext, perm) ==
               PackageManager.PERMISSION_GRANTED
@@ -303,77 +315,57 @@ class HomeScreenActivity : ComponentActivity() {
       val uploadButton = findViewById<Button>(R.id.uploadButton)
       uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       uploadButton.setOnClickListener {
-        // Show a confirmation dialog before proceeding with the upload
-        val builder = AlertDialog.Builder(this@HomeScreenActivity).apply {
-          setTitle(getString(R.string.upload_alert))
-          setMessage(getString(R.string.upload_alert_message))
+        // Disable the button and start the upload process
+        uploadButton.isEnabled = false
+        uploadButton.isClickable = false
+        uploadButton.text = getString(R.string.upload_successful)
 
-          setPositiveButton(getString(R.string.yes)) { dialog, _ ->
-            // User confirmed, proceed with the upload
-            Log.i(TAG, "User confirmed upload.")
-            dialog.dismiss()
+        // Progress bar appears after confirming
+        val uploadProgressBarText = findViewById<TextView>(R.id.uploadProgressBarText)
+        uploadProgressBarText.visibility = View.VISIBLE
+        val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
+        uploadProgressBar.visibility = View.VISIBLE
+        uploadProgressBar.progress = 0
 
-            // Disable the button and start the upload process
-            uploadButton.isEnabled = false
-            uploadButton.isClickable = false
-            uploadButton.text = getString(R.string.upload_successful)
-
-            // Progress bar appears after confirming
-            val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
-            uploadProgressBar.visibility = View.VISIBLE
-            uploadProgressBar.progress = 0
-
-            lifecycleScope.launch(Dispatchers.IO) {
-              UploadService.pauseUploadUntil(null)
-              try {
-                val uploadSucceeded = dataManager.uploadData { progress ->
-                  runOnUiThread {
-                    Log.d(TAG, "Updating ProgressBar to $progress%")
-                    uploadProgressBar.progress = progress
-                  }
-                }
-
-                runOnUiThread {
-                  uploadButton.isEnabled = true
-                  uploadButton.isClickable = true
-                  if (uploadSucceeded) {
-                    uploadButton.text = getString(R.string.upload_button)
-                  } else {
-                    uploadButton.text = getString(R.string.upload_failed)
-                    val textFinish = "Upload Failed"
-                    val toastFinish =
-                      Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-                    toastFinish.show()
-                  }
-                }
-              } catch (e: InterruptedUploadException) {
-                Log.w(TAG, "Upload Data was interrupted.", e)
-                runOnUiThread {
-                  val textFinish = "Upload interrupted"
-                  val toastFinish =
-                    Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-                  toastFinish.show()
-                  uploadButton.isEnabled = true
-                  uploadButton.isClickable = true
-                  uploadButton.text = getString(R.string.upload_button)
-                }
+        lifecycleScope.launch(Dispatchers.IO) {
+          UploadService.pauseUploadUntil(null)
+          try {
+            val uploadSucceeded = dataManager.uploadData { progress ->
+              runOnUiThread {
+                Log.d(TAG, "Updating ProgressBar to $progress%")
+                uploadProgressBar.progress = progress
               }
             }
-          }
 
-          setNegativeButton(getString(R.string.no)) { dialog, _ ->
-            Log.i(TAG, "User canceled upload.")
-            dialog.dismiss()
+            runOnUiThread {
+              uploadButton.isEnabled = true
+              uploadButton.isClickable = true
+              uploadProgressBar.visibility = View.GONE
+              uploadProgressBarText.visibility = View.GONE
+              if (uploadSucceeded) {
+                uploadButton.text = getString(R.string.upload_button)
+              } else {
+                uploadButton.text = getString(R.string.upload_failed)
+                val textFinish = "Upload Failed"
+                val toastFinish =
+                  Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+                toastFinish.show()
+              }
+            }
+          } catch (e: InterruptedUploadException) {
+            Log.w(TAG, "Upload Data was interrupted.", e)
+            runOnUiThread {
+              val textFinish = "Upload interrupted"
+              val toastFinish =
+                Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+              toastFinish.show()
+              uploadButton.isEnabled = true
+              uploadButton.isClickable = true
+              uploadProgressBar.visibility = View.GONE
+              uploadProgressBarText.visibility = View.GONE
+              uploadButton.text = getString(R.string.upload_button)
+            }
           }
-        }
-
-        val dialog = builder.create()
-        dialog.apply {
-          setCanceledOnTouchOutside(true)
-          setOnCancelListener {
-            Log.i(TAG, "User dismissed the upload confirmation dialog.")
-          }
-          show()
         }
       }
     }
@@ -392,7 +384,7 @@ class HomeScreenActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     windowInsetsController =
-      WindowCompat.getInsetsController(window, window.decorView)?.also {
+      WindowCompat.getInsetsController(window, window.decorView).also {
         it.systemBarsBehavior =
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
@@ -400,6 +392,10 @@ class HomeScreenActivity : ComponentActivity() {
     dataManager = DataManager(applicationContext)
 
     // Start the UploadService (which should already be running anyway).
+    runBlocking {
+      delay(1000)
+    }
+    Log.d(TAG, "Starting UploadService from HomeScreenActivity.onCreate")
     applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
     // Load UI from XML
     val binding = ActivitySplashBinding.inflate(layoutInflater)
@@ -462,31 +458,57 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
     dataManager.promptState.observe(this@HomeScreenActivity) { state ->
+      this@HomeScreenActivity.startRecordingShouldSwitchPrompts = false
       val startRecordingButton = findViewById<Button>(R.id.startButton)
       val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
       val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
       tutorialModeText.visibility = if (state.tutorialMode) View.VISIBLE else View.GONE
 
+      // Total Progress Calculation
+      var totalCompleted = 0
+      var totalPrompts = 0
+      val sections =
+        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: return@observe
+      sections.forEachIndexed { index, section ->
+        val prompts = section.mainPrompts
+        val total = prompts.array.size
+        val sectionProgress = state.promptProgress[section.name]
+        val completed = sectionProgress?.get("mainIndex") ?: 0
+        totalCompleted += completed
+        totalPrompts += total
+      }
+
       if (state.tutorialMode && ((state.currentPromptIndex ?: 0) > 0 ||
             (state.totalPromptsInCurrentSection ?: 0) == 0)
       ) {
         exitTutorialModeButton.visibility = View.VISIBLE
+        tutorialModeText.visibility = View.GONE
       } else {
         exitTutorialModeButton.visibility = View.GONE
       }
 
+      startRecordingButton.visibility = View.VISIBLE
       if (state.currentPrompts != null && state.username != null) {
         if ((state.currentPromptIndex ?: 0) < (state.totalPromptsInCurrentSection ?: 0)) {
           startRecordingButton.isEnabled = true
           startRecordingButton.isClickable = true
           startRecordingButton.text = getString(R.string.start_button)
         } else {
-          startRecordingButton.visibility = View.GONE
+          if (totalCompleted >= totalPrompts) {
+            startRecordingButton.isEnabled = false
+            startRecordingButton.isClickable = false
+            startRecordingButton.text = getString(R.string.no_more_prompts)
+          } else {
+            startRecordingButton.isEnabled = true
+            startRecordingButton.isClickable = true
+            startRecordingButton.text = getString(R.string.switch_prompts)
+            this@HomeScreenActivity.startRecordingShouldSwitchPrompts = true
+          }
         }
       } else {
-        startRecordingButton.isEnabled = true
-        startRecordingButton.isClickable = true
-        startRecordingButton.text = getString(R.string.start_failed)
+        startRecordingButton.isEnabled = false
+        startRecordingButton.isClickable = false
+        startRecordingButton.text = getString(R.string.start_disabled)
       }
 
       if (state.username != null) {
@@ -503,7 +525,7 @@ class HomeScreenActivity : ComponentActivity() {
       val completedAndTotalPromptsText = findViewById<TextView>(R.id.completedAndTotalPromptsText)
       val sectionNameText = findViewById<TextView>(R.id.sectionNameText)
 
-      sectionNameText.text = state.currentSectionName ?: ""
+      sectionNameText.text = state.currentSectionName ?: "<Section Not Set>"
 
       if (state.tutorialMode) {
         tutorialProgressText.visibility = View.VISIBLE
@@ -517,23 +539,15 @@ class HomeScreenActivity : ComponentActivity() {
           getString(R.string.ratio, completedPrompts, totalPrompts)
       }
 
-      // Total Progress Calculation
-      var totalCompleted = 0
-      var totalPrompts = 0
       val sectionsCompletedLayout =
         findViewById<com.google.android.flexbox.FlexboxLayout>(R.id.sectionsCompletedLayout)
       sectionsCompletedLayout.removeAllViews()
 
-      val sections =
-        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: return@observe
-
       sections.forEachIndexed { index, section ->
         val prompts = section.mainPrompts
-        val total = prompts.array.size
         val sectionProgress = state.promptProgress[section.name]
         val completed = sectionProgress?.get("mainIndex") ?: 0
-        totalCompleted += completed
-        totalPrompts += total
+        val total = prompts.array.size
 
         if (index > 0) {
           val space = TextView(this).apply { text = " " }
@@ -610,6 +624,7 @@ class HomeScreenActivity : ComponentActivity() {
 
   override fun onResume() {
     super.onResume()
+    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
