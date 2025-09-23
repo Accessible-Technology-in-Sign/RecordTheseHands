@@ -47,56 +47,39 @@
         app:layout_constraintStart_toStartOf="@id/aspectRatioConstraint"
         app:layout_constraintTop_toTopOf="@id/aspectRatioConstraint" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/recordButton"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="120dp"
         android:layout_marginBottom="60dp"
-        android:clickable="true"
-        android:scaleX="2"
-        android:scaleY="2"
         android:text="@string/record"
         android:textSize="14sp"
-        android:textColor="@android:color/white"
-        app:backgroundTint="#2BA300"
-        app:borderWidth="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/restartButton"
+        style="@style/AlertButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="60dp"
         android:layout_marginBottom="30dp"
-        android:clickable="true"
-        android:scaleX="2"
-        android:scaleY="2"
         android:text="@string/restart"
-        android:textSize="14sp"
-        android:textColor="@android:color/white"
         android:visibility="gone"
-        app:backgroundTint="#FF4444"
-        app:borderWidth="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/finishedButton"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="60dp"
         android:layout_marginBottom="30dp"
-        android:clickable="true"
-        android:scaleX="2"
-        android:scaleY="2"
         android:text="@string/finish"
-        android:textSize="14sp"
-        android:textColor="@android:color/white"
         android:visibility="gone"
-        app:backgroundTint="#2222FF"
-        app:borderWidth="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

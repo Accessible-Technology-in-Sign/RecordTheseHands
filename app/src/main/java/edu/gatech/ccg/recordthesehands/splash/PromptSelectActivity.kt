@@ -27,7 +27,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -41,7 +41,7 @@ import edu.gatech.ccg.recordthesehands.upload.PromptState
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.launch
 
-class PromptSelectActivity : ComponentActivity() {
+class PromptSelectActivity : AppCompatActivity() {
 
   private var windowInsetsController: WindowInsetsControllerCompat? = null
 
@@ -84,7 +84,7 @@ class PromptSelectActivity : ComponentActivity() {
 
   private fun updateTutorialButton(isTutorialMode: Boolean) {
     binding.toggleTutorialButton.text = if (isTutorialMode) {
-      getString(R.string.switch_to_tutorial_prompts)
+      getString(R.string.switch_to_normal_prompts)
     } else {
       getString(R.string.switch_to_tutorial_prompts)
     }

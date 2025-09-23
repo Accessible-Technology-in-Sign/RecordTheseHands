@@ -1606,7 +1606,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * Function to scale down the overly large record button on non-tablet devices.
    */
   private fun scaleRecordButton(button: Button) {
-    (button as? Button)?.apply {
+    // TODO Have a less hacky way of choosing between tablet and phone layouts.
+    button.apply {
       scaleX = 1.25f
       scaleY = 1.25f
 

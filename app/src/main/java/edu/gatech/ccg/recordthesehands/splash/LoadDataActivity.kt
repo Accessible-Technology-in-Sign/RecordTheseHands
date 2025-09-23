@@ -29,9 +29,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityLoadDataBinding
@@ -42,7 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
 
-class LoadDataActivity : ComponentActivity() {
+class LoadDataActivity : AppCompatActivity() {
   companion object {
     private val TAG = LoadDataActivity::class.simpleName
   }

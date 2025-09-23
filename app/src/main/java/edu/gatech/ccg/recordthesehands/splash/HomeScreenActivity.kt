@@ -35,10 +35,10 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -70,7 +70,7 @@ import kotlinx.coroutines.runBlocking
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
  */
-class HomeScreenActivity : ComponentActivity() {
+class HomeScreenActivity : AppCompatActivity() {
 
   private var windowInsetsController: WindowInsetsControllerCompat? = null
 

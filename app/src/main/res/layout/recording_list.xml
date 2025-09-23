@@ -46,19 +46,14 @@
         app:layout_constraintStart_toStartOf="@+id/promptView"
         app:layout_constraintTop_toTopOf="@+id/promptView" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/closeSession"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
         android:layout_marginEnd="80dp"
-        android:stateListAnimator="@null"
-        android:textSize="14dp"
         android:text="Save &amp; Exit"
-        app:backgroundTint="#2BA300"
-        app:borderWidth="0dp"
-        android:scaleX="2"
-        android:scaleY="2"
         app:layout_constraintBottom_toBottomOf="@+id/promptView"
         app:layout_constraintEnd_toEndOf="@+id/promptView" />
 

@@ -12,7 +12,7 @@
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.5" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/sectionButton"
         style="@style/SecondaryButton"
         android:layout_width="wrap_content"

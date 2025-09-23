@@ -16,6 +16,7 @@
     <color name="dark_gray">#FF555555</color>
     <color name="button_green">#FF008506</color>
     <color name="dark_green">#FF007305</color>
+    <color name="dark_red">#FF850000</color>
     <color name="alert_yellow">#FFFBC02D</color>
     <color name="alert_green">#FF388E3C</color>
     <color name="alert_red">#FFD32F2F</color>

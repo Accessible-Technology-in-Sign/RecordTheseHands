@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    tools:context=".splash.HomeScreenActivity">
 
     <TextView
         android:id="@+id/header"
@@ -354,7 +357,7 @@
             android:progressDrawable="@drawable/progress_bar" />
     </LinearLayout>
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/uploadButton"
         style="@style/SecondaryButton"
         android:layout_width="wrap_content"
@@ -365,7 +368,7 @@
         app:layout_constraintEnd_toStartOf="@id/startButton"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/startButton"
         style="@style/PrimaryButton"
         android:layout_width="wrap_content"
@@ -376,7 +379,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/switchPromptsButton"
         style="@style/SecondaryButton"
         android:layout_width="wrap_content"
@@ -407,7 +410,7 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/exitTutorialModeButton"
             style="@style/SecondaryButton"
             android:layout_width="wrap_content"

@@ -18,7 +18,7 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RecordTheseHands">
+        android:theme="@style/Theme.RecordTheseHands.NoActionBar">
         <activity
             android:name=".splash.LoadDataActivity"
             android:exported="false" />
@@ -49,8 +49,7 @@
 
         <activity
             android:name=".splash.HomeScreenActivity"
-            android:exported="true"
-            android:theme="@style/Theme.RecordTheseHands.NoActionBar">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -73,8 +72,7 @@
 
         <activity
             android:name=".splash.PromptSelectActivity"
-            android:exported="false"
-            android:theme="@style/Theme.RecordTheseHands.NoActionBar" />
+            android:exported="false" />
     </application>
 
 </manifest>
