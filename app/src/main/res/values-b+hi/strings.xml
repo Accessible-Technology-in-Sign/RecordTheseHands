@@ -6,8 +6,9 @@
 
     <!-- Log In Interface -->
     <string name="admin_title">लॉग इन</string>
-    <string name="id_label">डिवाइस आईडी:&#160;</string>
-    <string name="username_label">उपयोगकर्ता नाम:&#160;</string>
+    <string name="id_label">डिवाइस आईडी:</string>
+    <string name="username_label">उपयोगकर्ता नाम:</string>
+    <string name="username_label_with_current">उपयोगकर्ता नाम (%1$s):</string>
     <string name="username_input">उपयोगकर्ता नाम दर्ज करें</string>
     <string name="password_label">पासवर्ड:&#160;</string>
     <string name="password_input">पासवर्ड दर्ज करें</string>

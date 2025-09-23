@@ -223,7 +223,7 @@ class HomeScreenActivity : ComponentActivity() {
       val startRecordingButton = findViewById<Button>(R.id.startButton)
       startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       startRecordingButton.setOnClickListener {
-        if(this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
+        if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
           val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
           switchPromptsButton.performClick()
           return@setOnClickListener

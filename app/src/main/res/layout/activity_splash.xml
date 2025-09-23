@@ -62,6 +62,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:textStyle="bold"
+            android:layout_marginEnd="6dp"
             android:text="@string/id_label"
             android:textSize="18sp" />
 
@@ -80,6 +81,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:layout_marginEnd="6dp"
             android:textStyle="bold"
             android:text="@string/username_label"
             android:textSize="18sp"
@@ -321,12 +323,12 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintBottom_toTopOf="@+id/uploadButton" >
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/uploadButton">
 
         <TextView
             android:id="@+id/uploadProgressBarText"
@@ -386,14 +388,15 @@
         app:layout_constraintBottom_toBottomOf="parent" />
 
     <LinearLayout
-        android:id="@+id/button_group_container"
+        android:id="@+id/tutorialModeContainer"
         android:layout_marginBottom="24dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/uploadButton" >
+        app:layout_constraintBottom_toTopOf="@+id/uploadButton">
+
         <TextView
             android:id="@+id/tutorialModeText"
             android:layout_width="wrap_content"

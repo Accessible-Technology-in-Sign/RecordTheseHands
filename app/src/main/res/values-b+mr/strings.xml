@@ -5,8 +5,9 @@
 
     <!-- Log In Interface -->
     <string name="admin_title">लॉग इन</string>
-    <string name="id_label">डिव्हाइस आयडी:&#160;</string>
-    <string name="username_label">वापरकर्तानाव:&#160;</string>
+    <string name="id_label">डिव्हाइस आयडी:</string>
+    <string name="username_label">वापरकर्तानाव:</string>
+    <string name="username_label_with_current">वापरकर्तानाव (%1$s):</string>
     <string name="username_input">वापरकर्तानाव टाका</string>
     <string name="password_label">पासवर्ड:&#160;</string>
     <string name="password_input">पासवर्ड टाका</string>

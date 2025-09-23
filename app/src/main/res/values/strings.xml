@@ -4,8 +4,8 @@
 
     <!-- Log In Interface -->
     <string name="admin_title">Log In</string>
-    <string name="id_label">Device ID:&#160;</string>
-    <string name="username_label">Username:&#160;</string>
+    <string name="id_label">Device ID:</string>
+    <string name="username_label">Username:</string>
     <string name="username_input">Enter Username</string>
     <string name="password_label">Password:&#160;</string>
     <string name="password_input">Enter Password</string>
@@ -18,11 +18,13 @@
     <string name="failed_message">Failed to create account for:</string>
     <string name="failed_button">Create account failed, try again</string>
 
-
     <!-- Prompt Page -->
     <string name="select_prompt">Select a Prompt</string>
     <string name="downloaded_prompts">Downloaded Prompts</string>
     <string name="tutorial_prompts">Tutorial Mode</string>
+    <string name="username_label_with_current">Username (%1$s):</string>
+    <string name="device_id_with_current">Device Id (%1$s):</string>
+    <string name="unknown_username">&lt;USERNAME NOT SET&gt;</string>
 
     <!-- Main Page -->
     <!-- Information -->

@@ -6,8 +6,9 @@
 
     <!-- Log In Interface -->
     <string name="admin_title">ログイン</string>
-    <string name="id_label">デバイスID:&#160;</string>
-    <string name="username_label">ユーザー名:&#160;</string>
+    <string name="id_label">デバイスID:</string>
+    <string name="username_label">ユーザー名:</string>
+    <string name="username_label_with_current">ユーザー名 (%1$s):</string>
     <string name="username_input">ユーザー名を入力</string>
     <string name="password_label">パスワード:&#160;</string>
     <string name="password_input">パスワードを入力</string>

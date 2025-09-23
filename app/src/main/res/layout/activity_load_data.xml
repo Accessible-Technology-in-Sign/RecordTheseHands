@@ -19,89 +19,110 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <EditText
-        android:id="@+id/setDeviceIdText"
+    <LinearLayout
+        android:id="@+id/setDeviceIdContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:orientation="horizontal"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:hint="device_id"
-        android:inputType="text"
-        android:textSize="24sp"
-        app:layout_constraintStart_toStartOf="@+id/createAccountHeader"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/createAccountHeader">
+
+        <TextView
+            android:id="@+id/deviceIdLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:textSize="24sp" />
+
+        <EditText
+            android:id="@+id/setDeviceIdText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:inputType="text"
+            android:textSize="24sp" />
+    </LinearLayout>
 
     <Button
         android:id="@+id/setDeviceIdButton"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:text="Set DeviceId"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdText" />
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdContainer" />
 
-    <EditText
-        android:id="@+id/usernameTextField"
+    <LinearLayout
+        android:id="@+id/setUsernameContainer"
+        android:layout_marginTop="24dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:orientation="horizontal"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:hint="new_username"
-        android:textSize="24sp"
-        android:inputType="text"
-        app:layout_constraintStart_toStartOf="@+id/setDeviceIdButton"
-        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton">
 
-    <EditText
-        android:id="@+id/adminPasswordTextField"
+        <TextView
+            android:id="@+id/usernameLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:layout_marginEnd="8dp"
+            android:textSize="24sp" />
+
+        <EditText
+            android:id="@+id/usernameTextField"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:textSize="24sp"
+            android:inputType="text" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/adminPasswordContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:textSize="24sp"
-        android:hint="admin_password"
-        android:inputType="textPassword"
-        app:layout_constraintStart_toStartOf="@+id/usernameTextField"
-        app:layout_constraintTop_toBottomOf="@+id/usernameTextField" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setUsernameContainer">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Admin Password:"
+            android:layout_marginEnd="8dp"
+            android:textSize="24sp" />
+
+        <EditText
+            android:id="@+id/adminPasswordTextField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textSize="24sp"
+            android:hint="admin_password"
+            android:inputType="textPassword" />
+    </LinearLayout>
 
     <Button
         android:id="@+id/createAccountButton"
+        style="@style/PrimaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:text="Create Account"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/adminPasswordTextField" />
-
-    <Button
-        android:id="@+id/enableTutorialModeButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="32dp"
-        android:text="Enable Tutorial Mode"
-        android:textSize="24sp"
-        android:background="@drawable/rounded_corners"
-        android:backgroundTint="@color/button_color"
-        android:textColor="@color/white"
-        android:paddingLeft="30dp"
-        android:paddingRight="30dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/createAccountButton" />
-
+        app:layout_constraintTop_toBottomOf="@+id/adminPasswordContainer" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

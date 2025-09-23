@@ -40,7 +40,6 @@ import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.thread
 
 class LoadDataActivity : ComponentActivity() {
@@ -58,19 +57,18 @@ class LoadDataActivity : ComponentActivity() {
 
     requestAllPermissions()
 
-    // TODO Use an observer on PromptState to get the necessary information.
-    val deviceIdText = findViewById<TextView>(R.id.setDeviceIdText)
-    val usernameText = findViewById<TextView>(R.id.usernameTextField)
+    val deviceIdText = findViewById<EditText>(R.id.setDeviceIdText)
+    val deviceIdLabel = findViewById<TextView>(R.id.deviceIdLabel)
+    val usernameText = findViewById<EditText>(R.id.usernameTextField)
+    val usernameLabel = findViewById<TextView>(R.id.usernameLabel)
 
     dataManager = DataManager(applicationContext)
-    runBlocking {
-      val deviceId = dataManager.getDeviceId()
-      deviceIdText.hint = deviceId
-    }
+    dataManager.promptState.observe(this) { state ->
+      val deviceId = state?.deviceId ?: "Unknown Device Id"
+      val username = state?.username ?: getString(R.string.unknown_username)
 
-    val username = dataManager.getUsername()
-    if (username != null) {
-      usernameText.hint = username
+      deviceIdLabel.text = getString(R.string.device_id_with_current, deviceId)
+      usernameLabel.text = getString(R.string.username_label_with_current, username)
     }
 
     val setDeviceIdButton = findViewById<Button>(R.id.setDeviceIdButton)
@@ -117,17 +115,6 @@ class LoadDataActivity : ComponentActivity() {
             }
           }
         }
-      }
-    }
-
-    // TODO remove enableTutorialModeButton it is redundant with functionality in PromptSelectActivity.
-    val enableTutorialModeButton = findViewById<Button>(R.id.enableTutorialModeButton)
-    enableTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    enableTutorialModeButton.setOnClickListener {
-      CoroutineScope(Dispatchers.IO).launch {
-        dataManager.setTutorialMode(true)
-        dataManager.saveCurrentPromptIndex(0)
-        finish()
       }
     }
 
