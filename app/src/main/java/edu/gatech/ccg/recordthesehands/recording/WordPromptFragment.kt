@@ -168,10 +168,14 @@ class WordPromptFragment(
 
     when (prompt.type) {
       PromptType.TEXT -> {
+        binding.playerControlsContainer.visibility = View.GONE
+        binding.promptVideo.visibility = View.GONE
       }
 
       PromptType.IMAGE -> {
         Log.d(TAG, "Rendering Image for ${prompt.key}.")
+        binding.playerControlsContainer.visibility = View.GONE
+        binding.promptVideo.visibility = View.GONE
         prompt.resourcePath?.let { resourcePath ->
           Log.d(TAG, "resourcePath $resourcePath.")
           val filepath = File(requireContext().filesDir, resourcePath)
@@ -181,6 +185,8 @@ class WordPromptFragment(
       }
 
       PromptType.VIDEO -> {
+        binding.playerControlsContainer.visibility = View.VISIBLE
+        binding.promptVideo.visibility = View.VISIBLE
         prompt.resourcePath?.let { resourcePath ->
           val videoViewParams = binding.promptVideo.layoutParams as LayoutParams
 
