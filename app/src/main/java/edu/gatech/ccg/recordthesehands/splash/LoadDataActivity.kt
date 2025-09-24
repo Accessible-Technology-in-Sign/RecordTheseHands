@@ -23,13 +23,10 @@
  */
 package edu.gatech.ccg.recordthesehands.splash
 
-import android.Manifest
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -140,7 +137,6 @@ class LoadDataActivity : AppCompatActivity() {
     }
 
   }
-
 
 
   override fun onResume() {
