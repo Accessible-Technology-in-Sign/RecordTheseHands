@@ -26,9 +26,9 @@ package edu.gatech.ccg.recordthesehands.recording
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.TextView
-import android.widget.Toast
+import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.DialogFragment
 import androidx.media3.common.MediaItem
@@ -37,8 +37,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ClippingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import androidx.media3.ui.PlayerView
-import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.databinding.RecordingPreviewBinding
 import java.io.File
 
 /**
@@ -51,10 +50,8 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     private val TAG = VideoPreviewFragment::class.java.simpleName
   }
 
-  /**
-   * The video view in which to run the video.
-   */
-  private lateinit var videoView: PlayerView
+  private var _binding: RecordingPreviewBinding? = null
+  private val binding get() = _binding!!
 
   /**
    * The controller for playing back the video.
@@ -119,6 +116,15 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     super.onDestroyView()
   }
 
+  override fun onCreateView(
+    inflater: LayoutInflater,
+    container: ViewGroup?,
+    savedInstanceState: Bundle?
+  ): View {
+    _binding = RecordingPreviewBinding.inflate(inflater, container, false)
+    return binding.root
+  }
+
   /**
    * Initialize layout for the dialog box showing the video
    */
@@ -131,10 +137,10 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     val relativePath = arguments?.getString("filepath")
     if (relativePath == null) {
       Log.e(TAG, "VideoPreviewFragment created without a filepath argument.")
-      Toast.makeText(
+      android.widget.Toast.makeText(
         requireContext(),
         "Cannot play video: file path is missing.",
-        Toast.LENGTH_LONG
+        android.widget.Toast.LENGTH_LONG
       ).show()
       dismiss()
       return
@@ -143,7 +149,11 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     val filepath = File(requireContext().filesDir, relativePath)
     if (!filepath.exists()) {
       Log.e(TAG, "Video file not found at path: $filepath")
-      Toast.makeText(requireContext(), "Cannot play video: file not found.", Toast.LENGTH_LONG)
+      android.widget.Toast.makeText(
+        requireContext(),
+        "Cannot play video: file not found.",
+        android.widget.Toast.LENGTH_LONG
+      )
         .show()
       dismiss()
       return
@@ -151,11 +161,8 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
 
     Log.d(TAG, "Playing video from $filepath")
 
-    // Set the video UI
-    videoView = view.findViewById(R.id.videoPreview)
-
     exoPlayer = ExoPlayer.Builder(requireContext()).build().also { player ->
-      videoView.player = player // videoView is now a PlayerView
+      binding.videoPreview.player = player // videoView is now a PlayerView
 
       // Create a media source for the full video file
       val mediaItem = MediaItem.fromUri(Uri.fromFile(filepath))
@@ -178,11 +185,9 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
 
     if (prompt != null) {
       // Sets the title text for the video
-      val title = view.findViewById<TextView>(R.id.wordBeingSigned)
-      title.text = prompt
+      binding.wordBeingSigned.text = prompt
     } else {
-      val title = view.findViewById<TextView>(R.id.wordBeingSigned)
-      title.visibility = View.GONE
+      binding.wordBeingSigned.visibility = View.GONE
     }
   }
 }
