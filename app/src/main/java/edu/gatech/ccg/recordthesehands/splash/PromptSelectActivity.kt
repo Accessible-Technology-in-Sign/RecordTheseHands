@@ -25,8 +25,6 @@ package edu.gatech.ccg.recordthesehands.splash
 
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,6 +33,7 @@ import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
+import edu.gatech.ccg.recordthesehands.databinding.SectionListItemBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.PromptState
@@ -102,18 +101,16 @@ class PromptSelectActivity : AppCompatActivity() {
       val completed = sectionProgress?.get("mainIndex") ?: 0
       val isCompleted = total > 0 && completed >= total
 
-      val sectionView =
-        layoutInflater.inflate(R.layout.section_list_item, binding.promptSectionsLayout, false)
+      val sectionBinding =
+        SectionListItemBinding.inflate(layoutInflater, binding.promptSectionsLayout, false)
 
-      val sectionButton = sectionView.findViewById<Button>(R.id.sectionButton)
-      val progressText = sectionView.findViewById<TextView>(R.id.progressText)
+      sectionBinding.sectionButton.text = sectionName
+      sectionBinding.progressText.text =
+        getString(R.string.prompts_completed_progress, completed, total)
+      sectionBinding.sectionButton.isEnabled = !isCompleted || state.tutorialMode
 
-      sectionButton.text = sectionName
-      progressText.text = getString(R.string.prompts_completed_progress, completed, total)
-      sectionButton.isEnabled = !isCompleted || state.tutorialMode
-
-      if (sectionButton.isEnabled) {
-        sectionButton.setOnClickListener {
+      if (sectionBinding.sectionButton.isEnabled) {
+        sectionBinding.sectionButton.setOnClickListener {
           lifecycleScope.launch {
             Log.d(TAG, "Clicked on button to set Prompts Section to ${sectionName}")
             UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
@@ -122,7 +119,7 @@ class PromptSelectActivity : AppCompatActivity() {
           }
         }
       }
-      binding.promptSectionsLayout.addView(sectionView)
+      binding.promptSectionsLayout.addView(sectionBinding.root)
     }
   }
 
