@@ -81,7 +81,7 @@ class LoadDataActivity : AppCompatActivity() {
       false // Do not consume the event.
     }
 
-    requestAllPermissions()
+
 
     dataManager = DataManager(applicationContext)
     dataManager.promptState.observe(this) { state ->
@@ -122,6 +122,7 @@ class LoadDataActivity : AppCompatActivity() {
                 binding.createAccountButton.isEnabled = true
                 binding.createAccountButton.isClickable = true
                 binding.createAccountButton.text = "Create account"
+                finish()
               } else {
                 setTitle("Failed")
                 setMessage("Failed to Create account for \"$username\".")
@@ -140,18 +141,7 @@ class LoadDataActivity : AppCompatActivity() {
 
   }
 
-  fun requestAllPermissions() {
-    val launcher = registerForActivityResult(
-      ActivityResultContracts.RequestMultiplePermissions()
-    ) { map ->
-      val cameraGranted = map[Manifest.permission.CAMERA] ?: false
-      runOnUiThread {
-        val text = "Permissions: camera $cameraGranted"
-        Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
-      }
-    }
-    launcher.launch(arrayOf(Manifest.permission.CAMERA))
-  }
+
 
   override fun onResume() {
     super.onResume()
