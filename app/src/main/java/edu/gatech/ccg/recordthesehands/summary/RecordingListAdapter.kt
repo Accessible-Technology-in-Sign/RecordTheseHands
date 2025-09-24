@@ -27,11 +27,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.clipText
+import edu.gatech.ccg.recordthesehands.databinding.RecordingListItemBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
@@ -56,7 +55,8 @@ class RecordingListAdapter(
   /**
    * Represents an individual entry within the list of recordings.
    */
-  class RecordingListItem(itemView: View) : RecyclerView.ViewHolder(itemView) {
+  class RecordingListItem(private val binding: RecordingListItemBinding) :
+    RecyclerView.ViewHolder(binding.root) {
     /**
      * Sets up the listener for opening the video preview or marking the recording as invalid.
      */
@@ -65,30 +65,27 @@ class RecordingListAdapter(
       activity: RecordingActivity,
       listAdapter: RecordingListAdapter
     ) {
-      val label = itemView.findViewById<TextView>(R.id.recordingTitle)
       val promptText = clipDetails.prompt.prompt ?: ""
       if (promptText.length > 40) {
-        label.text = clipText(promptText, 37) + "..."
+        binding.recordingTitle.text = clipText(promptText, 37) + "..."
       } else {
-        label.text = promptText
+        binding.recordingTitle.text = promptText
       }
 
-      val clipIsValidImage = itemView.findViewById<ImageButton>(R.id.clipIsValidImage)
-      val clipIsInvalidImage = itemView.findViewById<ImageButton>(R.id.clipIsInvalidImage)
       if (clipDetails.valid) {
-        clipIsValidImage.visibility = View.VISIBLE
-        clipIsInvalidImage.visibility = View.GONE
+        binding.clipIsValidImage.visibility = View.VISIBLE
+        binding.clipIsInvalidImage.visibility = View.GONE
       } else {
-        clipIsValidImage.visibility = View.GONE
-        clipIsInvalidImage.visibility = View.VISIBLE
+        binding.clipIsValidImage.visibility = View.GONE
+        binding.clipIsInvalidImage.visibility = View.VISIBLE
       }
 
       /**
        * Allow the user to mark the clip valid or invalid as they wish.
        */
 
-      clipIsValidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      clipIsValidImage.setOnClickListener {
+      binding.clipIsValidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.clipIsValidImage.setOnClickListener {
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         clipDetails.valid = false
@@ -105,12 +102,12 @@ class RecordingListAdapter(
           activity.dataManager.persistData()
         }
 
-        clipIsValidImage.visibility = View.GONE
-        clipIsInvalidImage.visibility = View.VISIBLE
+        binding.clipIsValidImage.visibility = View.GONE
+        binding.clipIsInvalidImage.visibility = View.VISIBLE
       }
 
-      clipIsInvalidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      clipIsInvalidImage.setOnClickListener {
+      binding.clipIsInvalidImage.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.clipIsInvalidImage.setOnClickListener {
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         clipDetails.valid = true
@@ -126,8 +123,8 @@ class RecordingListAdapter(
           activity.dataManager.persistData()
         }
 
-        clipIsValidImage.visibility = View.VISIBLE
-        clipIsInvalidImage.visibility = View.GONE
+        binding.clipIsValidImage.visibility = View.VISIBLE
+        binding.clipIsInvalidImage.visibility = View.GONE
       }
 
       /**
@@ -136,8 +133,8 @@ class RecordingListAdapter(
        * and we know the timestamp data for that recording, so we just play that segment
        * on a loop. (See [VideoPreviewFragment].)
        */
-      label.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      label.setOnClickListener {
+      binding.recordingTitle.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.recordingTitle.setOnClickListener {
         val bundle = Bundle()
         bundle.putString("prompt", clipDetails.prompt.prompt ?: "")
         bundle.putString("filepath", "upload" + File.separator + clipDetails.filename)
@@ -174,11 +171,9 @@ class RecordingListAdapter(
       parent.layoutTransition.setAnimateParentHierarchy(false)
     }
 
-    val view = LayoutInflater.from(parent.context).inflate(
-      R.layout.recording_list_item,
-      parent, false
-    )
-    return RecordingListItem(view)
+    val binding =
+      RecordingListItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+    return RecordingListItem(binding)
   }
 
   /**
