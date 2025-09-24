@@ -24,15 +24,13 @@
 package edu.gatech.ccg.recordthesehands.summary
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
+import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.databinding.RecordingListBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 
@@ -44,32 +42,39 @@ class RecordingListFragment(
   @LayoutRes layout: Int
 ) : Fragment(layout) {
 
+  private var _binding: RecordingListBinding? = null
+  private val binding get() = _binding!!
+
+  override fun onCreateView(
+    inflater: LayoutInflater,
+    container: ViewGroup?,
+    savedInstanceState: Bundle?
+  ): View {
+    _binding = RecordingListBinding.inflate(inflater, container, false)
+    return binding.root
+  }
+
   /**
    * Overridden method from Fragment - called when the fragment is initialized.
    */
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    val scrollView = view.findViewById<RecyclerView>(R.id.recordingList)
-    scrollView.layoutManager = LinearLayoutManager(this.context)
+    binding.recordingList.layoutManager = LinearLayoutManager(this.context)
 
     // Set up recycler view
     val recordingListAdapter = RecordingListAdapter(activity)
-    scrollView.adapter = recordingListAdapter
+    binding.recordingList.adapter = recordingListAdapter
 
     // Set the save button to finish the recording activity when pressed.
-    val saveButton = view.findViewById<Button>(R.id.closeSession)
-    saveButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    saveButton.setOnClickListener {
-      saveButton.isEnabled = false
+    binding.closeSession.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    binding.closeSession.setOnClickListener {
+      binding.closeSession.isEnabled = false
       activity.concludeRecordingSession()
     }
 
     // Hide the loading spinner and gray-out screen once the view is loaded.
     // The loading screen exists to clarify to the user that saving is in progress.
-    val loadingScreen = view.findViewById<LinearLayout>(R.id.loadingScreen)
-    loadingScreen.alpha = 0.0f
-
-    val loadingWheel = view.findViewById<RelativeLayout>(R.id.loadingPanel)
-    loadingWheel.visibility = View.INVISIBLE
+    binding.loadingScreen.alpha = 0.0f
+    binding.loadingPanel.visibility = View.INVISIBLE
   }
 
 }
