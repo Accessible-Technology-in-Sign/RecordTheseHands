@@ -25,9 +25,6 @@ package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -48,47 +45,40 @@ class LoadDataActivity : AppCompatActivity() {
   }
 
   lateinit var dataManager: DataManager
+  private lateinit var binding: ActivityLoadDataBinding
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val binding = ActivityLoadDataBinding.inflate(layoutInflater)
+    binding = ActivityLoadDataBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
     requestAllPermissions()
-
-    val deviceIdText = findViewById<EditText>(R.id.setDeviceIdText)
-    val deviceIdLabel = findViewById<TextView>(R.id.deviceIdLabel)
-    val usernameText = findViewById<EditText>(R.id.usernameTextField)
-    val usernameLabel = findViewById<TextView>(R.id.usernameLabel)
 
     dataManager = DataManager(applicationContext)
     dataManager.promptState.observe(this) { state ->
       val deviceId = state?.deviceId ?: "Unknown Device Id"
       val username = state?.username ?: getString(R.string.unknown_username)
 
-      deviceIdLabel.text = getString(R.string.device_id_with_current, deviceId)
-      usernameLabel.text = getString(R.string.username_label_with_current, username)
+      binding.deviceIdLabel.text = getString(R.string.device_id_with_current, deviceId)
+      binding.usernameLabel.text = getString(R.string.username_label_with_current, username)
     }
 
-    val setDeviceIdButton = findViewById<Button>(R.id.setDeviceIdButton)
-    setDeviceIdButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    setDeviceIdButton.setOnClickListener {
-      val newDeviceId = deviceIdText.text.toString().trim()
+    binding.setDeviceIdButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    binding.setDeviceIdButton.setOnClickListener {
+      val newDeviceId = binding.setDeviceIdText.text.toString().trim()
       CoroutineScope(Dispatchers.IO).launch {
         dataManager.setDeviceId(newDeviceId)
       }
     }
 
-    val createAccountButton = findViewById<Button>(R.id.createAccountButton)
-
-    createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    createAccountButton.setOnClickListener {
-      val username = usernameText.text.toString()
-      createAccountButton.isEnabled = false
-      createAccountButton.isClickable = false
-      createAccountButton.text = "Creating account."
-      val adminPassword = findViewById<EditText>(R.id.adminPasswordTextField).text.toString()
+    binding.createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    binding.createAccountButton.setOnClickListener {
+      val username = binding.usernameTextField.text.toString()
+      binding.createAccountButton.isEnabled = false
+      binding.createAccountButton.isClickable = false
+      binding.createAccountButton.text = "Creating account."
+      val adminPassword = binding.adminPasswordTextField.text.toString()
       lifecycleScope.launch {
         thread {  // Don't run network on UI thread.
           // TODO Figure out a better concurrency model.  createAccount could benefit from being
@@ -99,15 +89,15 @@ class LoadDataActivity : AppCompatActivity() {
               if (result) {
                 setTitle("Success")
                 setMessage("Created account for \"$username\" and stored credentials.")
-                createAccountButton.isEnabled = true
-                createAccountButton.isClickable = true
-                createAccountButton.text = "Create account"
+                binding.createAccountButton.isEnabled = true
+                binding.createAccountButton.isClickable = true
+                binding.createAccountButton.text = "Create account"
               } else {
                 setTitle("Failed")
                 setMessage("Failed to Create account for \"$username\".")
-                createAccountButton.isEnabled = true
-                createAccountButton.isClickable = true
-                createAccountButton.text = "Create account failed, try again"
+                binding.createAccountButton.isEnabled = true
+                binding.createAccountButton.isClickable = true
+                binding.createAccountButton.text = "Create account failed, try again"
               }
               setPositiveButton("OK") { _, _ -> }
               create()
@@ -127,8 +117,7 @@ class LoadDataActivity : AppCompatActivity() {
       val cameraGranted = map[Manifest.permission.CAMERA] ?: false
       runOnUiThread {
         val text = "Permissions: camera $cameraGranted"
-        val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-        toast.show()
+        Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
       }
     }
     launcher.launch(arrayOf(Manifest.permission.CAMERA))
