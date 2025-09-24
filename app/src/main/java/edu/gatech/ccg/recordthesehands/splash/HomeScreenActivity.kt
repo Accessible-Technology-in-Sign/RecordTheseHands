@@ -31,15 +31,12 @@ import android.net.ConnectivityManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -71,6 +68,8 @@ import kotlinx.coroutines.runBlocking
  * The home page for the app. The user can see statistics and start recording from this page.
  */
 class HomeScreenActivity : AppCompatActivity() {
+
+  private lateinit var binding: ActivitySplashBinding
 
   private var windowInsetsController: WindowInsetsControllerCompat? = null
 
@@ -174,16 +173,13 @@ class HomeScreenActivity : AppCompatActivity() {
   private fun setupUI() {
     lifecycleScope.launch {
 
-      val loadingText = findViewById<TextView>(R.id.loadingText)
-      loadingText.visibility = View.GONE
-      val mainGroup = findViewById<Group>(R.id.mainGroup)
-      mainGroup.visibility = View.VISIBLE
+      binding.loadingText.visibility = View.GONE
+      binding.mainGroup.visibility = View.VISIBLE
 
       // Listener for the super secret admin menu accessed by touching the
       // titleText (i.e. "RecordTheseHands") 5 times in a row.
-      val titleText = findViewById<TextView>(R.id.header)
       var numTitleClicks = 0
-      titleText.setOnClickListener {
+      binding.header.setOnClickListener {
         numTitleClicks += 1
         if (numTitleClicks == 5) {
           numTitleClicks = 0
@@ -191,12 +187,11 @@ class HomeScreenActivity : AppCompatActivity() {
           startActivity(intent)
         }
       }
-      titleText.isSoundEffectsEnabled = false
+      binding.header.isSoundEffectsEnabled = false
 
       // exitTutorialMode button listener.
-      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
-      exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      exitTutorialModeButton.setOnClickListener {
+      binding.exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.exitTutorialModeButton.setOnClickListener {
         CoroutineScope(Dispatchers.IO).launch {
           dataManager.setTutorialMode(false)
         }
@@ -208,24 +203,19 @@ class HomeScreenActivity : AppCompatActivity() {
         .map {
           it[recordingCountKeyObject]
         }.firstOrNull() ?: 0
-      val recordingCountText = findViewById<TextView>(R.id.recordingCountText)
-      recordingCountText.text = lifetimeRecordingCount.toString()
+      binding.recordingCountText.text = lifetimeRecordingCount.toString()
       val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
       val lifetimeRecordingMs = applicationContext.prefStore.data
         .map {
           it[recordingMsKeyObject]
         }.firstOrNull() ?: 0L
-      val recordingTimeBox = findViewById<TextView>(R.id.recordingTimeParsedText)
-      recordingTimeBox.text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
-      val sessionCounterBox = findViewById<TextView>(R.id.sessionCounterBox)
-      sessionCounterBox.text = currentRecordingSessions.toString()
+      binding.recordingTimeParsedText.text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
+      binding.sessionCounterBox.text = currentRecordingSessions.toString()
 
-      val startRecordingButton = findViewById<Button>(R.id.startButton)
-      startRecordingButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      startRecordingButton.setOnClickListener {
+      binding.startButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.startButton.setOnClickListener {
         if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
-          val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
-          switchPromptsButton.performClick()
+          binding.switchPromptsButton.performClick()
           return@setOnClickListener
         }
         fun checkPermission(perm: String): Boolean {
@@ -312,20 +302,17 @@ class HomeScreenActivity : AppCompatActivity() {
         }
       } // setRecordingButton.onClickListener
 
-      val uploadButton = findViewById<Button>(R.id.uploadButton)
-      uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      uploadButton.setOnClickListener {
+      binding.uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+      binding.uploadButton.setOnClickListener {
         // Disable the button and start the upload process
-        uploadButton.isEnabled = false
-        uploadButton.isClickable = false
-        uploadButton.text = getString(R.string.upload_successful)
+        binding.uploadButton.isEnabled = false
+        binding.uploadButton.isClickable = false
+        binding.uploadButton.text = getString(R.string.upload_successful)
 
         // Progress bar appears after confirming
-        val uploadProgressBarText = findViewById<TextView>(R.id.uploadProgressBarText)
-        uploadProgressBarText.visibility = View.VISIBLE
-        val uploadProgressBar = findViewById<ProgressBar>(R.id.uploadProgressBar)
-        uploadProgressBar.visibility = View.VISIBLE
-        uploadProgressBar.progress = 0
+        binding.uploadProgressBarText.visibility = View.VISIBLE
+        binding.uploadProgressBar.visibility = View.VISIBLE
+        binding.uploadProgressBar.progress = 0
 
         lifecycleScope.launch(Dispatchers.IO) {
           UploadService.pauseUploadUntil(null)
@@ -333,19 +320,19 @@ class HomeScreenActivity : AppCompatActivity() {
             val uploadSucceeded = dataManager.uploadData { progress ->
               runOnUiThread {
                 Log.d(TAG, "Updating ProgressBar to $progress%")
-                uploadProgressBar.progress = progress
+                binding.uploadProgressBar.progress = progress
               }
             }
 
             runOnUiThread {
-              uploadButton.isEnabled = true
-              uploadButton.isClickable = true
-              uploadProgressBar.visibility = View.GONE
-              uploadProgressBarText.visibility = View.GONE
+              binding.uploadButton.isEnabled = true
+              binding.uploadButton.isClickable = true
+              binding.uploadProgressBar.visibility = View.GONE
+              binding.uploadProgressBarText.visibility = View.GONE
               if (uploadSucceeded) {
-                uploadButton.text = getString(R.string.upload_button)
+                binding.uploadButton.text = getString(R.string.upload_button)
               } else {
-                uploadButton.text = getString(R.string.upload_failed)
+                binding.uploadButton.text = getString(R.string.upload_failed)
                 val textFinish = "Upload Failed"
                 val toastFinish =
                   Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
@@ -359,11 +346,11 @@ class HomeScreenActivity : AppCompatActivity() {
               val toastFinish =
                 Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
               toastFinish.show()
-              uploadButton.isEnabled = true
-              uploadButton.isClickable = true
-              uploadProgressBar.visibility = View.GONE
-              uploadProgressBarText.visibility = View.GONE
-              uploadButton.text = getString(R.string.upload_button)
+              binding.uploadButton.isEnabled = true
+              binding.uploadButton.isClickable = true
+              binding.uploadProgressBar.visibility = View.GONE
+              binding.uploadProgressBarText.visibility = View.GONE
+              binding.uploadButton.text = getString(R.string.upload_button)
             }
           }
         }
@@ -398,9 +385,8 @@ class HomeScreenActivity : AppCompatActivity() {
     Log.d(TAG, "Starting UploadService from HomeScreenActivity.onCreate")
     applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
     // Load UI from XML
-    val binding = ActivitySplashBinding.inflate(layoutInflater)
-    val view = binding.root
-    setContentView(view)
+    binding = ActivitySplashBinding.inflate(layoutInflater)
+    setContentView(binding.root)
 
     // `resources.getIdentifier` is used intentionally to check for the existence of optional
     // credentials defined in a `credentials.xml` file, which may not be present at compile time.
@@ -452,17 +438,13 @@ class HomeScreenActivity : AppCompatActivity() {
       setupUI()
     }
 
-    val switchPromptsButton = findViewById<Button>(R.id.switchPromptsButton)
-    switchPromptsButton.setOnClickListener {
+    binding.switchPromptsButton.setOnClickListener {
       startActivity(Intent(this, PromptSelectActivity::class.java))
     }
 
     dataManager.promptState.observe(this@HomeScreenActivity) { state ->
       this@HomeScreenActivity.startRecordingShouldSwitchPrompts = false
-      val startRecordingButton = findViewById<Button>(R.id.startButton)
-      val tutorialModeText = findViewById<TextView>(R.id.tutorialModeText)
-      val exitTutorialModeButton = findViewById<Button>(R.id.exitTutorialModeButton)
-      tutorialModeText.visibility = if (state.tutorialMode) View.VISIBLE else View.GONE
+      binding.tutorialModeText.visibility = if (state.tutorialMode) View.VISIBLE else View.GONE
 
       // Total Progress Calculation
       var totalCompleted = 0
@@ -481,67 +463,59 @@ class HomeScreenActivity : AppCompatActivity() {
       if (state.tutorialMode && ((state.currentPromptIndex ?: 0) > 0 ||
             (state.totalPromptsInCurrentSection ?: 0) == 0)
       ) {
-        exitTutorialModeButton.visibility = View.VISIBLE
-        tutorialModeText.visibility = View.GONE
+        binding.exitTutorialModeButton.visibility = View.VISIBLE
+        binding.tutorialModeText.visibility = View.GONE
       } else {
-        exitTutorialModeButton.visibility = View.GONE
+        binding.exitTutorialModeButton.visibility = View.GONE
       }
 
-      startRecordingButton.visibility = View.VISIBLE
+      binding.startButton.visibility = View.VISIBLE
       if (state.currentPrompts != null && state.username != null) {
         if ((state.currentPromptIndex ?: 0) < (state.totalPromptsInCurrentSection ?: 0)) {
-          startRecordingButton.isEnabled = true
-          startRecordingButton.isClickable = true
-          startRecordingButton.text = getString(R.string.start_button)
+          binding.startButton.isEnabled = true
+          binding.startButton.isClickable = true
+          binding.startButton.text = getString(R.string.start_button)
         } else {
           if (totalCompleted >= totalPrompts) {
-            startRecordingButton.isEnabled = false
-            startRecordingButton.isClickable = false
-            startRecordingButton.text = getString(R.string.no_more_prompts)
+            binding.startButton.isEnabled = false
+            binding.startButton.isClickable = false
+            binding.startButton.text = getString(R.string.no_more_prompts)
           } else {
-            startRecordingButton.isEnabled = true
-            startRecordingButton.isClickable = true
-            startRecordingButton.text = getString(R.string.switch_prompts)
+            binding.startButton.isEnabled = true
+            binding.startButton.isClickable = true
+            binding.startButton.text = getString(R.string.switch_prompts)
             this@HomeScreenActivity.startRecordingShouldSwitchPrompts = true
           }
         }
       } else {
-        startRecordingButton.isEnabled = false
-        startRecordingButton.isClickable = false
-        startRecordingButton.text = getString(R.string.start_disabled)
+        binding.startButton.isEnabled = false
+        binding.startButton.isClickable = false
+        binding.startButton.text = getString(R.string.start_disabled)
       }
 
       if (state.username != null) {
-        val usernameBox = findViewById<TextView>(R.id.usernameBox)
-        usernameBox.text = state.username
+        binding.usernameBox.text = state.username
       }
 
       if (state.deviceId != null) {
-        val deviceIdBox = findViewById<TextView>(R.id.deviceIdBox)
-        deviceIdBox.text = state.deviceId
+        binding.deviceIdBox.text = state.deviceId
       }
 
-      val tutorialProgressText = findViewById<TextView>(R.id.tutorialProgressText)
-      val completedAndTotalPromptsText = findViewById<TextView>(R.id.completedAndTotalPromptsText)
-      val sectionNameText = findViewById<TextView>(R.id.sectionNameText)
-
-      sectionNameText.text = state.currentSectionName ?: "<Section Not Set>"
+      binding.sectionNameText.text = state.currentSectionName ?: "<Section Not Set>"
 
       if (state.tutorialMode) {
-        tutorialProgressText.visibility = View.VISIBLE
-        completedAndTotalPromptsText.visibility = View.GONE
+        binding.tutorialProgressText.visibility = View.VISIBLE
+        binding.completedAndTotalPromptsText.visibility = View.GONE
       } else {
-        tutorialProgressText.visibility = View.GONE
-        completedAndTotalPromptsText.visibility = View.VISIBLE
+        binding.tutorialProgressText.visibility = View.GONE
+        binding.completedAndTotalPromptsText.visibility = View.VISIBLE
         val completedPrompts = (state.currentPromptIndex ?: 0).toString()
         val totalPrompts = (state.totalPromptsInCurrentSection ?: 0).toString()
-        completedAndTotalPromptsText.text =
+        binding.completedAndTotalPromptsText.text =
           getString(R.string.ratio, completedPrompts, totalPrompts)
       }
 
-      val sectionsCompletedLayout =
-        findViewById<com.google.android.flexbox.FlexboxLayout>(R.id.sectionsCompletedLayout)
-      sectionsCompletedLayout.removeAllViews()
+      binding.sectionsCompletedLayout.removeAllViews()
 
       sections.forEachIndexed { index, section ->
         val prompts = section.mainPrompts
@@ -551,7 +525,7 @@ class HomeScreenActivity : AppCompatActivity() {
 
         if (index > 0) {
           val space = TextView(this).apply { text = " " }
-          sectionsCompletedLayout.addView(space)
+          binding.sectionsCompletedLayout.addView(space)
         }
 
         val textView = TextView(this).apply {
@@ -559,58 +533,55 @@ class HomeScreenActivity : AppCompatActivity() {
           val color = if (completed >= total) R.color.alert_green else R.color.alert_red
           setTextColor(ContextCompat.getColor(this@HomeScreenActivity, color))
         }
-        sectionsCompletedLayout.addView(textView)
+        binding.sectionsCompletedLayout.addView(textView)
       }
 
-      val totalProgressCountText = findViewById<TextView>(R.id.totalProgressCountText)
-      totalProgressCountText.text =
+      binding.totalProgressCountText.text =
         getString(R.string.ratio, totalCompleted.toString(), totalPrompts.toString())
     }
 
     dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
-      val internetConnectionText = findViewById<TextView>(R.id.internetConnectionText)
-      val serverConnectionText = findViewById<TextView>(R.id.serverConnectionText)
       val connectivityManager =
         applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
       val network = connectivityManager.activeNetwork
 
-      internetConnectionText.visibility = View.VISIBLE
-      serverConnectionText.visibility = View.VISIBLE
+      binding.internetConnectionText.visibility = View.VISIBLE
+      binding.serverConnectionText.visibility = View.VISIBLE
 
       if (network == null) {
-        internetConnectionText.text = getString(R.string.internet_failed)
-        internetConnectionText.setTextColor(
+        binding.internetConnectionText.text = getString(R.string.internet_failed)
+        binding.internetConnectionText.setTextColor(
           ContextCompat.getColor(
             this@HomeScreenActivity,
             R.color.alert_red
           )
         )
-        serverConnectionText.text = getString(R.string.server_failed)
-        serverConnectionText.setTextColor(
+        binding.serverConnectionText.text = getString(R.string.server_failed)
+        binding.serverConnectionText.setTextColor(
           ContextCompat.getColor(
             this@HomeScreenActivity,
             R.color.alert_red
           )
         )
       } else {
-        internetConnectionText.text = getString(R.string.internet_success)
-        internetConnectionText.setTextColor(
+        binding.internetConnectionText.text = getString(R.string.internet_success)
+        binding.internetConnectionText.setTextColor(
           ContextCompat.getColor(
             this@HomeScreenActivity,
             R.color.alert_green
           )
         )
         if (isConnected) {
-          serverConnectionText.text = getString(R.string.server_success)
-          serverConnectionText.setTextColor(
+          binding.serverConnectionText.text = getString(R.string.server_success)
+          binding.serverConnectionText.setTextColor(
             ContextCompat.getColor(
               this@HomeScreenActivity,
               R.color.alert_green
             )
           )
         } else {
-          serverConnectionText.text = getString(R.string.server_failed)
-          serverConnectionText.setTextColor(
+          binding.serverConnectionText.text = getString(R.string.server_failed)
+          binding.serverConnectionText.setTextColor(
             ContextCompat.getColor(
               this@HomeScreenActivity,
               R.color.alert_red
