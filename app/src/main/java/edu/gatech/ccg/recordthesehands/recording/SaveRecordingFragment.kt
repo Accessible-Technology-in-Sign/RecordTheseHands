@@ -24,20 +24,32 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.LinearLayout
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.Fragment
-import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.databinding.SaveRecordBinding
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 
 class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes layout: Int) :
   Fragment(layout) {
+
+  private var _binding: SaveRecordBinding? = null
+  private val binding get() = _binding!!
+
+  override fun onCreateView(
+    inflater: LayoutInflater,
+    container: ViewGroup?,
+    savedInstanceState: Bundle?
+  ): View {
+    _binding = SaveRecordBinding.inflate(inflater, container, false)
+    return binding.root
+  }
+
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
-
-    val container = view.findViewById<LinearLayout>(R.id.signedPromptsList)
 
     for (prompt in prompts) {
       val tv = TextView(requireContext()).apply {
@@ -45,7 +57,7 @@ class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes l
         textSize = 20f
         setPadding(0, 0, 0, 0)
       }
-      container.addView(tv)
+      binding.signedPromptsList.addView(tv)
     }
   }
 }
