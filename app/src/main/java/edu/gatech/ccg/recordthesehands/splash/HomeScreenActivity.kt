@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest.permission.CAMERA
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -162,6 +163,17 @@ class HomeScreenActivity : AppCompatActivity() {
         val toast = Toast.makeText(this, text, Toast.LENGTH_SHORT)
         toast.show()
       }
+    }
+
+  private val requestNotificationPermissions =
+    registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+      val text = if (granted) {
+        "Notification permission granted"
+      } else {
+        "Notification permission denied"
+      }
+      val toast = Toast.makeText(this, text, Toast.LENGTH_SHORT)
+      toast.show()
     }
 
   /**
@@ -454,7 +466,7 @@ class HomeScreenActivity : AppCompatActivity() {
       var totalCompleted = 0
       var totalPrompts = 0
       val sections =
-        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: return@observe
+        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: emptyList()
       sections.forEachIndexed { index, section ->
         val prompts = section.mainPrompts
         val total = prompts.array.size
@@ -594,7 +606,18 @@ class HomeScreenActivity : AppCompatActivity() {
         }
       }
     }
+    checkAndRequestNotificationPermission()
     dataManager.checkServerConnection()
+  }
+
+  private fun checkAndRequestNotificationPermission() {
+    if (ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS) ==
+      PackageManager.PERMISSION_GRANTED
+    ) {
+      // Permission is already granted
+      return
+    }
+    requestNotificationPermissions.launch(POST_NOTIFICATIONS)
   }
 
   override fun onResume() {
