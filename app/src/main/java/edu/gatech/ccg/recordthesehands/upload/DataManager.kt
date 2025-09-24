@@ -1132,9 +1132,9 @@ class DataManager(val context: Context) {
     return retVal
   }
 
-  fun createAccount(username: String, adminPassword: String): Boolean {
-    Log.i(TAG, "Creating new account for $username")
+  suspend fun createAccount(username: String, adminPassword: String): Boolean {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
+      logToServer("createAccount username \"$username\" is invalid")
       Log.e(
         TAG,
         "username must be at least 3 lowercase alphanumeric or underscore " +
@@ -1142,48 +1142,47 @@ class DataManager(val context: Context) {
       )
       return false
     }
-    return runBlocking {
-      dataManagerData.lock.withLock {
-        val password = toHex(SecureRandom().generateSeed(32))
-        val newLoginToken = makeToken(username, password)
-        val adminToken = makeToken("admin", adminPassword)
-        val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
-        loginTokenPath.parentFile?.let { parent ->
-          if (!parent.exists()) {
-            Log.i(TAG, "creating directory for loginToken.")
-            parent.mkdirs()
-          }
+    dataManagerData.lock.withLock {
+      logToServerUnderLock("createAccount for username \"$username\"")
+      val password = toHex(SecureRandom().generateSeed(32))
+      val newLoginToken = makeToken(username, password)
+      val adminToken = makeToken("admin", adminPassword)
+      val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
+      loginTokenPath.parentFile?.let { parent ->
+        if (!parent.exists()) {
+          logToServerUnderLock("creating directory for loginToken.")
+          parent.mkdirs()
         }
-
-        val url = URL(getServer() + "/register_login")
-        Log.d(TAG, "Registering login at $url")
-        val (code, _) =
-          serverFormPostRequest(
-            url,
-            mapOf(
-              "app_version" to APP_VERSION,
-              "admin_token" to adminToken,
-              "login_token" to newLoginToken
-            )
-          )
-        if (code < 200 || code >= 300) {
-          return@runBlocking false
-        }
-
-        try {
-          Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
-          FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
-            stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
-          }
-        } catch (e: IOException) {
-          Log.e(TAG, "Failed to write login token to file", e)
-          return@runBlocking false
-        }
-
-        dataManagerData.loginToken = newLoginToken
-        reloadPromptsFromServerUnderLock()
-        return@runBlocking true
       }
+
+      val url = URL(getServer() + "/register_login")
+      Log.d(TAG, "Registering login at $url")
+      val (code, _) =
+        serverFormPostRequest(
+          url,
+          mapOf(
+            "app_version" to APP_VERSION,
+            "admin_token" to adminToken,
+            "login_token" to newLoginToken
+          )
+        )
+      if (code < 200 || code >= 300) {
+        return false
+      }
+
+      try {
+        Log.i(TAG, "creating $LOGIN_TOKEN_FULL_PATH")
+        FileOutputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
+          stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
+        }
+      } catch (e: IOException) {
+        Log.e(TAG, "Failed to write login token to file", e)
+        return false
+      }
+
+      dataManagerData.loginToken = newLoginToken
+      reloadPromptsFromServerUnderLock()
+      return true
     }
   }
 

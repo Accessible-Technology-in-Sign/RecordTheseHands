@@ -40,7 +40,6 @@ import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlin.concurrent.thread
 
 class LoadDataActivity : AppCompatActivity() {
   companion object {
@@ -104,33 +103,29 @@ class LoadDataActivity : AppCompatActivity() {
       val username = binding.usernameTextField.text.toString()
       binding.createAccountButton.isEnabled = false
       binding.createAccountButton.isClickable = false
-      binding.createAccountButton.text = "Creating account."
+      binding.createAccountButton.text = "Creating account..."
       val adminPassword = binding.adminPasswordTextField.text.toString()
-      lifecycleScope.launch {
-        thread {  // Don't run network on UI thread.
-          // TODO Figure out a better concurrency model.  createAccount could benefit from being
-          // suspending.
-          val result = dataManager.createAccount(username, adminPassword)
-          runOnUiThread {
-            AlertDialog.Builder(this@LoadDataActivity).apply {
-              if (result) {
-                setTitle("Success")
-                setMessage("Created account for \"$username\" and stored credentials.")
-                binding.createAccountButton.isEnabled = true
-                binding.createAccountButton.isClickable = true
-                binding.createAccountButton.text = "Create account"
-                finish()
-              } else {
-                setTitle("Failed")
-                setMessage("Failed to Create account for \"$username\".")
-                binding.createAccountButton.isEnabled = true
-                binding.createAccountButton.isClickable = true
-                binding.createAccountButton.text = "Create account failed, try again"
-              }
-              setPositiveButton("OK") { _, _ -> }
-              create()
-              show()
+      lifecycleScope.launch(Dispatchers.IO) {
+        val result = dataManager.createAccount(username, adminPassword)
+        runOnUiThread {
+          AlertDialog.Builder(this@LoadDataActivity).apply {
+            if (result) {
+              setTitle("Success")
+              setMessage("Created account for \"$username\" and stored credentials.")
+              binding.createAccountButton.isEnabled = true
+              binding.createAccountButton.isClickable = true
+              binding.createAccountButton.text = "Create account"
+              finish()
+            } else {
+              setTitle("Failed")
+              setMessage("Failed to Create account for \"$username\".")
+              binding.createAccountButton.isEnabled = true
+              binding.createAccountButton.isClickable = true
+              binding.createAccountButton.text = "Create account failed, try again"
             }
+            setPositiveButton("OK") { _, _ -> }
+            create()
+            show()
           }
         }
       }
