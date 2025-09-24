@@ -29,19 +29,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
 import androidx.media3.ui.PlayerView
-import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.databinding.WordPromptBinding
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.PromptType
 import java.io.File
@@ -58,6 +56,9 @@ class WordPromptFragment(
   companion object {
     private val TAG = VideoPromptController::class.java.simpleName
   }
+
+  private var _binding: WordPromptBinding? = null
+  private val binding get() = _binding!!
 
   var videoPromptController: VideoPromptController? = null
 
@@ -119,6 +120,15 @@ class WordPromptFragment(
     displayMode = null
   }
 
+  override fun onCreateView(
+    inflater: LayoutInflater,
+    container: ViewGroup?,
+    savedInstanceState: Bundle?
+  ): View {
+    _binding = WordPromptBinding.inflate(inflater, container, false)
+    return binding.root
+  }
+
   /**
    * Lay out the UI for this fragment.
    */
@@ -135,7 +145,7 @@ class WordPromptFragment(
     val heightInches = displayMetrics.heightPixels / displayMetrics.ydpi
     val widthInches = displayMetrics.widthPixels / displayMetrics.xdpi
     val diagonal = sqrt((heightInches * heightInches) + (widthInches * widthInches))
-    isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
+    isTablet = diagonal > edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
     Log.i(TAG, "Computed screen size: $diagonal inches")
     Log.i(TAG, "Tablet? " + isTablet.toString())
 
@@ -143,19 +153,17 @@ class WordPromptFragment(
       scalePromptSection(0.5f)
     }
 
-    val promptLayout = view.findViewById<ConstraintLayout>(R.id.promptLayout)
     origPromptLayout = ConstraintSet().apply {
-      clone(promptLayout)
+      clone(binding.promptLayout)
     }
 
-    val textView = view.findViewById<TextView>(R.id.promptText)
     if (prompt.prompt != null) {
       Log.d(TAG, "setting prompt to ${prompt.prompt}")
-      textView.text = prompt.prompt
-      textView.visibility = View.VISIBLE
+      binding.promptText.text = prompt.prompt
+      binding.promptText.visibility = View.VISIBLE
     } else {
       Log.d(TAG, "no prompt available for ${prompt.key}.")
-      textView.visibility = View.GONE
+      binding.promptText.visibility = View.GONE
     }
 
     when (prompt.type) {
@@ -166,66 +174,58 @@ class WordPromptFragment(
         Log.d(TAG, "Rendering Image for ${prompt.key}.")
         prompt.resourcePath?.let { resourcePath ->
           Log.d(TAG, "resourcePath $resourcePath.")
-          val imageView = view.findViewById<ImageView>(R.id.promptImage)
           val filepath = File(requireContext().filesDir, resourcePath)
-          imageView.setImageURI(Uri.fromFile(filepath))
-          imageView.visibility = View.VISIBLE
+          binding.promptImage.setImageURI(Uri.fromFile(filepath))
+          binding.promptImage.visibility = View.VISIBLE
         }
       }
 
       PromptType.VIDEO -> {
         prompt.resourcePath?.let { resourcePath ->
-          val videoView = view.findViewById<PlayerView>(R.id.promptVideo)
-          val videoViewParams = videoView.layoutParams as LayoutParams
+          val videoViewParams = binding.promptVideo.layoutParams as LayoutParams
 
           // Initialize button for adjusting video size
-          val fullScreenButton = view.findViewById<ImageButton>(R.id.fullScreenButton)
-          val minimizeScreenButton = view.findViewById<ImageButton>(R.id.originalScreenButton)
-          val splitScreenButton = view.findViewById<ImageButton>(R.id.splitScreenButton)
-          val disableSplitScreenButton =
-            view.findViewById<ImageButton>(R.id.disableSplitScreenButton)
-
           originalButtonParams = mapOf(
-            R.id.fullScreenButton to ConstraintLayout.LayoutParams(fullScreenButton.layoutParams as LayoutParams),
-            R.id.originalScreenButton to ConstraintLayout.LayoutParams(minimizeScreenButton.layoutParams as LayoutParams),
-            R.id.splitScreenButton to ConstraintLayout.LayoutParams(splitScreenButton.layoutParams as LayoutParams),
-            R.id.disableSplitScreenButton to ConstraintLayout.LayoutParams(disableSplitScreenButton.layoutParams as LayoutParams)
+            R.id.fullScreenButton to ConstraintLayout.LayoutParams(binding.fullScreenButton.layoutParams as LayoutParams),
+            R.id.originalScreenButton to ConstraintLayout.LayoutParams(binding.originalScreenButton.layoutParams as LayoutParams),
+            R.id.splitScreenButton to ConstraintLayout.LayoutParams(binding.splitScreenButton.layoutParams as LayoutParams),
+            R.id.disableSplitScreenButton to ConstraintLayout.LayoutParams(binding.disableSplitScreenButton.layoutParams as LayoutParams)
           )
 
           var lastDisplayMode: PromptDisplayMode? = PromptDisplayMode.ORIGINAL
 
-          fullScreenButton.setOnClickListener {
+          binding.fullScreenButton.setOnClickListener {
             resetPromptTypeConstraint()
-            setFullScreen(videoView, videoViewParams, currentOrientation)
-            fullScreenButton.visibility = View.GONE
-            minimizeScreenButton.visibility = View.VISIBLE
-            splitScreenButton.visibility = View.VISIBLE
+            setFullScreen(binding.promptVideo, videoViewParams, currentOrientation)
+            binding.fullScreenButton.visibility = View.GONE
+            binding.originalScreenButton.visibility = View.VISIBLE
+            binding.splitScreenButton.visibility = View.VISIBLE
             lastDisplayMode = PromptDisplayMode.FULL
             Log.i(TAG, "Enlarging video to full screen size")
           }
 
-          minimizeScreenButton.setOnClickListener {
+          binding.originalScreenButton.setOnClickListener {
             resetPromptTypeConstraint()
             resetButtonPositions()
             setOriginalScreen(
-              videoView,
+              binding.promptVideo,
               videoViewParams,
               currentOrientation,
               lastDisplayMode,
               screenWidth,
               pixelDensity
             )
-            fullScreenButton.visibility = View.VISIBLE
-            minimizeScreenButton.visibility = View.GONE
-            splitScreenButton.visibility = View.VISIBLE
+            binding.fullScreenButton.visibility = View.VISIBLE
+            binding.originalScreenButton.visibility = View.GONE
+            binding.splitScreenButton.visibility = View.VISIBLE
             lastDisplayMode = PromptDisplayMode.ORIGINAL
           }
 
-          splitScreenButton.setOnClickListener {
+          binding.splitScreenButton.setOnClickListener {
             resetPromptTypeConstraint()
             resetButtonPositions()
             setSplitScreen(
-              videoView,
+              binding.promptVideo,
               videoViewParams,
               currentOrientation,
               lastDisplayMode,
@@ -233,21 +233,21 @@ class WordPromptFragment(
               pixelDensity
             )
             if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
-              minimizeScreenButton.visibility = View.GONE
-              fullScreenButton.visibility = View.VISIBLE
+              binding.originalScreenButton.visibility = View.GONE
+              binding.fullScreenButton.visibility = View.VISIBLE
             } else {
-              fullScreenButton.visibility = View.GONE
-              minimizeScreenButton.visibility = View.VISIBLE
+              binding.fullScreenButton.visibility = View.GONE
+              binding.originalScreenButton.visibility = View.VISIBLE
             }
-            splitScreenButton.visibility = View.GONE
-            disableSplitScreenButton.visibility = View.VISIBLE
+            binding.splitScreenButton.visibility = View.GONE
+            binding.disableSplitScreenButton.visibility = View.VISIBLE
             Log.i(TAG, "Splitting screen")
           }
 
-          disableSplitScreenButton.setOnClickListener {
+          binding.disableSplitScreenButton.setOnClickListener {
             resetPromptTypeConstraint()
             undoSplitScreen(
-              videoView,
+              binding.promptVideo,
               videoViewParams,
               currentOrientation,
               lastDisplayMode,
@@ -255,34 +255,34 @@ class WordPromptFragment(
               pixelDensity
             )
             if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
-              minimizeScreenButton.visibility = View.GONE
-              fullScreenButton.visibility = View.VISIBLE
+              binding.originalScreenButton.visibility = View.GONE
+              binding.fullScreenButton.visibility = View.VISIBLE
               resetButtonPositions()
             } else if (lastDisplayMode == PromptDisplayMode.FULL) {
-              fullScreenButton.visibility = View.GONE
-              minimizeScreenButton.visibility = View.VISIBLE
+              binding.fullScreenButton.visibility = View.GONE
+              binding.originalScreenButton.visibility = View.VISIBLE
             }
-            splitScreenButton.visibility = View.VISIBLE
-            disableSplitScreenButton.visibility = View.GONE
+            binding.splitScreenButton.visibility = View.VISIBLE
+            binding.disableSplitScreenButton.visibility = View.GONE
           }
 
           videoPromptController = VideoPromptController(
-            requireContext(), null, videoView, resourcePath, true
+            requireContext(), null, binding.promptVideo, resourcePath, true
           )
           resetPromptTypeConstraint()
           setOriginalScreen(
-            videoView,
+            binding.promptVideo,
             videoViewParams,
             currentOrientation,
             lastDisplayMode,
             screenWidth,
             pixelDensity
           )
-          videoView.layoutParams = videoViewParams
-          videoView.visibility = View.VISIBLE
-          fullScreenButton.visibility = View.VISIBLE
-          minimizeScreenButton.visibility = View.GONE
-          splitScreenButton.visibility = View.VISIBLE
+          binding.promptVideo.layoutParams = videoViewParams
+          binding.promptVideo.visibility = View.VISIBLE
+          binding.fullScreenButton.visibility = View.VISIBLE
+          binding.originalScreenButton.visibility = View.GONE
+          binding.splitScreenButton.visibility = View.VISIBLE
         }
       }
     }
@@ -312,7 +312,7 @@ class WordPromptFragment(
         videoViewParams.width = desiredPortraitWidthPx
         videoViewParams.height = (videoViewParams.width * (9f / 16f)).toInt()
         videoViewParams.topMargin = 10
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.bottomToBottom = LayoutParams.UNSET
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
@@ -320,7 +320,7 @@ class WordPromptFragment(
         videoViewParams.width = desiredPortraitWidthPx
         videoViewParams.height = (videoViewParams.width * (9f / 16f)).toInt()
         videoViewParams.topMargin = 10
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.bottomToBottom = LayoutParams.UNSET
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
@@ -369,14 +369,14 @@ class WordPromptFragment(
     } else if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
         videoViewParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.bottomToBottom = LayoutParams.PARENT_ID
         videoViewParams.height = (videoViewParams.width * (9f / 16f)).toInt()
       } else {
         videoViewParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.bottomToBottom = LayoutParams.PARENT_ID
@@ -408,7 +408,7 @@ class WordPromptFragment(
         videoViewParams.height = (videoViewParams.width * (9f / 16f)).toInt()
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.topToTop = LayoutParams.UNSET
         videoViewParams.topMargin = 10
       } else {
@@ -416,7 +416,7 @@ class WordPromptFragment(
         videoViewParams.height = (videoViewParams.width * (9f / 16f)).toInt()
         videoViewParams.startToStart = LayoutParams.PARENT_ID
         videoViewParams.endToEnd = LayoutParams.PARENT_ID
-        videoViewParams.topToBottom = R.id.promptView
+        videoViewParams.topToBottom = binding.promptView.id
         videoViewParams.topToTop = LayoutParams.UNSET
         videoViewParams.topMargin = 10
       }
@@ -472,10 +472,7 @@ class WordPromptFragment(
    * Currently uses a fixed value for all mobile devices.
    */
   private fun scalePromptSection(scaleFactor: Float) {
-    val promptText = requireView().findViewById<TextView>(R.id.promptText)
-    val promptView = requireView().findViewById<View>(R.id.promptView)
-
-    val textParams = promptText.layoutParams as LayoutParams
+    val textParams = binding.promptText.layoutParams as LayoutParams
 
     textParams.marginStart = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
@@ -495,11 +492,14 @@ class WordPromptFragment(
       resources.displayMetrics
     ).toInt()
 
-    promptText.layoutParams = textParams
+    binding.promptText.layoutParams = textParams
 
-    promptText.setTextSize(TypedValue.COMPLEX_UNIT_PX, promptText.textSize * scaleFactor)
+    binding.promptText.setTextSize(
+      TypedValue.COMPLEX_UNIT_PX,
+      binding.promptText.textSize * scaleFactor
+    )
 
-    val viewParams = promptView.layoutParams as LayoutParams
+    val viewParams = binding.promptView.layoutParams as LayoutParams
 
     viewParams.marginStart = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
@@ -521,7 +521,7 @@ class WordPromptFragment(
       resources.displayMetrics
     ).toInt()
 
-    promptView.layoutParams = viewParams
+    binding.promptView.layoutParams = viewParams
   }
 
   /**
@@ -529,21 +529,14 @@ class WordPromptFragment(
    * for landscape full screen mode.
    */
   private fun shiftScreenModifierButtons(shiftDp: Float) {
-    val fullScreenButton = requireView().findViewById<ImageButton>(R.id.fullScreenButton)
-    val minimizeScreenButton = requireView().findViewById<ImageButton>(R.id.originalScreenButton)
-    val splitScreenButton = requireView().findViewById<ImageButton>(R.id.splitScreenButton)
-    val disableSplitScreenButton =
-      requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
-
     val displayMetrics = requireContext().resources.displayMetrics
     val density = displayMetrics.density
     val shiftPx = shiftDp * density
 
-    val fullScreenParam = fullScreenButton.layoutParams as LayoutParams
-    val minScreenParam = minimizeScreenButton.layoutParams as LayoutParams
-    val splitScreenParam = splitScreenButton.layoutParams as LayoutParams
-    val disableSplitScreenParam =
-      disableSplitScreenButton.layoutParams as LayoutParams
+    val fullScreenParam = binding.fullScreenButton.layoutParams as LayoutParams
+    val minScreenParam = binding.originalScreenButton.layoutParams as LayoutParams
+    val splitScreenParam = binding.splitScreenButton.layoutParams as LayoutParams
+    val disableSplitScreenParam = binding.disableSplitScreenButton.layoutParams as LayoutParams
 
     fullScreenParam.bottomMargin += TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
@@ -566,10 +559,10 @@ class WordPromptFragment(
       displayMetrics
     ).toInt()
 
-    fullScreenButton.layoutParams = fullScreenParam
-    minimizeScreenButton.layoutParams = minScreenParam
-    splitScreenButton.layoutParams = splitScreenParam
-    disableSplitScreenButton.layoutParams = disableSplitScreenParam
+    binding.fullScreenButton.layoutParams = fullScreenParam
+    binding.originalScreenButton.layoutParams = minScreenParam
+    binding.splitScreenButton.layoutParams = splitScreenParam
+    binding.disableSplitScreenButton.layoutParams = disableSplitScreenParam
   }
 
   /**
@@ -577,16 +570,12 @@ class WordPromptFragment(
    * Used to undo the [shiftScreenModifierButtons] function.
    */
   private fun resetButtonPositions() {
-    val fullScreenButton = requireView().findViewById<ImageButton>(R.id.fullScreenButton)
-    val minimizeScreenButton = requireView().findViewById<ImageButton>(R.id.originalScreenButton)
-    val splitScreenButton = requireView().findViewById<ImageButton>(R.id.splitScreenButton)
-    val disableSplitScreenButton =
-      requireView().findViewById<ImageButton>(R.id.disableSplitScreenButton)
-
-    fullScreenButton.layoutParams = originalButtonParams[fullScreenButton.id]
-    minimizeScreenButton.layoutParams = originalButtonParams[minimizeScreenButton.id]
-    splitScreenButton.layoutParams = originalButtonParams[splitScreenButton.id]
-    disableSplitScreenButton.layoutParams = originalButtonParams[disableSplitScreenButton.id]
+    binding.fullScreenButton.layoutParams = originalButtonParams[binding.fullScreenButton.id]
+    binding.originalScreenButton.layoutParams =
+      originalButtonParams[binding.originalScreenButton.id]
+    binding.splitScreenButton.layoutParams = originalButtonParams[binding.splitScreenButton.id]
+    binding.disableSplitScreenButton.layoutParams =
+      originalButtonParams[binding.disableSplitScreenButton.id]
   }
 
   /**
@@ -606,8 +595,7 @@ class WordPromptFragment(
    * Resets the prompt layout back to its original parameters.
    */
   private fun resetPromptTypeConstraint() {
-    val promptLayout = view?.findViewById<ConstraintLayout>(R.id.promptLayout)
-    origPromptLayout.applyTo(promptLayout)
+    origPromptLayout.applyTo(binding.promptLayout)
   }
 
 }
