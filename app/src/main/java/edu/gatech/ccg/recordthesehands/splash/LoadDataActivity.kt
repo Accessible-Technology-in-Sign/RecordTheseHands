@@ -32,6 +32,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityLoadDataBinding
@@ -50,6 +53,8 @@ class LoadDataActivity : AppCompatActivity() {
   lateinit var dataManager: DataManager
   private lateinit var binding: ActivityLoadDataBinding
 
+  private var windowInsetsController: WindowInsetsControllerCompat? = null
+
   private fun clearTextFocus() {
     Log.d(TAG, "window.currentFocus = ${window.currentFocus.toString()}")
     val focused = currentFocus
@@ -60,6 +65,12 @@ class LoadDataActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    windowInsetsController =
+      WindowCompat.getInsetsController(window, window.decorView).also {
+        it.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
 
     binding = ActivityLoadDataBinding.inflate(layoutInflater)
     setContentView(binding.root)
@@ -140,6 +151,16 @@ class LoadDataActivity : AppCompatActivity() {
       }
     }
     launcher.launch(arrayOf(Manifest.permission.CAMERA))
+  }
+
+  override fun onResume() {
+    super.onResume()
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+  }
+
+  override fun onStop() {
+    super.onStop()
+    windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
   }
 
 }
