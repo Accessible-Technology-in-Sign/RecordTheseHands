@@ -24,7 +24,10 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.Manifest
+import android.content.Context
 import android.os.Bundle
+import android.util.Log
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -47,11 +50,25 @@ class LoadDataActivity : AppCompatActivity() {
   lateinit var dataManager: DataManager
   private lateinit var binding: ActivityLoadDataBinding
 
+  private fun clearTextFocus() {
+    Log.d(TAG, "window.currentFocus = ${window.currentFocus.toString()}")
+    val focused = currentFocus
+    focused?.clearFocus()
+    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    imm.hideSoftInputFromWindow(focused?.windowToken, 0)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
     binding = ActivityLoadDataBinding.inflate(layoutInflater)
     setContentView(binding.root)
+
+    // Unfocus keyboard when background is touched.
+    binding.root.setOnTouchListener { view, _ ->
+      clearTextFocus()
+      false // Do not consume the event.
+    }
 
     requestAllPermissions()
 
@@ -67,6 +84,7 @@ class LoadDataActivity : AppCompatActivity() {
     binding.setDeviceIdButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     binding.setDeviceIdButton.setOnClickListener {
       val newDeviceId = binding.setDeviceIdText.text.toString().trim()
+      clearTextFocus()
       CoroutineScope(Dispatchers.IO).launch {
         dataManager.setDeviceId(newDeviceId)
       }
@@ -74,6 +92,7 @@ class LoadDataActivity : AppCompatActivity() {
 
     binding.createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
     binding.createAccountButton.setOnClickListener {
+      clearTextFocus()
       val username = binding.usernameTextField.text.toString()
       binding.createAccountButton.isEnabled = false
       binding.createAccountButton.isClickable = false
