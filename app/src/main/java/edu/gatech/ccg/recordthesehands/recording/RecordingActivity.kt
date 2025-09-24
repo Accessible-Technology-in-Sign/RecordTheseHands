@@ -53,25 +53,21 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.CycleInterpolator
 import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
@@ -299,38 +295,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * Note that this button can be either a FloatingActionButton or a Button, depending on
    * whether we are on a smartphone or a tablet, respectively.
    */
-  lateinit var recordButton: View
-
-  /**
-   * The big button to finish the session.
-   */
-  lateinit var finishedButton: View
-
-  /**
-   * The button to restart a recording.
-   */
-  lateinit var restartButton: View
-
-  /**
-   * The UI that allows a user to swipe back and forth and make recordings.
-   * The end screens are also included in this ViewPager.
-   */
-  lateinit var sessionPager: ViewPager2
-
-  /**
-   * The UI that shows how much time is left on the recording before it auto-concludes.
-   */
-  lateinit var countdownText: TextView
-
-  /**
-   * The recording light and text.
-   */
-  private lateinit var recordingLightView: View
-
-  /**
-   * The recording preview.
-   */
-  lateinit var cameraView: SurfaceView
+  private lateinit var binding: ActivityRecordBinding
 
   // UI state variables
   /**
@@ -629,12 +594,11 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
      */
     if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
 
-      val errorRoot = findViewById<ConstraintLayout>(R.id.main_root)
       val errorMessage = layoutInflater.inflate(
-        R.layout.permission_error, errorRoot,
+        R.layout.permission_error, binding.root,
         false
       )
-      errorRoot.addView(errorMessage)
+      binding.root.addView(errorMessage)
 
       // Since the user hasn't granted camera permissions, we need to stop here.
       return false
@@ -687,15 +651,15 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
       startRecording()
 
-      recordButton.setOnTouchListener { view, event ->
+      binding.recordButton.setOnTouchListener { view, event ->
         return@setOnTouchListener recordButtonOnTouchListener(view, event)
       }
 
-      restartButton.setOnTouchListener { view, event ->
+      binding.restartButton.setOnTouchListener { view, event ->
         return@setOnTouchListener restartButtonOnTouchListener(view, event)
       }
 
-      finishedButton.setOnTouchListener { view, event ->
+      binding.finishedButton.setOnTouchListener { view, event ->
         return@setOnTouchListener finishedButtonOnTouchListener(view, event)
       }
     } catch (e: Exception) {
@@ -756,9 +720,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           dataManager.saveClipData(currentClipDetails!!)
         }
         runOnUiThread {
-          setButtonState(recordButton, false)
-          setButtonState(restartButton, true)
-          setButtonState(finishedButton, false)
+          setButtonState(binding.recordButton, false)
+          setButtonState(binding.restartButton, true)
+          setButtonState(binding.finishedButton, false)
         }
       }
     }
@@ -810,9 +774,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
         isSigning = true
         runOnUiThread {
-          setButtonState(recordButton, false)
-          setButtonState(restartButton, true)
-          setButtonState(finishedButton, false)
+          setButtonState(binding.recordButton, false)
+          setButtonState(binding.restartButton, true)
+          setButtonState(binding.finishedButton, false)
           animateGoText()
         }
       }
@@ -840,8 +804,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
     runOnUiThread {
       // Move to the next prompt and allow the user to swipe back and forth.
-      sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
-      sessionPager.isUserInputEnabled = false
+      binding.sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
+      binding.sessionPager.isUserInputEnabled = false
     }
   }
 
@@ -853,7 +817,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * render the camera preview.
    */
   private fun setupCameraCallback() {
-    cameraView.holder.addCallback(object : SurfaceHolder.Callback {
+    binding.cameraPreview.holder.addCallback(object : SurfaceHolder.Callback {
       /**
        * Called when the OS has finished creating a surface for us.
        */
@@ -1038,18 +1002,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       dataManager.addKeyValue("recording_started-${timestamp}", json, "recording")
     }
 
-    setButtonState(recordButton, true)
+    setButtonState(binding.recordButton, true)
     recordButtonEnabled = true
 
     // Set up the countdown timer.
-    countdownText = findViewById(R.id.timerLabel)
+    binding.timerLabel.text = "00:00"
     countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
       // Update the timer text every second.
       override fun onTick(p0: Long) {
         val rawSeconds = (p0 / 1000).toInt() + 1
         val minutes = padZeroes(rawSeconds / 60, 2)
         val seconds = padZeroes(rawSeconds % 60, 2)
-        countdownText.text = "$minutes:$seconds"
+        binding.timerLabel.text = "$minutes:$seconds"
       }
 
       // When the timer expires, move to the summary page (or have the app move there as soon
@@ -1067,7 +1031,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     countdownTimer.start()
 
-    recordingLightView.visibility = View.GONE
+    binding.recordingLight.visibility = View.GONE
   }
 
   fun setButtonState(button: View, visible: Boolean) {
@@ -1119,7 +1083,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
        * that occurred if the user did too many recording sessions in one sitting. It is
        * unsure whether this helped; however, we will leave it as-is for now.
        */
-      sessionPager.adapter = null
+      binding.sessionPager.adapter = null
       super.onStop()
     } catch (exc: Throwable) {
       Log.e(TAG, "Error in RecordingActivity.onStop()", exc)
@@ -1159,7 +1123,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       countdownTimer.cancel()
 
       runOnUiThread {
-        recordingLightView.visibility = View.GONE
+        binding.recordingLight.visibility = View.GONE
       }
 
       CoroutineScope(Dispatchers.IO).launch {
@@ -1212,16 +1176,11 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val diagonal = sqrt((heightInches * heightInches) + (widthInches * widthInches))
     Log.i(TAG, "Computed screen size: $diagonal inches")
 
-    val binding: ViewBinding
     isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
     binding = ActivityRecordBinding.inflate(this.layoutInflater)
 
-    val view = binding.root
-    setContentView(view)
+    setContentView(binding.root)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-    // Set up view pager
-    this.sessionPager = findViewById(R.id.sessionPager)
 
     // Fetch word data, user id, etc. from the splash screen activity which
     // initiated this activity
@@ -1269,52 +1228,48 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           "[${sessionStartIndex}, ${sessionLimit})"
     )
 
-    val aspectRatioLayout = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
     origAspectRatioLayout = ConstraintSet().apply {
-      clone(aspectRatioLayout)
+      clone(binding.aspectRatioConstraint)
     }
 
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
     // Enable record button
-    recordButton = findViewById<Button>(R.id.recordButton)
-    recordButton.isHapticFeedbackEnabled = true
-    setButtonState(recordButton, true)
+    binding.recordButton.isHapticFeedbackEnabled = true
+    setButtonState(binding.recordButton, true)
 
-    restartButton = findViewById(R.id.restartButton)
-    restartButton.isHapticFeedbackEnabled = true
-    setButtonState(restartButton, false)
+    binding.restartButton.isHapticFeedbackEnabled = true
+    setButtonState(binding.restartButton, false)
 
-    finishedButton = findViewById(R.id.finishedButton)
-    finishedButton.isHapticFeedbackEnabled = true
-    setButtonState(finishedButton, false)
+    binding.finishedButton.isHapticFeedbackEnabled = true
+    setButtonState(binding.finishedButton, false)
 
     if (!isTablet) {
-      scaleRecordButton(recordButton as Button)
-      scaleRecordButton(restartButton as Button)
-      scaleRecordButton(finishedButton as Button)
+      scaleRecordButton(binding.recordButton as Button)
+      scaleRecordButton(binding.restartButton as Button)
+      scaleRecordButton(binding.finishedButton as Button)
     }
 
     // Instantiate recording indicator
-    recordingLightView = findViewById(R.id.recordingLight)
+    binding.recordingLight.visibility = View.GONE
 
-    sessionPager.adapter = WordPagerAdapter(this, useSummaryPage)
+    binding.sessionPager.adapter = WordPagerAdapter(this, useSummaryPage)
 
     // Set up swipe handler for the word selector UI
-    sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+    binding.sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
       /**
        * Page changed
        */
       override fun onPageSelected(position: Int) {
         Log.d(
           TAG,
-          "onPageSelected(${position}) sessionPager.currentItem ${sessionPager.currentItem} currentPage (before updating) ${currentPage}"
+          "onPageSelected(${position}) sessionPager.currentItem ${binding.sessionPager.currentItem} currentPage (before updating) ${currentPage}"
         )
         if (currentClipDetails != null) {
           val now = Instant.now()
           DateTimeFormatter.ISO_INSTANT.format(now)
-          if (currentPage < sessionPager.currentItem) {
+          if (currentPage < binding.sessionPager.currentItem) {
             // Swiped forward (currentPage is still the old value)
             currentClipDetails!!.swipeForwardTimestamp = now
           } else {
@@ -1328,7 +1283,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
             dataManager.saveClipData(saveClipDetails)
           }
         }
-        currentPage = sessionPager.currentItem
+        currentPage = binding.sessionPager.currentItem
         super.onPageSelected(currentPage)
         if (endSessionOnClipEnd) {
           currentPromptIndex += 1
@@ -1343,10 +1298,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           runOnUiThread {
             title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-            setButtonState(recordButton, true)
-            setButtonState(restartButton, false)
-            setButtonState(finishedButton, false)
-            recordingLightView.visibility = View.VISIBLE
+            setButtonState(binding.recordButton, true)
+            setButtonState(binding.restartButton, false)
+            setButtonState(binding.finishedButton, false)
+            binding.recordingLight.visibility = View.VISIBLE
           }
         } else if (promptIndex == sessionLimit) {
           dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
@@ -1357,10 +1312,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
            */
           title = ""
 
-          setButtonState(recordButton, false)
-          setButtonState(restartButton, false)
-          setButtonState(finishedButton, true)
-          recordingLightView.visibility = View.GONE
+          setButtonState(binding.recordButton, false)
+          setButtonState(binding.restartButton, false)
+          setButtonState(binding.finishedButton, true)
+          binding.recordingLight.visibility = View.GONE
         } else {
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
           if (!useSummaryPage) {
@@ -1369,10 +1324,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           }
           title = ""
 
-          setButtonState(recordButton, false)
-          setButtonState(restartButton, false)
-          setButtonState(finishedButton, false)
-          sessionPager.isUserInputEnabled = false
+          setButtonState(binding.recordButton, false)
+          setButtonState(binding.restartButton, false)
+          setButtonState(binding.finishedButton, false)
+          binding.sessionPager.isUserInputEnabled = false
 
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
           stopRecorder()
@@ -1382,10 +1337,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     })
 
     // Set up the camera preview's size
-    cameraView = findViewById(R.id.cameraPreview)
-    cameraView.holder.setSizeFromLayout()
+    binding.cameraPreview.holder.setSizeFromLayout()
 
-    val aspectRatioParams = aspectRatioLayout.layoutParams as LayoutParams
+    val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
     val currentOrientation = resources.configuration.orientation
 
     val screenWidth = resources.displayMetrics.widthPixels
@@ -1401,19 +1355,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
 
     setOriginalScreen(
-      aspectRatioLayout,
+      binding.aspectRatioConstraint,
       aspectRatioParams,
       currentOrientation,
       desiredOriginalPortraitWidthPx,
       desiredOriginalLandscapeWidthPx
     )
 
-    recordingLightView.visibility = View.GONE
+    binding.recordingLight.visibility = View.GONE
   }
 
   private fun resetConstraintLayout() {
-    val aspectRatioLayout = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
-    origAspectRatioLayout.applyTo(aspectRatioLayout)
+    origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
   }
 
   /**
@@ -1422,8 +1375,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * as a callback.
    */
   override fun displayModeListener(displayMode: WordPromptFragment.PromptDisplayMode?) {
-    val aspectRatioLayout = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
-    val aspectRatioParams = aspectRatioLayout.layoutParams as LayoutParams
+    val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
 
     // Detects screen's orientation as portrait or landscape
     val currentOrientation = resources.configuration.orientation
@@ -1450,14 +1402,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       WordPromptFragment.PromptDisplayMode.FULL -> {
         resetConstraintLayout()
         // Same logic for both phone and tablet
-        setFullScreen(aspectRatioLayout, aspectRatioParams)
+        setFullScreen(binding.aspectRatioConstraint, aspectRatioParams)
       }
 
       // Handles split-screening the camera preview
       WordPromptFragment.PromptDisplayMode.SPLIT -> {
         resetConstraintLayout()
         setSplitScreen(
-          aspectRatioLayout,
+          binding.aspectRatioConstraint,
           aspectRatioParams,
           currentOrientation,
           desiredSplitPortraitHeightPx,
@@ -1469,7 +1421,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       WordPromptFragment.PromptDisplayMode.ORIGINAL -> {
         resetConstraintLayout()
         setOriginalScreen(
-          aspectRatioLayout,
+          binding.aspectRatioConstraint,
           aspectRatioParams,
           currentOrientation,
           desiredOriginalPortraitWidthPx,
@@ -1527,8 +1479,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         aspectRatioParams.endToEnd = R.id.sessionPager
       }
     }
-//    recordingLightView.visibility = View.VISIBLE
-    recordingLightView.visibility = View.GONE
+//    binding.recordingLight.visibility = View.VISIBLE
+    binding.recordingLight.visibility = View.GONE
     aspectRatioLayout.layoutParams = aspectRatioParams
   }
 
@@ -1585,8 +1537,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       Log.i(TAG, "In split landscape")
     }
     aspectRatioLayout.layoutParams = aspectRatioParams
-//    recordingLightView.visibility = View.VISIBLE
-    recordingLightView.visibility = View.GONE
+//    binding.recordingLight.visibility = View.VISIBLE
+    binding.recordingLight.visibility = View.GONE
   }
 
   /**
@@ -1597,8 +1549,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     aspectRatioParams: LayoutParams
   ) {
     aspectRatioLayout.visibility = View.GONE
-//    recordingLightView.visibility = View.GONE
-    recordingLightView.visibility = View.GONE
+//    binding.recordingLight.visibility = View.GONE
+    binding.recordingLight.visibility = View.GONE
     aspectRatioLayout.layoutParams = aspectRatioParams
   }
 
@@ -1645,8 +1597,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   }
 
   private fun animateGoText() {
-    val goText = findViewById<TextView>(R.id.goText)
-    goText.visibility = View.VISIBLE
+    binding.goText.visibility = View.VISIBLE
 
     // Set the pivot point for SCALE_X and SCALE_Y transformations to the
     // top-left corner of the zoomed-in view. The default is the center of
@@ -1659,7 +1610,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     AnimatorSet().apply {
       play(
         ObjectAnimator.ofFloat(
-          goText,
+          binding.goText,
           View.SCALE_X,
           .5f,
           2f
@@ -1667,7 +1618,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       ).apply {
         with(
           ObjectAnimator.ofFloat(
-            goText,
+            binding.goText,
             View.SCALE_Y,
             .5f,
             2f
@@ -1680,12 +1631,12 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
         override fun onAnimationEnd(animation: Animator) {
           // currentAnimator = null
-          goText.visibility = View.GONE
+          binding.goText.visibility = View.GONE
         }
 
         override fun onAnimationCancel(animation: Animator) {
           // currentAnimator = null
-          goText.visibility = View.GONE
+          binding.goText.visibility = View.GONE
         }
       })
       start()
@@ -1755,8 +1706,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     val heightRatio = if (isTablet) 4 else 3
     val widthRatio = if (isTablet) 3 else 4
-    val mainAspectRatio = findViewById<ConstraintLayout>(R.id.aspectRatioConstraint)
-    (mainAspectRatio.layoutParams as LayoutParams).dimensionRatio =
+    (binding.aspectRatioConstraint.layoutParams as LayoutParams).dimensionRatio =
       "H,${heightRatio}:${widthRatio}"
 
     val videoSizes = sizes?.getOutputSizes(MediaRecorder::class.java)
@@ -1778,7 +1728,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     /**
      * If we already finished the recording activity, no need to restart the camera thread
      */
-    if (sessionPager.currentItem >= prompts.array.size) {
+    if (binding.sessionPager.currentItem >= prompts.array.size) {
       return
     } else if (!cameraInitialized) {
       setupCameraCallback()
