@@ -331,6 +331,10 @@ class HomeScreenActivity : AppCompatActivity() {
               binding.uploadProgressBarText.visibility = View.GONE
               if (uploadSucceeded) {
                 binding.uploadButton.text = getString(R.string.upload_button)
+                val textFinish = "Upload complete"
+                val toastFinish =
+                  Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+                toastFinish.show()
               } else {
                 binding.uploadButton.text = getString(R.string.upload_failed)
                 val textFinish = "Upload Failed"
