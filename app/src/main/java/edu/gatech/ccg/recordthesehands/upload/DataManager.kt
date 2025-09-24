@@ -1126,6 +1126,8 @@ class DataManager(val context: Context) {
       preferences.remove(stringPreferencesKey("currentSectionName"))
       preferences.remove(stringPreferencesKey("promptProgress"))
     }
+    // TODO make ensureResources a part of this workflow rather than calling it every time the
+    // prompts are loaded fom disk.
     val retVal = downloadPrompts()
     // Re-initialize the state from scratch after download (or failure).
     reinitializeDataUnderLock()
