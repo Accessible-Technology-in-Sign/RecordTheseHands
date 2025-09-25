@@ -1034,7 +1034,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * dynamically through implementation of [WordPromptFragment.PromptDisplayModeListener] interface
    * as a callback.
    */
-  override fun displayModeListener(displayMode: WordPromptFragment.PromptDisplayMode?) {
+  override fun displayModeListener(
+    displayMode: WordPromptFragment.PromptDisplayMode?,
+    height: Int
+  ) {
     val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
 
     // Detects screen's orientation as portrait or landscape
@@ -1056,6 +1059,19 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
     val desiredSplitPortraitHeightPx =
       calculateScaledPixelWidth(heightDp, splitPortraitHeightScaleFactor)
+
+    Log.i(TAG, "setting promptGuideline to height of ${height}")
+    binding.promptGuideline.setGuidelineBegin(height)
+
+//    val constraintSet = ConstraintSet()
+//    constraintSet.clone(binding.aspectRatioConstraint)
+//    constraintSet.connect(
+//      R.id.aspectRatioConstraint,
+//      ConstraintSet.TOP,
+//      R.id.promptGuideline,
+//      ConstraintSet.BOTTOM
+//    )
+//    constraintSet.applyTo(binding.aspectRatioConstraint)
 
     when (displayMode) {
       // Handles full-screening the camera preview
@@ -1127,7 +1143,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       if (isTablet) {
         aspectRatioParams.height = desiredSplitPortraitHeightPx
         aspectRatioParams.width = (aspectRatioParams.height * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 900
+
         aspectRatioParams.marginStart = 0
         aspectRatioParams.bottomMargin = 0
         aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
@@ -1136,7 +1152,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       } else {
         aspectRatioParams.height = desiredSplitPortraitHeightPx
         aspectRatioParams.width = (aspectRatioParams.height * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 500
+
         aspectRatioParams.marginStart = 0
         aspectRatioParams.bottomMargin = 0
         aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
@@ -1310,7 +1326,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     */
   }
 
-
   /**
    * Handle activity resumption (typically from multitasking)
    * TODO there is a mismatch between when things are deallocated in onStop and where they
@@ -1320,7 +1335,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     super.onResume()
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
-
 
   /**
    * Finish the recording session and close the activity.

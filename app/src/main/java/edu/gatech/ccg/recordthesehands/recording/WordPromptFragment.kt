@@ -25,6 +25,7 @@ package edu.gatech.ccg.recordthesehands.recording
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -36,10 +37,13 @@ import androidx.annotation.LayoutRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
+
+import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import androidx.media3.ui.PlayerView
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.WordPromptBinding
+
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.PromptType
 import java.io.File
@@ -99,7 +103,7 @@ class WordPromptFragment(
   }
 
   interface PromptDisplayModeListener {
-    fun displayModeListener(displayMode: PromptDisplayMode?)
+    fun displayModeListener(displayMode: PromptDisplayMode?, height: Int)
   }
 
   /**
@@ -165,7 +169,9 @@ class WordPromptFragment(
       Log.d(TAG, "no prompt available for ${prompt.key}.")
       binding.promptText.visibility = View.GONE
     }
-
+    binding.promptView.doOnLayout {
+      notifyDisplayMode(PromptDisplayMode.ORIGINAL)
+    }
     when (prompt.type) {
       PromptType.TEXT -> {
         binding.playerControlsContainer.visibility = View.GONE
@@ -189,6 +195,7 @@ class WordPromptFragment(
         binding.promptVideo.visibility = View.VISIBLE
         prompt.resourcePath?.let { resourcePath ->
           val videoViewParams = binding.promptVideo.layoutParams as LayoutParams
+          // TODO remove all this unnecessary layout fine tuning.
 
           // Initialize button for adjusting video size
           originalButtonParams = mapOf(
@@ -312,7 +319,9 @@ class WordPromptFragment(
     val desiredLandscapeWidthPx =
       calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
 
-    displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL)
+    binding.promptView.doOnLayout {
+      displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL, it.bottom)
+    }
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
         videoViewParams.width = desiredPortraitWidthPx
@@ -350,7 +359,7 @@ class WordPromptFragment(
         videoViewParams.bottomToBottom = LayoutParams.PARENT_ID
       }
     }
-    videoView.layoutParams = videoViewParams
+    // videoView.layoutParams = videoViewParams
   }
 
   /**
@@ -361,7 +370,9 @@ class WordPromptFragment(
     videoViewParams: LayoutParams,
     currentOrientation: Int
   ) {
-    displayMode?.displayModeListener(PromptDisplayMode.FULL)
+    binding.promptView.doOnLayout {
+      displayMode?.displayModeListener(PromptDisplayMode.FULL, it.bottom)
+    }
     if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
       if (isTablet) {
         videoViewParams.width = ViewGroup.LayoutParams.MATCH_PARENT
@@ -407,7 +418,9 @@ class WordPromptFragment(
     val desiredPortraitWidthPx = calculateScaledPixelWidth(widthDp, splitPortraitWidthScaleFactor)
     val desiredLandscapeWidthPx = calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
 
-    displayMode?.displayModeListener(PromptDisplayMode.SPLIT)
+    binding.promptView.doOnLayout {
+      displayMode?.displayModeListener(PromptDisplayMode.SPLIT, it.bottom)
+    }
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
         videoViewParams.width = desiredPortraitWidthPx
@@ -458,7 +471,9 @@ class WordPromptFragment(
     pixelDensity: Float
   ) {
     if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
-      displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL)
+      binding.promptView.doOnLayout {
+        displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL, it.bottom)
+      }
       setOriginalScreen(
         videoView,
         videoViewParams,
@@ -468,7 +483,9 @@ class WordPromptFragment(
         pixelDensity
       )
     } else {
-      displayMode?.displayModeListener(PromptDisplayMode.FULL)
+      binding.promptView.doOnLayout {
+        displayMode?.displayModeListener(PromptDisplayMode.FULL, it.bottom)
+      }
       setFullScreen(videoView, videoViewParams, currentOrientation)
     }
   }
@@ -602,6 +619,27 @@ class WordPromptFragment(
    */
   private fun resetPromptTypeConstraint() {
     origPromptLayout.applyTo(binding.promptLayout)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    // The view is already laid out when this is called on subsequent page views,
+    // so we can notify the listener directly. The initial call is handled by
+    // the doOnLayout in onViewCreated.
+    if (binding.promptView.height > 0) {
+      notifyDisplayMode(PromptDisplayMode.ORIGINAL)
+    }
+  }
+
+  /**
+   * Calculates the position of the prompt view and notifies the listener with the
+   * correct height, so the camera preview can be positioned correctly.
+   */
+  private fun notifyDisplayMode(mode: PromptDisplayMode) {
+    val offsetViewBounds = Rect()
+    binding.root.offsetDescendantRectToMyCoords(binding.promptView, offsetViewBounds)
+    Log.i(TAG, "Notifying listener with offset rect $offsetViewBounds")
+    displayMode?.displayModeListener(mode, offsetViewBounds.top + binding.promptView.bottom + 10)
   }
 
 }
