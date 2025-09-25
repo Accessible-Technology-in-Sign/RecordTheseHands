@@ -69,6 +69,7 @@ import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
@@ -93,8 +94,6 @@ import java.lang.Integer.min
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -410,7 +409,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private var preview: Preview? = null
   private var videoCapture: VideoCapture<Recorder>? = null
   private var recording: Recording? = null
-  private lateinit var cameraExecutor: ExecutorService
 
   /**
    * Changing camera preview dynamically relies on programmatically changing constraints. We keep a
@@ -471,6 +469,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
         .build()
       videoCapture = VideoCapture.withOutput(recorder)
+      // TODO set framerate
 
       cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
@@ -676,6 +675,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     isSigning = false
 
     if (!useSummaryPage) {
+      sessionInfo.result = "RESULT_OK"
+      setResult(RESULT_OK)
       concludeRecordingSession()
     }
     runOnUiThread {
@@ -708,7 +709,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // This should be completely unreachable.
     super.onRestart()
     stopRecording()
-    setResult(RESULT_ACTIVITY_STOPPED)
+    sessionInfo.result = "RESULT_ACTIVITY_UNREACHABLE"
+    setResult(RESULT_ACTIVITY_UNREACHABLE)
     dataManager.logToServer("onRestart called.")
     concludeRecordingSession()
   }
@@ -721,35 +723,16 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * Handles stopping the recording session.
    */
   override fun onStop() {
+    super.onStop()
     // This activity cannot be restarted.  When it is stopped, it goes away completely.
     // This ensures that there is only ever one recording for each session and that the camera
     // does not record while the activity is in the background.
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
-    try {
-      dataManager.logToServer("onStop called.")
-      if (isRecording) {
-        sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
-        stopRecording()
-        setResult(RESULT_ACTIVITY_STOPPED)
-      }
-      cameraExecutor.shutdown()
-      // Set adapter to null to make the Garbage Collector's job easier.  If context or views
-      // are leaked in the adapter in, for example, listeners, setting the adapter to null
-      // might still allow them to be garbage collected.
-      binding.sessionPager.adapter = null
-      super.onStop()
-    } catch (exc: Throwable) {
-      Log.e(TAG, "Error in RecordingActivity.onStop()", exc)
-    }
-    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
-    CoroutineScope(Dispatchers.IO).launch {
-      // It's important that UploadService has a pause signal at this point, so that in the
-      // unlikely event that we have been idle for the full amount of time and the video is
-      // uploading, it will abort and we can acquire the lock in a reasonable amount of time.
-      dataManager.persistData()
-    }
-    finish()
+    dataManager.logToServer("onStop called.")
+    sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
+    setResult(RESULT_ACTIVITY_STOPPED)
+    concludeRecordingSession()
   }
 
   /**
@@ -765,6 +748,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   private fun saveRecordingData() {
     CoroutineScope(Dispatchers.IO).launch {
+      UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
       val now = Instant.now()
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
       val json = JSONObject()
@@ -787,7 +771,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     if (emailConfirmationEnabled) {
       sendConfirmationEmail()
     }
-    Log.i(TAG, "stopRecorder: finished")
+    Log.i(TAG, "saveRecordingData: finished")
   }
 
   /**
@@ -820,8 +804,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     setContentView(binding.root)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-    cameraExecutor = Executors.newSingleThreadExecutor()
 
     // Fetch word data, user id, etc. from the splash screen activity which
     // initiated this activity
@@ -893,6 +875,13 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       scaleRecordButton(binding.finishedButton as Button)
     }
 
+    binding.backButton.setOnClickListener {
+      sessionInfo.result = "RESULT_OK"
+      setResult(RESULT_OK)
+      dataManager.logToServer("User pressed back button to end recording.")
+      concludeRecordingSession()
+    }
+
     // Instantiate recording indicator
     binding.recordingLight.visibility = View.GONE
 
@@ -962,6 +951,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
           if (!useSummaryPage) {
             // Shouldn't happen, but just in case.
+            sessionInfo.result = "RESULT_ACTIVITY_UNREACHABLE"
+            setResult(RESULT_ACTIVITY_UNREACHABLE)
             concludeRecordingSession()
           }
           title = ""
@@ -972,8 +963,13 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           binding.sessionPager.isUserInputEnabled = false
 
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
+          setResult(RESULT_OK)
           stopRecording()
+          countdownTimer.cancel()
           UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          // The RecordingListFragment has a button which calls concludeRecordingSession()
+          // If anything goes wrong, then the lifecycle of this activity should
+          // call concludeRecordingSession() anyway.
         }
       }
     })
@@ -1303,20 +1299,23 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   /**
    * Finish the recording session and close the activity.
+   * Set sessionInfo.result and setResult() before calling this function.
    */
   fun concludeRecordingSession() {
-    sessionInfo.result = "RESULT_OK"
     stopRecording()
-    setResult(RESULT_OK)
     countdownTimer.cancel()
     saveRecordingData()
 
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     val notification = dataManager.createNotification(
-      "Recording Session Completed", "still need to upload"
+      "Recording Session Concluded", "Upload will occur automatically."
     )
     notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
 
+    // Set adapter to null to make the Garbage Collector's job easier.  If context or views
+    // are leaked in the adapter in, for example, listeners, setting the adapter to null
+    // might still allow them to be garbage collected.
+    binding.sessionPager.adapter = null
     finish()
   }
 

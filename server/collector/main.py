@@ -833,7 +833,6 @@ def save():
   logging.info(f'/save {username}')
 
   data = json.loads(data_string)
-  # print(json.dumps(data, indent=2))
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
