@@ -51,6 +51,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -500,6 +501,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         cameraProvider.bindToLifecycle(
           this, cameraSelector, preview, videoCapture
         )
+        startRecording()
+        isRecording = true
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
       }
@@ -536,18 +539,16 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   }
 
   private fun startRecording() {
+    if (isRecording) {
+      dataManager.logToServer("startRecording called when isRecording is true.")
+      return
+    }
     val videoCapture = this.videoCapture ?: return
 
-    val mediaStoreOutputOptions = MediaStoreOutputOptions
-      .Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
-      .setContentValues(ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-      })
-      .build()
+    val fileOutputOptions = FileOutputOptions.Builder(outputFile).build()
 
     recording = videoCapture.output
-      .prepareRecording(this, mediaStoreOutputOptions)
+      .prepareRecording(this, fileOutputOptions)
       .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
         when (recordEvent) {
           is VideoRecordEvent.Start -> {
@@ -572,6 +573,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private fun stopRecording() {
     recording?.stop()
     recording = null
+    isRecording = false
   }
 
   private fun newClipId(): String {
@@ -591,7 +593,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     when (event.action) {
       MotionEvent.ACTION_DOWN -> {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        startRecording()
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
@@ -615,7 +616,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
       MotionEvent.ACTION_UP -> {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
-        stopRecording()
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton up")
@@ -884,6 +884,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     } else {
       filename = "${username}-${sessionId}-${timestamp}.mp4"
     }
+    outputFile = filenameToFilepath(filename)
     val sessionLength =
       if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
     sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)
@@ -891,6 +892,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       sessionId, filename, runBlocking { dataManager.getDeviceId() }, username, sessionType,
       sessionStartIndex, sessionLimit
     )
+    sessionStartTime = Instant.now()
+    sessionInfo.startTimestamp = sessionStartTime
     runBlocking { dataManager.saveSessionInfo(sessionInfo) }
 
     dataManager.logToServer(
