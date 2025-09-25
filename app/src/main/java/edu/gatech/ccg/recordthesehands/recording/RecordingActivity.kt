@@ -1318,7 +1318,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   override fun onResume() {
     super.onResume()
-
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
 
