@@ -30,13 +30,13 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.Fragment
-import edu.gatech.ccg.recordthesehands.databinding.SaveRecordBinding
+import edu.gatech.ccg.recordthesehands.databinding.EndOfRecordingPageBinding
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 
 class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes layout: Int) :
   Fragment(layout) {
 
-  private var _binding: SaveRecordBinding? = null
+  private var _binding: EndOfRecordingPageBinding? = null
   private val binding get() = _binding!!
 
   override fun onCreateView(
@@ -44,7 +44,7 @@ class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes l
     container: ViewGroup?,
     savedInstanceState: Bundle?
   ): View {
-    _binding = SaveRecordBinding.inflate(inflater, container, false)
+    _binding = EndOfRecordingPageBinding.inflate(inflater, container, false)
     return binding.root
   }
 

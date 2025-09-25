@@ -53,7 +53,7 @@ class WordPagerAdapter(
       val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
       return WordPromptFragment(prompt, R.layout.word_prompt)
     } else if (position == numPromptPages) {
-      return SaveRecordingFragment(recordingActivity.prompts.array, R.layout.save_record)
+      return SaveRecordingFragment(recordingActivity.prompts.array, R.layout.end_of_recording_page)
     } else {
       return RecordingListFragment(
         recordingActivity, R.layout.recording_list
