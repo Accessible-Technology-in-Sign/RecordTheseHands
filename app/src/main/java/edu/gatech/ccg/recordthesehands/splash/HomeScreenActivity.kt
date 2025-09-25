@@ -160,6 +160,10 @@ class HomeScreenActivity : AppCompatActivity() {
   private fun setupUI() {
     lifecycleScope.launch {
 
+      binding.backButton.setOnClickListener {
+        finish()
+      }
+
       binding.loadingText.visibility = View.GONE
       binding.mainGroup.visibility = View.VISIBLE
 

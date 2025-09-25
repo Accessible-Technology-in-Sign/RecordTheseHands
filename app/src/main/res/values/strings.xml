@@ -2,6 +2,9 @@
     <string name="app_name">RecordTheseHands</string>
     <string name="version_text">v%1$s</string>
 
+    <!-- General -->
+    <string name="back_button">Back</string>
+
     <!-- Log In Interface -->
     <string name="admin_title">Log In</string>
     <string name="id_label">Device ID:</string>
