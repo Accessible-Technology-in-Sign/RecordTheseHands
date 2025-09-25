@@ -911,6 +911,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     binding.finishedButton.isHapticFeedbackEnabled = true
     setButtonState(binding.finishedButton, false)
 
+    binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
+    binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
+    binding.finishedButton.setOnTouchListener(::finishedButtonOnTouchListener)
+
     if (!isTablet) {
       scaleRecordButton(binding.recordButton as Button)
       scaleRecordButton(binding.restartButton as Button)
