@@ -28,31 +28,18 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
-import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CaptureRequest
-import android.hardware.camera2.params.OutputConfiguration
-import android.hardware.camera2.params.SessionConfiguration
-import android.media.MediaCodec
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.provider.MediaStore
 import android.util.Log
-import android.util.Range
-import android.util.Size
 import android.util.TypedValue
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
-import android.view.Surface
-import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -62,23 +49,28 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
-import edu.gatech.ccg.recordthesehands.Constants.MAXIMUM_RESOLUTION
-import edu.gatech.ccg.recordthesehands.Constants.RECORDER_VIDEO_BITRATE
-import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_CAMERA_DIED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_RECORDING_DIED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_SURFACE_DESTROYED
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
@@ -96,7 +88,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -104,13 +95,9 @@ import java.lang.Integer.min
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.concurrent.thread
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -438,46 +425,13 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   private var emailConfirmationEnabled: Boolean = false
 
-
-  // Camera API variables
-  /**
-   * The executor for handling camera-related actions.
-   */
+  // CameraX variables
+  private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
+  private lateinit var cameraSelector: CameraSelector
+  private var preview: Preview? = null
+  private var videoCapture: VideoCapture<Recorder>? = null
+  private var recording: Recording? = null
   private lateinit var cameraExecutor: ExecutorService
-
-  /**
-   * The buffer to which camera frames are projected. This is used by the MediaRecorder to
-   * record the video
-   */
-  private lateinit var recordingSurface: Surface
-
-  /**
-   * The camera recorder instance, used to set up and control the recording settings.
-   */
-  private lateinit var recorder: MediaRecorder
-
-
-  /**
-   * A CameraCaptureSession object, which functions as a wrapper for handling / stopping the
-   * recording.
-   */
-  private lateinit var session: CameraCaptureSession
-
-  /**
-   * Details of the camera being used to record the video.
-   */
-  private lateinit var camera: CameraDevice
-
-  /**
-   * Window insets controller for hiding and showing the toolbars.
-   */
-  var windowInsetsController: WindowInsetsControllerCompat? = null
-
-  /**
-   * The buffer to which the camera sends frames for the purposes of displaying a live preview
-   * (rendered in the `cameraView`).
-   */
-  private var previewSurface: Surface? = null
 
   /**
    * Changing camera preview dynamically relies on programmatically changing constraints. We keep a
@@ -486,12 +440,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private lateinit var origAspectRatioLayout: ConstraintSet
 
   /**
-   * The operating system's camera service. We can get camera information from this service.
+   * Window insets controller for hiding and showing the toolbars.
    */
-  private val cameraManager: CameraManager by lazy {
-    val context = this.applicationContext
-    context.getSystemService(CAMERA_SERVICE) as CameraManager
-  }
+  var windowInsetsController: WindowInsetsControllerCompat? = null
 
 
   // Permissions
@@ -502,7 +453,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   private var permissions: Boolean = true
 
   /**
-   * When the activity starts, this routine checks the CAMERA and WRITE_EXTERNAL_STORAGE
+   * When the activity starts, this routine checks the CAMERA
    * permissions. (We do not need the MICROPHONE permission as we are just recording silent
    * videos.)
    */
@@ -527,153 +478,100 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   private val splitPortraitHeightScaleFactor = 0.5f
 
+  private fun startCamera() {
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+    cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+    cameraProviderFuture.addListener({
+      val cameraProvider = cameraProviderFuture.get()
 
-  /**
-   * Generates a new [Surface] for storing recording data, which will promptly be assigned to
-   * the [recordingSurface] field above.
-   */
-  private fun createRecordingSurface(recordingSize: Size): Surface {
-    val surface = MediaCodec.createPersistentInputSurface()
-    recorder = MediaRecorder(this)
+      preview = Preview.Builder().build().also {
+        it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
+      }
 
-    outputFile = applicationContext.filenameToFilepath(filename)
-    if (outputFile.parentFile?.let { !it.exists() } ?: false) {
-      Log.i(TAG, "creating directory ${outputFile.parentFile}.")
-      outputFile.parentFile?.mkdirs()
-    }
+      val recorder = Recorder.Builder()
+        .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+        .build()
+      videoCapture = VideoCapture.withOutput(recorder)
 
-    try {
-      setRecordingParameters(recorder, surface, recordingSize).prepare()
-    } catch (e: java.io.IOException) {
-      Log.e(TAG, "Failed to prepare MediaRecorder", e)
-      val text = "Failed to prepare recorder. Please try again."
-      Toast.makeText(this@RecordingActivity, text, Toast.LENGTH_LONG).show()
-      sessionInfo.result = "RESULT_RECORDING_DIED"
-      setResult(RESULT_RECORDING_DIED)
-      finish()
-    }
+      cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
-    return surface
+      try {
+        cameraProvider.unbindAll()
+        cameraProvider.bindToLifecycle(
+          this, cameraSelector, preview, videoCapture
+        )
+      } catch (exc: Exception) {
+        Log.e(TAG, "Use case binding failed", exc)
+      }
+    }, ContextCompat.getMainExecutor(this))
+
+    // TODO analyze where the pause Upload Timeout is being set.
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+
+    // Set up the countdown timer.
+    binding.timerLabel.text = "00:00"
+    countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
+      // Update the timer text every second.
+      override fun onTick(p0: Long) {
+        val rawSeconds = (p0 / 1000).toInt() + 1
+        val minutes = padZeroes(rawSeconds / 60, 2)
+        val seconds = padZeroes(rawSeconds % 60, 2)
+        binding.timerLabel.text = "$minutes:$seconds"
+      }
+
+      // When the timer expires, move to the summary page (or have the app move there as soon
+      // as the user finishes the recording they're currently working on).
+      override fun onFinish() {
+        if (isSigning) {
+          // TODO test this.
+          endSessionOnClipEnd = true
+        } else {
+          // TODO test this.
+          goToSummaryPage()
+        }
+      }
+    } // CountDownTimer
+
+    countdownTimer.start()
   }
 
-  /**
-   * Prepares a [MediaRecorder] using the given surface.
-   */
-  private fun setRecordingParameters(rec: MediaRecorder, surface: Surface, recordingSize: Size) =
-    rec.apply {
-      // Set the video settings from our predefined constants.
-      setVideoSource(MediaRecorder.VideoSource.SURFACE)
-      setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-      setOutputFile(outputFile.absolutePath)
-      setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
+  private fun startRecording() {
+    val videoCapture = this.videoCapture ?: return
 
-      setVideoFrameRate(RECORDING_FRAMERATE)
-      Log.i(TAG, "recordingSize.width = ${recordingSize.width} recordingSize.height = ${recordingSize.height}")
-      setVideoSize(recordingSize.width, recordingSize.height)
+    val mediaStoreOutputOptions = MediaStoreOutputOptions
+      .Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+      .setContentValues(ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+      })
+      .build()
 
-      setVideoEncoder(MediaRecorder.VideoEncoder.HEVC)
-      setInputSurface(surface)
+    recording = videoCapture.output
+      .prepareRecording(this, mediaStoreOutputOptions)
+      .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
+        when (recordEvent) {
+          is VideoRecordEvent.Start -> {
+            // Handle recording start
+          }
 
-      // TODO fix this comment after verifying that the saved videos have their rotation
-      // property set correctly.
-      /**
-       * The orientation of 270 degrees (-90 degrees) was determined through
-       * experimentation. For now, we do not need to support other
-       * orientations than the default portrait orientation.
-       *
-       * The tablet orientation of 0 degrees is designed primarily to support the use of
-       * a Pixel Tablet (2023) with its included stand (although any tablet with a stand
-       * may suffice).
-       */
-      // setOrientationHint(if (isTablet) 0 else 270)
-      setOrientationHint(determineCameraOrientation())
-    }
-
-  private fun checkCameraPermission(): Boolean {
-    /**
-     * First, check camera permissions. If the user has not granted permission to use the
-     * camera, give a prompt asking them to grant that permission in the Settings app, then
-     * relaunch the app.
-     */
-    if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-
-      val errorMessage = layoutInflater.inflate(
-        R.layout.permission_error, binding.root,
-        false
-      )
-      binding.root.addView(errorMessage)
-
-      // Since the user hasn't granted camera permissions, we need to stop here.
-      return false
-    }
-
-    return true
+          is VideoRecordEvent.Finalize -> {
+            if (!recordEvent.hasError()) {
+              val msg = "Video capture succeeded: ${recordEvent.outputResults.outputUri}"
+              Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+              Log.d(TAG, msg)
+            } else {
+              recording?.close()
+              recording = null
+              Log.e(TAG, "Video capture ends with error: ${recordEvent.error}")
+            }
+          }
+        }
+      }
   }
 
-  private fun getFrontCamera(): String {
-    for (id in cameraManager.cameraIdList) {
-      val face = cameraManager.getCameraCharacteristics(id)
-        .get(CameraCharacteristics.LENS_FACING)
-      if (face == CameraSelector.LENS_FACING_FRONT) {
-        return id
-      }
-    }
-
-    throw IllegalStateException("No front camera available")
-  }
-
-  /**
-   * This code initializes the camera-related portion of the code, adding listeners to enable
-   * video recording as long as we hold down the Record button.
-   */
-  @SuppressLint("ClickableViewAccessibility")
-  private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
-    try {
-      if (!checkCameraPermission()) {
-        return@launch
-      }
-
-      /**
-       * User has given permission to use the camera. First, find the front camera. If no
-       * front-facing camera is available, crash. (This shouldn't fail on any modern
-       * smartphone.)
-       */
-      val cameraId = getFrontCamera()
-
-      /**
-       * Open the front-facing camera.
-       */
-      camera = openCamera(cameraManager, cameraId, cameraExecutor)
-
-      /**
-       * Send video feed to both [previewSurface] and [recordingSurface], then start the
-       * recording.
-       */
-      val targets = listOf(previewSurface!!, recordingSurface)
-      session = createCaptureSession(camera, targets, cameraExecutor)
-
-      startRecording()
-
-      binding.recordButton.setOnTouchListener { view, event ->
-        return@setOnTouchListener recordButtonOnTouchListener(view, event)
-      }
-
-      binding.restartButton.setOnTouchListener { view, event ->
-        return@setOnTouchListener restartButtonOnTouchListener(view, event)
-      }
-
-      binding.finishedButton.setOnTouchListener { view, event ->
-        return@setOnTouchListener finishedButtonOnTouchListener(view, event)
-      }
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to initialize camera", e)
-      val text = "Failed to initialize camera. Please try again."
-      Toast.makeText(this@RecordingActivity, text, Toast.LENGTH_LONG).show()
-      sessionInfo.result = "RESULT_CAMERA_DIED"
-      setResult(RESULT_CAMERA_DIED)
-      stopRecorder()
-      finish()
-    }
+  private fun stopRecording() {
+    recording?.stop()
+    recording = null
   }
 
   private fun newClipId(): String {
@@ -691,8 +589,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
 
     when (event.action) {
-      MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
+      MotionEvent.ACTION_DOWN -> {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        startRecording()
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
@@ -704,7 +603,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         currentClipDetails!!.startButtonDownTimestamp = now
         currentClipDetails!!.lastModifiedTimestamp = now
         clipData.add(currentClipDetails!!)
-        dataManager.saveClipData(currentClipDetails!!)
+        CoroutineScope(Dispatchers.IO).launch {
+          dataManager.saveClipData(currentClipDetails!!)
+        }
 
         isSigning = true
         runOnUiThread {
@@ -712,15 +613,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         }
       }
 
-      MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+      MotionEvent.ACTION_UP -> {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+        stopRecording()
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton up")
         if (currentClipDetails != null) {
           currentClipDetails!!.startButtonUpTimestamp = now
           currentClipDetails!!.lastModifiedTimestamp = now
-          dataManager.saveClipData(currentClipDetails!!)
+          CoroutineScope(Dispatchers.IO).launch {
+            dataManager.saveClipData(currentClipDetails!!)
+          }
         }
         runOnUiThread {
           setButtonState(binding.recordButton, false)
@@ -812,230 +716,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
   }
 
-  /**
-   * Adds a callback to the camera view, which is used primarily to assign a value to
-   * [previewSurface] once Android has finished creating the Surface for us. We need this
-   * because we cannot initialize a Surface object directly but we still need to be able to
-   * pass a Surface object around to the UI, which uses the contents of the Surface (buffer) to
-   * render the camera preview.
-   */
-  private fun setupCameraCallback() {
-    binding.cameraPreview.holder.addCallback(object : SurfaceHolder.Callback {
-      /**
-       * Called when the OS has finished creating a surface for us.
-       */
-      override fun surfaceCreated(holder: SurfaceHolder) {
-        Log.d(TAG, "Initializing surface!")
-        previewSurface = holder.surface
-        initializeCamera()
-      }
-
-      /**
-       * Called if the surface had to be reassigned. In practical usage thus far, we have
-       * not run into any issues here by not reassigning [previewSurface] when this callback
-       * is triggered.
-       */
-      override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
-        Log.d(TAG, "New format, width, height: $format, $w, $h")
-        Log.d(TAG, "Camera preview surface changed!")
-      }
-
-      /**
-       * Called when the surface is destroyed. Typically this will occur when the activity
-       * closes.
-       */
-      override fun surfaceDestroyed(holder: SurfaceHolder) {
-        Log.d(TAG, "Camera preview surface destroyed!")
-        previewSurface = null
-        if (::session.isInitialized) {
-          sessionInfo.result = "RESULT_SURFACE_DESTROYED"
-          stopRecorder()
-          setResult(RESULT_SURFACE_DESTROYED)
-          finish()
-        }
-      }
-    })
-  }
-
-
-  /**
-   * Opens up the requested Camera for a recording session.
-   *
-   * @suppress linter for "MissingPermission": acceptable here because this function is only
-   * ever called from [initializeCamera], which exits before calling this function if camera
-   * permission has been denied.
-   */
-  @SuppressLint("MissingPermission")
-  private suspend fun openCamera(
-    manager: CameraManager,
-    cameraId: String,
-    executor: Executor
-  ): CameraDevice = suspendCancellableCoroutine { caller ->
-    manager.openCamera(
-      cameraId, executor, object : CameraDevice.StateCallback() {
-        /**
-         * Once the camera has been successfully opened, resume execution in the calling
-         * function.
-         */
-        override fun onOpened(device: CameraDevice) {
-          Log.d(TAG, "openCamera: New camera created with ID $cameraId")
-          caller.resume(device)
-        }
-
-        /**
-         * If the camera is disconnected, end the activity and return to the splash screen.
-         */
-        override fun onDisconnected(device: CameraDevice) {
-          Log.e(TAG, "openCamera: Camera $cameraId has been disconnected")
-          this@RecordingActivity.apply {
-            sessionInfo.result = "RESULT_CAMERA_DIED"
-            stopRecorder()
-            setResult(RESULT_CAMERA_DIED)
-            finish()
-          }
-        }
-
-        /**
-         * If there's an error while opening the camera, pass that exception to the
-         * calling function.
-         */
-        override fun onError(device: CameraDevice, error: Int) {
-          val msg = when (error) {
-            ERROR_CAMERA_DEVICE -> "Fatal (device)"
-            ERROR_CAMERA_DISABLED -> "Device policy"
-            ERROR_CAMERA_IN_USE -> "Camera in use"
-            ERROR_CAMERA_SERVICE -> "Fatal (service)"
-            ERROR_MAX_CAMERAS_IN_USE -> "Maximum cameras in use"
-            else -> "Unknown"
-          }
-          val exc = RuntimeException("Camera $cameraId error: ($error) $msg")
-          Log.e(TAG, exc.message, exc)
-          if (caller.isActive) {
-            caller.resumeWithException(exc)
-          }
-        }
-      }
-    )
-  }
-
-  /**
-   * Create a CameraCaptureSession. This is required by the camera API
-   */
-  private suspend fun createCaptureSession(
-    device: CameraDevice,
-    targets: List<Surface>,
-    executor: Executor
-  ): CameraCaptureSession = suspendCoroutine { cont ->
-    val outputConfigs = targets.map { OutputConfiguration(it) }
-    val sessionConfig = SessionConfiguration(
-      SessionConfiguration.SESSION_REGULAR,
-      outputConfigs,
-      executor,
-      object : CameraCaptureSession.StateCallback() {
-        override fun onConfigured(session: CameraCaptureSession) {
-          cont.resume(session)
-        }
-
-        override fun onConfigureFailed(session: CameraCaptureSession) {
-          val exc = RuntimeException("Camera ${device.id} session configuration failed")
-          Log.e(TAG, exc.message, exc)
-          cont.resumeWithException(exc)
-        }
-      }
-    )
-    device.createCaptureSession(sessionConfig)
-  }
-
-
-  /**
-   * Starts the camera recording once we have device and capture session information within
-   * [initializeCamera].
-   */
-  private fun startRecording() {
-    // Lock screen orientation
-    this@RecordingActivity.requestedOrientation =
-      ActivityInfo.SCREEN_ORIENTATION_LOCKED
-
-    /**
-     * Create a request to record at 30fps.
-     */
-    val cameraRequest = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-      // Add the previewSurface buffer as a destination for the camera feed if it exists
-      previewSurface?.let {
-        addTarget(it)
-      }
-
-      // Add the recording buffer as a destination for the camera feed
-      addTarget(recordingSurface)
-
-      // Lock FPS at 30
-      set(
-        CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-        Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE)
-      )
-
-      // Disable video stabilization. This ensures that we don't get a cropped frame
-      // due to software stabilization.
-      set(
-        CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE,
-        CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF
-      )
-      set(
-        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
-        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_OFF
-      )
-    }.build()
-
-    session.setRepeatingRequest(cameraRequest, null, null)
-
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-    isRecording = true
-
-    recorder.start()
-    sessionStartTime = Instant.now()
-
-    CoroutineScope(Dispatchers.IO).launch {
-      sessionInfo.startTimestamp = sessionStartTime
-      dataManager.saveSessionInfo(sessionInfo)
-
-      val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-      val json = JSONObject()
-      json.put("filename", filename)
-      json.put("startTimestamp", sessionStartTime)
-      dataManager.addKeyValue("recording_started-${timestamp}", json, "recording")
-    }
-
-    setButtonState(binding.recordButton, true)
-    recordButtonEnabled = true
-
-    // Set up the countdown timer.
-    binding.timerLabel.text = "00:00"
-    countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
-      // Update the timer text every second.
-      override fun onTick(p0: Long) {
-        val rawSeconds = (p0 / 1000).toInt() + 1
-        val minutes = padZeroes(rawSeconds / 60, 2)
-        val seconds = padZeroes(rawSeconds % 60, 2)
-        binding.timerLabel.text = "$minutes:$seconds"
-      }
-
-      // When the timer expires, move to the summary page (or have the app move there as soon
-      // as the user finishes the recording they're currently working on).
-      override fun onFinish() {
-        if (isSigning) {
-          // TODO test this.
-          endSessionOnClipEnd = true
-        } else {
-          // TODO test this.
-          goToSummaryPage()
-        }
-      }
-    } // CountDownTimer
-
-    countdownTimer.start()
-
-    binding.recordingLight.visibility = View.GONE
-  }
 
   fun setButtonState(button: View, visible: Boolean) {
     if (visible) {
@@ -1057,14 +737,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    */
   override fun onRestart() {
     super.onRestart()
-    Log.e(TAG, "RecordingActivity.onRestart() called which should be impossible.")
-    if (isRecording) {
-      sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
-      stopRecorder()
-      setResult(RESULT_ACTIVITY_STOPPED)
-    }
+    stopRecording()
+    setResult(RESULT_ACTIVITY_STOPPED)
     dataManager.logToServer("onRestart called.")
     finish()
+  }
+
+  private fun resetConstraintLayout() {
+    origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
   }
 
   /**
@@ -1077,7 +757,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       dataManager.logToServer("onStop called.")
       if (isRecording) {
         sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
-        stopRecorder()
+        stopRecording()
         setResult(RESULT_ACTIVITY_STOPPED)
       }
       cameraExecutor.shutdown()
@@ -1112,50 +792,31 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
   }
 
-  private fun stopRecorder() {
-    if (isRecording) {
-      isRecording = false
-      Log.i(TAG, "stopRecorder: stopping recording.")
-
-      recorder.stop()
-      session.stopRepeating()
-      session.close()
-      recorder.release()
-      camera.close()
-      recordingSurface.release()
-      countdownTimer.cancel()
-
-      runOnUiThread {
-        binding.recordingLight.visibility = View.GONE
-      }
-
-      CoroutineScope(Dispatchers.IO).launch {
-        val now = Instant.now()
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-        val json = JSONObject()
-        json.put("filename", filename)
-        json.put("endTimestamp", timestamp)
-        dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
-        dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
-        sessionInfo.endTimestamp = now
-        sessionInfo.finalPromptIndex = currentPromptIndex
-        dataManager.saveCurrentPromptIndex(currentPromptIndex)
-        dataManager.saveSessionInfo(sessionInfo)
-        dataManager.updateLifetimeStatistics(
-          Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
-        )
-        // Persist the data.  This will lock the dataManager for a few seconds, which is
-        // only acceptable because we are not recording.
-        dataManager.persistData()
-      }
-      Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
-      if (emailConfirmationEnabled) {
-        sendConfirmationEmail()
-      }
-      Log.i(TAG, "stopRecorder: finished")
-    } else {
-      Log.i(TAG, "stopRecorder: called with isRecording == false")
+  private fun saveRecordingData() {
+    CoroutineScope(Dispatchers.IO).launch {
+      val now = Instant.now()
+      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+      val json = JSONObject()
+      json.put("filename", filename)
+      json.put("endTimestamp", timestamp)
+      dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
+      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
+      sessionInfo.endTimestamp = now
+      sessionInfo.finalPromptIndex = currentPromptIndex
+      dataManager.saveCurrentPromptIndex(currentPromptIndex)
+      dataManager.saveSessionInfo(sessionInfo)
+      dataManager.updateLifetimeStatistics(
+        Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
+      )
+      // Persist the data.  This will lock the dataManager for a few seconds, which is
+      // only acceptable because we are not recording.
+      dataManager.persistData()
     }
+    Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
+    if (emailConfirmationEnabled) {
+      sendConfirmationEmail()
+    }
+    Log.i(TAG, "stopRecorder: finished")
   }
 
   /**
@@ -1182,8 +843,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
     binding = ActivityRecordBinding.inflate(this.layoutInflater)
 
+    origAspectRatioLayout = ConstraintSet().apply {
+      clone(binding.aspectRatioConstraint)
+    }
+
     setContentView(binding.root)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+    cameraExecutor = Executors.newSingleThreadExecutor()
 
     // Fetch word data, user id, etc. from the splash screen activity which
     // initiated this activity
@@ -1230,10 +897,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       "Setting up recording with filename ${filename} for prompts " +
           "[${sessionStartIndex}, ${sessionLimit})"
     )
-
-    origAspectRatioLayout = ConstraintSet().apply {
-      clone(binding.aspectRatioConstraint)
-    }
 
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
@@ -1333,14 +996,11 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           binding.sessionPager.isUserInputEnabled = false
 
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
-          stopRecorder()
+          stopRecording()
           UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
         }
       }
     })
-
-    // Set up the camera preview's size
-    binding.cameraPreview.holder.setSizeFromLayout()
 
     // TODO clone from the original constraints.
     val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
@@ -1365,10 +1025,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       desiredOriginalPortraitWidthPx,
       desiredOriginalLandscapeWidthPx
     )
-  }
 
-  private fun resetConstraintLayout() {
-    origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
+    startCamera()
   }
 
   /**
@@ -1652,29 +1310,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     */
   }
 
-  fun determineCameraOrientation(): Int {
-    val cameraId = getFrontCamera()
-    val props = cameraManager.getCameraCharacteristics(cameraId)
-    val sensorOrientation = props.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
-    val sensorRect = props.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
-    Log.i(TAG, "<${sensorRect?.width()}, ${sensorRect?.height()}>")
 
-    var degrees = 0
-    when (display.rotation) {
-      Surface.ROTATION_0 -> degrees = 0
-      Surface.ROTATION_90 -> degrees = 90
-      Surface.ROTATION_180 -> degrees = 180
-      Surface.ROTATION_270 -> degrees = 270
-    }
-
-    if (props.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT) {
-      val finalRotation = (sensorOrientation + degrees) % 360
-      // Compensate for the mirroring effect of a front camera
-      return (360 - finalRotation) % 360
-    } else { // Back-facing camera
-      return (sensorOrientation - degrees + 360) % 360
-    }
-  }
   /**
    * Handle activity resumption (typically from multitasking)
    * TODO there is a mismatch between when things are deallocated in onStop and where they
@@ -1683,74 +1319,18 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   override fun onResume() {
     super.onResume()
 
-    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-    cameraExecutor = Executors.newSingleThreadExecutor()
-
-    val cameraId = getFrontCamera()
-    val props = cameraManager.getCameraCharacteristics(cameraId)
-
-    val sizes = props.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-    Log.i(TAG, sizes.toString().split("], [", "([", "])").joinToString("\n"))
-
-    fun hasAspectRatio(widthRatio: Int, heightRatio: Int, dim: Size): Boolean {
-      val target = widthRatio.toFloat() / heightRatio.toFloat()
-      return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
-    }
-    val cameraRotation = determineCameraOrientation()
-    // For a tablet.
-    val cameraSideways = cameraRotation == 90 || cameraRotation == 270
-    dataManager.logToServer("cameraRotation = ${cameraRotation} cameraSideways = ${cameraSideways}")
-
-    val cameraWidthRatio = 4
-    val cameraHeightRatio = 3
-    val widthRatio = if (cameraSideways) 3 else 4
-    val heightRatio = if (cameraSideways) 4 else 3
-    // val widthRatio = 30
-    // val heightRatio =32
-
-    // TODO make this be the actual video aspect ratio.
-    (binding.aspectRatioConstraint.layoutParams as LayoutParams).dimensionRatio =
-      "${widthRatio}:${heightRatio}"
-   binding.aspectRatioConstraint.post {
-     Log.i(TAG, "After layout aspectRatioConstraint has width = ${binding.aspectRatioConstraint.width} and height = ${binding.aspectRatioConstraint.height}")
-   }
-
-    val videoSizes = sizes?.getOutputSizes(MediaRecorder::class.java)
-    val largestAvailableSize = videoSizes?.filter {
-      // Find a resolution smaller than the maximum pixel count (9 MP)
-      // with an aspect ratio of 4:3.
-      val output = it.width * it.height < MAXIMUM_RESOLUTION
-          && (hasAspectRatio(cameraWidthRatio, cameraHeightRatio, it))
-      Log.d(TAG, "match ${output} width ${it.width} height ${it.height} target width ${cameraWidthRatio} target height ${cameraHeightRatio} ")
-      output
-    }?.maxByOrNull { it.width * it.height }
-
-    if (largestAvailableSize == null) {
-      throw IllegalStateException("Unable to pick acceptable camera resolution.")
-    }
-    val chosenSize = largestAvailableSize
-
-    dataManager.logToServer("Selected video resolution: ${chosenSize.width} x ${chosenSize.height}")
-    recordingSurface = createRecordingSurface(chosenSize)
-
-    /**
-     * If we already finished the recording activity, no need to restart the camera thread
-     */
-    if (binding.sessionPager.currentItem >= prompts.array.size) {
-      return
-    } else if (!cameraInitialized) {
-      setupCameraCallback()
-      cameraInitialized = true
-    }
   }
+
 
   /**
    * Finish the recording session and close the activity.
    */
   fun concludeRecordingSession() {
     sessionInfo.result = "RESULT_OK"
-    stopRecorder()
+    stopRecording()
     setResult(RESULT_OK)
+    countdownTimer.cancel()
+    saveRecordingData()
 
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     val notification = dataManager.createNotification(

@@ -22,9 +22,8 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <view
+        <androidx.camera.view.PreviewView
             android:id="@+id/cameraPreview"
-            class="android.view.SurfaceView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center_vertical"
