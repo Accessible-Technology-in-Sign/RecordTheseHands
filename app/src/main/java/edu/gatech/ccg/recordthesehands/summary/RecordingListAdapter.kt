@@ -153,7 +153,7 @@ class RecordingListAdapter(
           ).toMillis()
         )
 
-        val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
+        val previewFragment = VideoPreviewFragment(R.layout.video_preview)
         previewFragment.arguments = bundle
 
         previewFragment.show(activity.supportFragmentManager, "videoPreview")

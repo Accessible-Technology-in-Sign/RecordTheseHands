@@ -76,7 +76,7 @@ class VideoPromptController(
         bundle.putString("filepath", videoPath)
         bundle.putBoolean("landscape", true)
 
-        val previewFragment = VideoPreviewFragment(R.layout.recording_preview)
+        val previewFragment = VideoPreviewFragment(R.layout.video_preview)
         previewFragment.arguments = bundle
 
         previewFragment.show(activity.supportFragmentManager, "videoPreview")

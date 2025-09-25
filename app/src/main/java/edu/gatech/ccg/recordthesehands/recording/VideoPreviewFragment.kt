@@ -39,7 +39,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ClippingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import edu.gatech.ccg.recordthesehands.databinding.RecordingPreviewBinding
+import edu.gatech.ccg.recordthesehands.databinding.VideoPreviewBinding
 import java.io.File
 
 /**
@@ -52,7 +52,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     private val TAG = VideoPreviewFragment::class.java.simpleName
   }
 
-  private var _binding: RecordingPreviewBinding? = null
+  private var _binding: VideoPreviewBinding? = null
   private val binding get() = _binding!!
 
   /**
@@ -123,7 +123,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
     container: ViewGroup?,
     savedInstanceState: Bundle?
   ): View {
-    _binding = RecordingPreviewBinding.inflate(inflater, container, false)
+    _binding = VideoPreviewBinding.inflate(inflater, container, false)
     return binding.root
   }
 
