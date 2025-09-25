@@ -147,6 +147,10 @@ class HomeScreenActivity : AppCompatActivity() {
       }
     }
 
+  fun switchPromptsButtonAction() {
+    startActivity(Intent(this, PromptSelectActivity::class.java))
+  }
+
   /**
    * Sets up all of the UI elements.
    */
@@ -198,7 +202,7 @@ class HomeScreenActivity : AppCompatActivity() {
       binding.startButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       binding.startButton.setOnClickListener {
         if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
-          binding.switchPromptsButton.performClick()
+          switchPromptsButtonAction()
           return@setOnClickListener
         }
         fun checkPermission(perm: String): Boolean {
@@ -369,7 +373,7 @@ class HomeScreenActivity : AppCompatActivity() {
     }
 
     binding.switchPromptsButton.setOnClickListener {
-      startActivity(Intent(this, PromptSelectActivity::class.java))
+      switchPromptsButtonAction()
     }
 
     dataManager.promptState.observe(this@HomeScreenActivity) { state ->
