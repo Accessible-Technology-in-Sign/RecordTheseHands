@@ -274,14 +274,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     private val TAG = RecordingActivity::class.java.simpleName
   }
 
-
-  // UI elements
   /**
-   * Big red button used to start/stop a clip. (Note that we are continuously recording;
-   * the button only marks when the user started or stopped signing to the camera.)
-   *
-   * Note that this button can be either a FloatingActionButton or a Button, depending on
-   * whether we are on a smartphone or a tablet, respectively.
+   * Save the binding.
    */
   private lateinit var binding: ActivityRecordBinding
 
@@ -290,19 +284,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * Marks whether the user is using a tablet (diagonal screen size > 7.0 inches (~17.78 cm)).
    */
   private var isTablet = false
-
-
-  /**
-   * Marks whether or not the recording button is enabled. If not, then the button should be
-   * invisible, and it should be neither clickable (tappable) nor focusable.
-   */
-  private var recordButtonEnabled = false
-
-  /**
-   * Marks whether or not the camera has been successfully initialized. This is used to prevent
-   * parts of the code related to camera initialization from running multiple times.
-   */
-  private var cameraInitialized = false
 
   /**
    * Marks whether or not the user is currently signing a word. This is essentially only true
@@ -583,13 +564,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   }
 
   private fun recordButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
-    /**
-     * Do nothing if the record button is disabled.
-     */
-    if (!recordButtonEnabled) {
-      return false
-    }
-
     when (event.action) {
       MotionEvent.ACTION_DOWN -> {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -637,7 +611,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   }
 
   private fun finishedButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
-
     Log.d(TAG, "finishedButtonOnTouchListener ${event}")
     when (event.action) {
       MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
@@ -656,7 +629,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   }
 
   private fun restartButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
-
     when (event.action) {
       MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -736,11 +708,12 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * lifespan.
    */
   override fun onRestart() {
+    // This should be completely unreachable.
     super.onRestart()
     stopRecording()
     setResult(RESULT_ACTIVITY_STOPPED)
     dataManager.logToServer("onRestart called.")
-    finish()
+    concludeRecordingSession()
   }
 
   private fun resetConstraintLayout() {
@@ -751,6 +724,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * Handles stopping the recording session.
    */
   override fun onStop() {
+    // This activity cannot be restarted.  When it is stopped, it goes away completely.
+    // This ensures that there is only ever one recording for each session and that the camera
+    // does not record while the activity is in the background.
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
     try {
@@ -761,11 +737,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
         setResult(RESULT_ACTIVITY_STOPPED)
       }
       cameraExecutor.shutdown()
-      /**
-       * This is remnant code from when we were attempting to find and fix a memory leak
-       * that occurred if the user did too many recording sessions in one sitting. It is
-       * unsure whether this helped; however, we will leave it as-is for now.
-       */
+      // Set adapter to null to make the Garbage Collector's job easier.  If context or views
+      // are leaked in the adapter in, for example, listeners, setting the adapter to null
+      // might still allow them to be garbage collected.
       binding.sessionPager.adapter = null
       super.onStop()
     } catch (exc: Throwable) {
@@ -904,15 +878,13 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-    // Enable record button
-    binding.recordButton.isHapticFeedbackEnabled = true
     setButtonState(binding.recordButton, true)
-
-    binding.restartButton.isHapticFeedbackEnabled = true
     setButtonState(binding.restartButton, false)
-
-    binding.finishedButton.isHapticFeedbackEnabled = true
     setButtonState(binding.finishedButton, false)
+
+    binding.recordButton.isHapticFeedbackEnabled = true
+    binding.restartButton.isHapticFeedbackEnabled = true
+    binding.finishedButton.isHapticFeedbackEnabled = true
 
     binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
     binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
@@ -1069,16 +1041,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     Log.i(TAG, "setting promptGuideline to height of ${height}")
     binding.promptGuideline.setGuidelineBegin(height)
-
-//    val constraintSet = ConstraintSet()
-//    constraintSet.clone(binding.aspectRatioConstraint)
-//    constraintSet.connect(
-//      R.id.aspectRatioConstraint,
-//      ConstraintSet.TOP,
-//      R.id.promptGuideline,
-//      ConstraintSet.BOTTOM
-//    )
-//    constraintSet.applyTo(binding.aspectRatioConstraint)
 
     when (displayMode) {
       // Handles full-screening the camera preview
@@ -1335,10 +1297,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
   /**
    * Handle activity resumption (typically from multitasking)
-   * TODO there is a mismatch between when things are deallocated in onStop and where they
-   * TODO are initialized in onResume.
    */
   override fun onResume() {
+    // It should only be possible for this function to be called once.
     super.onResume()
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }

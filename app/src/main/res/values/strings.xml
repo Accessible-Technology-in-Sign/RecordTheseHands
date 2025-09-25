@@ -80,7 +80,7 @@
 
     <!-- Recording Session Page-->
     <string name="record">Start</string>
-    <string name="restart">Mistake\nRestart</string>
+    <string name="restart">Restart</string>
     <string name="finish">Finish</string>
     <string name="recording">Recording</string>
     <string name="time">15:00</string>
