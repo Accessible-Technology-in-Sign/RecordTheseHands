@@ -516,7 +516,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       }
     }
 
-
   /**
    * Experimental values for portrait, landscape, tablet, non-tablet camera preview scaling.
    */
@@ -569,11 +568,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
 
       setVideoFrameRate(RECORDING_FRAMERATE)
+      Log.i(TAG, "recordingSize.width = ${recordingSize.width} recordingSize.height = ${recordingSize.height}")
       setVideoSize(recordingSize.width, recordingSize.height)
 
       setVideoEncoder(MediaRecorder.VideoEncoder.HEVC)
       setInputSurface(surface)
 
+      // TODO fix this comment after verifying that the saved videos have their rotation
+      // property set correctly.
       /**
        * The orientation of 270 degrees (-90 degrees) was determined through
        * experimentation. For now, we do not need to support other
@@ -583,7 +585,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
        * a Pixel Tablet (2023) with its included stand (although any tablet with a stand
        * may suffice).
        */
-      setOrientationHint(if (isTablet) 0 else 270)
+      // setOrientationHint(if (isTablet) 0 else 270)
+      setOrientationHint(determineCameraOrientation())
     }
 
   private fun checkCameraPermission(): Boolean {
@@ -1339,6 +1342,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // Set up the camera preview's size
     binding.cameraPreview.holder.setSizeFromLayout()
 
+    // TODO clone from the original constraints.
     val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
     val currentOrientation = resources.configuration.orientation
 
@@ -1361,8 +1365,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       desiredOriginalPortraitWidthPx,
       desiredOriginalLandscapeWidthPx
     )
-
-    binding.recordingLight.visibility = View.GONE
   }
 
   private fun resetConstraintLayout() {
@@ -1446,42 +1448,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     desiredOriginalLandscapeWidthPx: Int
   ) {
     aspectRatioLayout.visibility = View.VISIBLE
-    if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
-      if (isTablet) {
-        aspectRatioParams.width = desiredOriginalPortraitWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (4f / 3f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = -400
-        aspectRatioParams.bottomMargin = 100
-      } else {
-        aspectRatioParams.width = desiredOriginalPortraitWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (4f / 3f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = -400
-        aspectRatioParams.bottomMargin = 0
-      }
-    } else if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-      if (isTablet) {
-        aspectRatioParams.width = desiredOriginalLandscapeWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = -400
-        aspectRatioParams.bottomMargin = 100
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = R.id.sessionPager
-      } else {
-        aspectRatioParams.width = desiredOriginalLandscapeWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = -400
-        aspectRatioParams.bottomMargin = 100
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = R.id.sessionPager
-      }
-    }
-//    binding.recordingLight.visibility = View.VISIBLE
-    binding.recordingLight.visibility = View.GONE
-    aspectRatioLayout.layoutParams = aspectRatioParams
+    // binding.recordingLight.visibility = View.GONE
+    // aspectRatioLayout.layoutParams = aspectRatioParams
+    Log.d(TAG, "setOriginalScreen")
   }
 
   /**
@@ -1494,6 +1463,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     desiredSplitPortraitHeightPx: Int,
     desiredSplitLandscapeWidthPx: Int
   ) {
+    Log.d(TAG, "setSplitScreen")
     aspectRatioLayout.visibility = View.VISIBLE
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
@@ -1548,10 +1518,10 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     aspectRatioLayout: View,
     aspectRatioParams: LayoutParams
   ) {
+    Log.d(TAG, "setFullScreen")
     aspectRatioLayout.visibility = View.GONE
-//    binding.recordingLight.visibility = View.GONE
-    binding.recordingLight.visibility = View.GONE
-    aspectRatioLayout.layoutParams = aspectRatioParams
+    // binding.recordingLight.visibility = View.GONE
+    // aspectRatioLayout.layoutParams = aspectRatioParams
   }
 
   /**
@@ -1682,6 +1652,29 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     */
   }
 
+  fun determineCameraOrientation(): Int {
+    val cameraId = getFrontCamera()
+    val props = cameraManager.getCameraCharacteristics(cameraId)
+    val sensorOrientation = props.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
+    val sensorRect = props.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+    Log.i(TAG, "<${sensorRect?.width()}, ${sensorRect?.height()}>")
+
+    var degrees = 0
+    when (display.rotation) {
+      Surface.ROTATION_0 -> degrees = 0
+      Surface.ROTATION_90 -> degrees = 90
+      Surface.ROTATION_180 -> degrees = 180
+      Surface.ROTATION_270 -> degrees = 270
+    }
+
+    if (props.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT) {
+      val finalRotation = (sensorOrientation + degrees) % 360
+      // Compensate for the mirroring effect of a front camera
+      return (360 - finalRotation) % 360
+    } else { // Back-facing camera
+      return (sensorOrientation - degrees + 360) % 360
+    }
+  }
   /**
    * Handle activity resumption (typically from multitasking)
    * TODO there is a mismatch between when things are deallocated in onStop and where they
@@ -1699,22 +1692,37 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     val sizes = props.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
     Log.i(TAG, sizes.toString().split("], [", "([", "])").joinToString("\n"))
 
-    fun hasAspectRatio(heightRatio: Int, widthRatio: Int, dim: Size): Boolean {
-      val target = heightRatio.toFloat() / widthRatio.toFloat()
+    fun hasAspectRatio(widthRatio: Int, heightRatio: Int, dim: Size): Boolean {
+      val target = widthRatio.toFloat() / heightRatio.toFloat()
       return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
     }
+    val cameraRotation = determineCameraOrientation()
+    // For a tablet.
+    val cameraSideways = cameraRotation == 90 || cameraRotation == 270
+    dataManager.logToServer("cameraRotation = ${cameraRotation} cameraSideways = ${cameraSideways}")
 
-    val heightRatio = if (isTablet) 4 else 3
-    val widthRatio = if (isTablet) 3 else 4
+    val cameraWidthRatio = 4
+    val cameraHeightRatio = 3
+    val widthRatio = if (cameraSideways) 3 else 4
+    val heightRatio = if (cameraSideways) 4 else 3
+    // val widthRatio = 30
+    // val heightRatio =32
+
+    // TODO make this be the actual video aspect ratio.
     (binding.aspectRatioConstraint.layoutParams as LayoutParams).dimensionRatio =
-      "H,${heightRatio}:${widthRatio}"
+      "${widthRatio}:${heightRatio}"
+   binding.aspectRatioConstraint.post {
+     Log.i(TAG, "After layout aspectRatioConstraint has width = ${binding.aspectRatioConstraint.width} and height = ${binding.aspectRatioConstraint.height}")
+   }
 
     val videoSizes = sizes?.getOutputSizes(MediaRecorder::class.java)
     val largestAvailableSize = videoSizes?.filter {
       // Find a resolution smaller than the maximum pixel count (9 MP)
       // with an aspect ratio of 4:3.
-      it.width * it.height < MAXIMUM_RESOLUTION
-          && (hasAspectRatio(heightRatio, widthRatio, it))
+      val output = it.width * it.height < MAXIMUM_RESOLUTION
+          && (hasAspectRatio(cameraWidthRatio, cameraHeightRatio, it))
+      Log.d(TAG, "match ${output} width ${it.width} height ${it.height} target width ${cameraWidthRatio} target height ${cameraHeightRatio} ")
+      output
     }?.maxByOrNull { it.width * it.height }
 
     if (largestAvailableSize == null) {
@@ -1722,7 +1730,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     }
     val chosenSize = largestAvailableSize
 
-    Log.i(TAG, "Selected video resolution: ${chosenSize.width} x ${chosenSize.height}")
+    dataManager.logToServer("Selected video resolution: ${chosenSize.width} x ${chosenSize.height}")
     recordingSurface = createRecordingSurface(chosenSize)
 
     /**

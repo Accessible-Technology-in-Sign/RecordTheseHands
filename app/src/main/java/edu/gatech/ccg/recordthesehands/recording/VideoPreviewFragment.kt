@@ -30,9 +30,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.LayoutRes
+import androidx.annotation.OptIn
 import androidx.fragment.app.DialogFragment
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ClippingMediaSource
@@ -128,6 +130,7 @@ class VideoPreviewFragment(@LayoutRes layout: Int) : DialogFragment(layout) {
   /**
    * Initialize layout for the dialog box showing the video
    */
+  @OptIn(UnstableApi::class)
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
     this.setStyle(STYLE_NO_FRAME, 0)

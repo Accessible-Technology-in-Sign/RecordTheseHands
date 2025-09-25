@@ -5,34 +5,34 @@
     android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="@color/black"
     tools:context=".recording.RecordingActivity">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/aspectRatioConstraint"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:gravity="center"
-        android:layout_marginTop="100dp"
-        android:layout_marginStart="-400dp"
-        android:layout_marginBottom="100dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintDimensionRatio="H,4:3"
-        app:layout_constraintEnd_toEndOf="@+id/sessionPager"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="0dp"
+        app:layout_constraintDimensionRatio="4:3"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <view
             android:id="@+id/cameraPreview"
             class="android.view.SurfaceView"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:gravity="center_vertical"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintVertical_bias="0.0" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -42,10 +42,10 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="@id/aspectRatioConstraint"
-        app:layout_constraintEnd_toEndOf="@id/aspectRatioConstraint"
-        app:layout_constraintStart_toStartOf="@id/aspectRatioConstraint"
-        app:layout_constraintTop_toTopOf="@id/aspectRatioConstraint" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/recordButton"
