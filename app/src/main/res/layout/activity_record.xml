@@ -117,19 +117,38 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <TextView
-        android:id="@+id/recordingLight"
-        android:layout_width="100dp"
-        android:layout_height="20dp"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/recordingLightContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="30dp"
         android:layout_marginTop="0dp"
-        android:layout_marginEnd="28dp"
-        android:gravity="center"
-        android:text="@string/recording"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:drawableRight="@drawable/recording_light"
-        app:layout_constraintEnd_toEndOf="@id/aspectRatioConstraint"
-        app:layout_constraintTop_toTopOf="@id/aspectRatioConstraint" />
+        android:layout_marginBottom="0dp"
+        app:layout_constraintDimensionRatio="4:3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/promptGuideline">
+
+        <TextView
+            android:id="@+id/recordingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/recording"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/recordingLight"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/recordingLight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/recording"
+            android:src="@drawable/recording_light"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <TextView
         android:id="@+id/goText"

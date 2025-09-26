@@ -479,6 +479,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           this, cameraSelector, preview, videoCapture
         )
         startRecording()
+        binding.recordingLightContainer.visibility = View.VISIBLE
         isRecording = true
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
@@ -551,6 +552,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     recording?.stop()
     recording = null
     isRecording = false
+    runOnUiThread {
+      binding.recordingLightContainer.visibility = View.GONE
+    }
   }
 
   private fun newClipId(): String {
@@ -882,8 +886,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       concludeRecordingSession()
     }
 
-    // Instantiate recording indicator
-    binding.recordingLight.visibility = View.GONE
+    binding.recordingLightContainer.visibility = View.GONE
 
     binding.sessionPager.adapter = WordPagerAdapter(this, useSummaryPage)
 
@@ -932,7 +935,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
             setButtonState(binding.recordButton, true)
             setButtonState(binding.restartButton, false)
             setButtonState(binding.finishedButton, false)
-            binding.recordingLight.visibility = View.VISIBLE
           }
         } else if (promptIndex == sessionLimit) {
           dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
@@ -946,7 +948,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
           setButtonState(binding.recordButton, false)
           setButtonState(binding.restartButton, false)
           setButtonState(binding.finishedButton, true)
-          binding.recordingLight.visibility = View.GONE
         } else {
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
           if (!useSummaryPage) {
@@ -1084,7 +1085,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     desiredOriginalLandscapeWidthPx: Int
   ) {
     aspectRatioLayout.visibility = View.VISIBLE
-    // binding.recordingLight.visibility = View.GONE
+    // binding.recordingLightContainer.visibility = View.GONE
     // aspectRatioLayout.layoutParams = aspectRatioParams
     Log.d(TAG, "setOriginalScreen")
   }
@@ -1143,8 +1144,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       Log.i(TAG, "In split landscape")
     }
     aspectRatioLayout.layoutParams = aspectRatioParams
-//    binding.recordingLight.visibility = View.VISIBLE
-    binding.recordingLight.visibility = View.GONE
   }
 
   /**
@@ -1156,7 +1155,6 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
   ) {
     Log.d(TAG, "setFullScreen")
     aspectRatioLayout.visibility = View.GONE
-    // binding.recordingLight.visibility = View.GONE
     // aspectRatioLayout.layoutParams = aspectRatioParams
   }
 
@@ -1315,7 +1313,9 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
     // Set adapter to null to make the Garbage Collector's job easier.  If context or views
     // are leaked in the adapter in, for example, listeners, setting the adapter to null
     // might still allow them to be garbage collected.
-    binding.sessionPager.adapter = null
+    runOnUiThread {
+      binding.sessionPager.adapter = null
+    }
     finish()
   }
 

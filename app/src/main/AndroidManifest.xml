@@ -18,7 +18,7 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RecordTheseHands.NoActionBar">
+        android:theme="@style/Theme.RecordTheseHands.Fullscreen">
         <activity
             android:name=".splash.LoadDataActivity"
             android:exported="false" />
