@@ -32,7 +32,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptPickerBinding
+import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptSelectBinding
 import edu.gatech.ccg.recordthesehands.databinding.SectionListItemBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -49,7 +49,7 @@ class PromptSelectActivity : AppCompatActivity() {
   }
 
   private lateinit var dataManager: DataManager
-  private lateinit var binding: ActivityPromptPickerBinding
+  private lateinit var binding: ActivityPromptSelectBinding
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -60,7 +60,7 @@ class PromptSelectActivity : AppCompatActivity() {
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
 
-    binding = ActivityPromptPickerBinding.inflate(layoutInflater)
+    binding = ActivityPromptSelectBinding.inflate(layoutInflater)
     setContentView(binding.root)
     dataManager = DataManager(applicationContext)
 
