@@ -71,6 +71,10 @@ class LoadDataActivity : AppCompatActivity() {
     binding = ActivityLoadDataBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
+    binding.backButton.setOnClickListener {
+      finish()
+    }
+
     // Unfocus keyboard when background is touched.
     binding.root.setOnTouchListener { view, _ ->
       clearTextFocus()
