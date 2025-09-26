@@ -1382,17 +1382,23 @@ class DataManager(val context: Context) {
           UPLOAD_NOTIFICATION_ID,
           createNotification("Uploading key/values", "${entries.size} key/values uploading")
         )
-        val jsonArray = JSONArray()
+        var batch = JSONArray()
         var i = 0
         for (entry in entries.iterator()) {
           val jsonEntry = JSONObject(entry.value as String)
-          jsonArray.put(jsonEntry)
+          batch.put(jsonEntry)
           i += 1
-          if (i >= 500) {
-            break
+          // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
+          if (i >= 100) {
+            // TODO Have some indication in the progress bar for each of these.
+            if (!tryUploadKeyValues(batch)) {
+              return false
+            }
+            i = 0
+            batch = JSONArray()
           }
         }
-        if (!tryUploadKeyValues(jsonArray)) {
+        if (!tryUploadKeyValues(batch)) {
           return false
         }
       }
