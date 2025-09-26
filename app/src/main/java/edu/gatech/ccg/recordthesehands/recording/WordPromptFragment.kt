@@ -66,7 +66,7 @@ class WordPromptFragment(
 
   var videoPromptController: VideoPromptController? = null
 
-  private var displayMode: PromptDisplayModeListener? = null
+  private var infoListener: RecordingActivityInfoListener? = null
 
   private var isTablet = false
 
@@ -92,27 +92,15 @@ class WordPromptFragment(
    */
   private lateinit var originalButtonParams: Map<Int, LayoutParams>
 
-  /**
-   * Enum class defining the possible display modes. Allows [WordPromptFragment] to communicate display
-   * mode changes to [RecordingActivity].
-   */
-  enum class PromptDisplayMode {
-    FULL,
-    SPLIT,
-    ORIGINAL
-  }
 
-  interface PromptDisplayModeListener {
-    fun displayModeListener(displayMode: PromptDisplayMode?, height: Int)
-  }
 
   /**
-   * Binds the fragment to [RecordingActivity]. Checks if it properly implements [PromptDisplayModeListener] interface.
+   * Binds the fragment to [RecordingActivity]. Checks if it properly implements [RecordingActivityInfoListener] interface.
    */
   override fun onAttach(context: Context) {
     super.onAttach(context)
-    if (context is PromptDisplayModeListener) {
-      displayMode = context
+    if (context is RecordingActivityInfoListener) {
+      infoListener = context
     }
   }
 
@@ -121,7 +109,7 @@ class WordPromptFragment(
    */
   override fun onDetach() {
     super.onDetach()
-    displayMode = null
+    infoListener = null
   }
 
   override fun onCreateView(
@@ -320,7 +308,7 @@ class WordPromptFragment(
       calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
 
     binding.promptView.doOnLayout {
-      displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL, it.bottom)
+      infoListener?.onActivityInfoChanged(PromptDisplayMode.ORIGINAL, it.bottom)
     }
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
@@ -371,7 +359,7 @@ class WordPromptFragment(
     currentOrientation: Int
   ) {
     binding.promptView.doOnLayout {
-      displayMode?.displayModeListener(PromptDisplayMode.FULL, it.bottom)
+      infoListener?.onActivityInfoChanged(PromptDisplayMode.FULL, it.bottom)
     }
     if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
       if (isTablet) {
@@ -419,7 +407,7 @@ class WordPromptFragment(
     val desiredLandscapeWidthPx = calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
 
     binding.promptView.doOnLayout {
-      displayMode?.displayModeListener(PromptDisplayMode.SPLIT, it.bottom)
+      infoListener?.onActivityInfoChanged(PromptDisplayMode.SPLIT, it.bottom)
     }
     if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
       if (isTablet) {
@@ -472,7 +460,7 @@ class WordPromptFragment(
   ) {
     if (lastDisplayMode == PromptDisplayMode.ORIGINAL) {
       binding.promptView.doOnLayout {
-        displayMode?.displayModeListener(PromptDisplayMode.ORIGINAL, it.bottom)
+        infoListener?.onActivityInfoChanged(PromptDisplayMode.ORIGINAL, it.bottom)
       }
       setOriginalScreen(
         videoView,
@@ -484,7 +472,7 @@ class WordPromptFragment(
       )
     } else {
       binding.promptView.doOnLayout {
-        displayMode?.displayModeListener(PromptDisplayMode.FULL, it.bottom)
+        infoListener?.onActivityInfoChanged(PromptDisplayMode.FULL, it.bottom)
       }
       setFullScreen(videoView, videoViewParams, currentOrientation)
     }
@@ -639,7 +627,7 @@ class WordPromptFragment(
     val offsetViewBounds = Rect()
     binding.root.offsetDescendantRectToMyCoords(binding.promptView, offsetViewBounds)
     Log.i(TAG, "Notifying listener with offset rect $offsetViewBounds")
-    displayMode?.displayModeListener(mode, offsetViewBounds.top + binding.promptView.bottom + 10)
+    infoListener?.onActivityInfoChanged(mode, offsetViewBounds.top + binding.promptView.bottom + 10)
   }
 
 }

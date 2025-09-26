@@ -260,12 +260,8 @@ suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
 
 /**
  * This class handles the recording of ASL into videos.
- *
- * @author  Matthew So <matthew.so@gatech.edu>, Sahir Shahryar <contact@sahirshahryar.com>
- * @since   October 4, 2021
- * @version 1.1.0
  */
-class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayModeListener {
+class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
   companion object {
     private val TAG = RecordingActivity::class.java.simpleName
   }
@@ -1007,8 +1003,8 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
    * dynamically through implementation of [WordPromptFragment.PromptDisplayModeListener] interface
    * as a callback.
    */
-  override fun displayModeListener(
-    displayMode: WordPromptFragment.PromptDisplayMode?,
+  override fun onActivityInfoChanged(
+    displayMode: PromptDisplayMode?,
     height: Int
   ) {
     val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
@@ -1038,14 +1034,14 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
 
     when (displayMode) {
       // Handles full-screening the camera preview
-      WordPromptFragment.PromptDisplayMode.FULL -> {
+      PromptDisplayMode.FULL -> {
         resetConstraintLayout()
         // Same logic for both phone and tablet
         setFullScreen(binding.aspectRatioConstraint, aspectRatioParams)
       }
 
       // Handles split-screening the camera preview
-      WordPromptFragment.PromptDisplayMode.SPLIT -> {
+      PromptDisplayMode.SPLIT -> {
         resetConstraintLayout()
         setSplitScreen(
           binding.aspectRatioConstraint,
@@ -1057,7 +1053,7 @@ class RecordingActivity : AppCompatActivity(), WordPromptFragment.PromptDisplayM
       }
 
       // Handles minimizing the camera preview to original size
-      WordPromptFragment.PromptDisplayMode.ORIGINAL -> {
+      PromptDisplayMode.ORIGINAL -> {
         resetConstraintLayout()
         setOriginalScreen(
           binding.aspectRatioConstraint,
