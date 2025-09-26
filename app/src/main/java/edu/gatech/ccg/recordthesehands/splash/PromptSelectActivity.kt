@@ -64,6 +64,10 @@ class PromptSelectActivity : AppCompatActivity() {
     setContentView(binding.root)
     dataManager = DataManager(applicationContext)
 
+    binding.backButton.setOnClickListener {
+      finish()
+    }
+
     // Observe the overall prompt state
     dataManager.promptState.observe(this) { state ->
       if (state == null) return@observe
