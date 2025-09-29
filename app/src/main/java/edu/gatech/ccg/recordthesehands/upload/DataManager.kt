@@ -387,11 +387,11 @@ class UploadSession(
         Log.i(TAG, "No data has been uploaded.")
       } else {
         Log.i(TAG, "Upload has not yet been completed.  Range: $outputFromHeader")
-        val m = Regex("^bytes=(\\d+)-(\\d+)$").matchEntire(outputFromHeader!!)
+        val m = Regex("^bytes=(\\d+)-(\\d+)$").matchEntire(outputFromHeader)
         check(m != null) { "Range header field did not have proper format." }
-        val firstSavedByte = m!!.groups[1]!!.value.toLong()
+        val firstSavedByte = m.groups[1]!!.value.toLong()
         check(firstSavedByte == 0L) { "The Range header did not start from 0" }
-        numSavedBytes = m!!.groups[2]!!.value.toLong() + 1L
+        numSavedBytes = m.groups[2]!!.value.toLong() + 1L
         Log.i(TAG, "$numSavedBytes bytes have already been uploaded.")
       }
     } else {
@@ -599,7 +599,7 @@ class UploadSession(
       if (sessionState == null) {
         return false
       }
-      numSavedBytes = sessionState!!
+      numSavedBytes = sessionState
     }
     // Step 5 is to upload the file.
     if (!uploadCompleted) {
@@ -620,7 +620,54 @@ class UploadSession(
 
 
 /**
- * class to upload files and key value pairs to the server.
+ * Manages all data interactions with the backend server, local storage, and in-memory state.
+ * This class is the central point of control for fetching prompts, uploading user data and videos,
+ * managing user accounts, and handling application updates.
+ *
+ * <h3>Overview</h3>
+ *
+ * `DataManager` is responsible for a wide range of data-related tasks:
+ * <ul>
+ *     <li><b>User Authentication:</b> Handles account creation and login token management.</li>
+ *     <li><b>Data Persistence:</b> Saves and retrieves data from local storage using `DataStore`.
+ *     This includes user preferences, prompt progress, and queued data for upload.</li>
+ *     <li><b>Server Communication:</b> Manages all HTTP requests to the backend server for
+ *     uploading data, downloading prompts, and receiving directives.</li>
+ *     <li><b>State Management:</b> Maintains the application's state, particularly the `PromptState`,
+ *     which is exposed to the UI via `LiveData`.</li>
+ *     <li><b>File Management:</b> Handles the registration and upload of video files, as well as
+ *     downloading and managing resources like APK updates and prompt assets.</li>
+ * </ul>
+ *
+ * <h3>Interaction with `DataManagerData` and `PromptState`</h3>
+ *
+ * To ensure thread safety and a single source of truth, `DataManager` relies on the `DataManagerData`
+ * singleton object. `DataManagerData` holds the in-memory state of the application, including:
+ * <ul>
+ *     <li>`loginToken`: The user's authentication token.</li>
+ *     <li>`promptStateContainer`: An instance of `PromptState` which holds all data related to
+ *     prompts, user progress, and device information.</li>
+ *     <li>`lock`: A `Mutex` that protects access to all mutable state within `DataManagerData`.
+ *     All functions that modify or read this state must acquire this lock.</li>
+ *     <li>`_promptState` and `_serverStatus`: Private `MutableLiveData` objects that are updated
+ *     to notify the UI of state changes.</li>
+ * </ul>
+ *
+ * `PromptState` is an immutable data class that represents a snapshot of the user's progress,
+ * the available prompts, and other session-related information. When the state changes, a new
+ * `PromptState` object is created and posted to the `_promptState` `LiveData`, which in turn
+ * updates the UI. This ensures that the UI always reflects the current state of the application
+ * in a thread-safe manner.
+ *
+ * <h3>Locking and Thread Safety</h3>
+ *
+ * All public functions that access or modify the shared state in `DataManagerData` acquire a lock
+ * using `dataManagerData.lock.withLock { ... }`. This prevents race conditions and ensures that
+ * all data operations are atomic. As a result, any function that acquires this lock may block if
+ * another thread is currently holding the lock. The Kdoc for each function explicitly mentions
+* whether it acquires the lock and has the potential to block.
+ *
+ * @param context The application context, used for accessing resources and local storage.
  */
 class DataManager(val context: Context) {
 
@@ -644,7 +691,16 @@ class DataManager(val context: Context) {
     initializeData()
   }
 
-  fun initializeData() {
+  /**
+   * Initializes the data manager's state from persistent storage.
+   * This function is safe to call multiple times, as it uses an atomic boolean to ensure that
+   * the initialization process only runs once.
+   *
+   * It launches a coroutine on the IO dispatcher to perform the actual initialization.
+   * The launched coroutine will acquire the data lock, but this function returns immediately
+   * and does not block.
+   */
+  private fun initializeData() {
     if (dataManagerData.initializationStarted.compareAndSet(false, true)) {
       CoroutineScope(Dispatchers.IO).launch {
         dataManagerData.lock.withLock {
@@ -654,7 +710,17 @@ class DataManager(val context: Context) {
     }
   }
 
-  suspend fun reinitializeDataUnderLock() {
+  /**
+   * Reloads all application state from disk and updates the in-memory `PromptState`.
+   * This function is the core of the initialization process. It reads the login token,
+   * tutorial mode, prompt collection, prompt progress, and other settings from `DataStore`
+   * and the local filesystem. It then constructs a new `PromptState` and posts it to the
+   * `LiveData` to update the UI.
+   *
+   * This function **must** be called while holding the data lock to ensure thread safety.
+   * It performs file I/O and can block for a significant amount of time.
+   */
+  private suspend fun reinitializeDataUnderLock() {
     try {
       FileInputStream(LOGIN_TOKEN_FULL_PATH).use { stream ->
         dataManagerData.loginToken = stream.readBytes().toString(Charsets.UTF_8)
@@ -667,7 +733,7 @@ class DataManager(val context: Context) {
     val promptsCollection = getPromptsCollectionFromDisk()
     val promptProgress = getPromptProgressFromPrefStore()
     val currentSectionName = getCurrentSectionNameFromPrefStore()
-    val username = getUsername()
+    val username = getUsernameUnderLock()
 
     // Special handling for first-time device ID initialization.
     val deviceIdKey = stringPreferencesKey("deviceId")
@@ -690,6 +756,15 @@ class DataManager(val context: Context) {
     updatePromptStateAndPost(initialState)
   }
 
+  /**
+   * Checks if a backend server address is defined in the string resources.
+   * This allows the application to gracefully handle builds that do not include a server URL,
+   * disabling server communication features.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @return `true` if the `backend_server` string resource exists, `false` otherwise.
+   */
   fun hasServer(): Boolean {
     val serverStringId = context.resources.getIdentifier(
       "backend_server",
@@ -700,9 +775,15 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Get the base address of the backend server.  This should be saved in a string resource
-   * which may or may not be present.  If it is not present, then we should disable all
-   * server communication.
+   * Get the base address of the backend server.
+   * This address is defined in a string resource (`R.string.backend_server`).
+   * If the resource is not present, this function will throw an `IllegalStateException`.
+   * Use [hasServer] to check for the existence of the server address before calling this.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @return The base URL of the backend server as a `String`.
+   * @throws IllegalStateException if the `backend_server` string resource is not defined.
    */
   fun getServer(): String {
     val serverStringId = context.resources.getIdentifier(
@@ -715,9 +796,17 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Return whether we should trust any certificate, including self signed ones.
-   * We should only do this when accessing localhost or possible 10.0.2.2 (for virtual devices).  It would be better to install the
-   * self signed certificates on the device, but this turns out to be very tricky.
+   * Determines whether a given URL should bypass standard SSL certificate checks.
+   * This is used to trust self-signed certificates for local development servers (e.g.,
+   * `localhost` or `10.0.2.2` for the Android emulator). The list of trustable hosts is
+   * defined in the `trustable_hosts` string resource.
+   *
+   * This function should only be used for debugging and development purposes.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @param url The URL to check.
+   * @return `true` if the URL's host is in the list of trustable hosts, `false` otherwise.
    */
   private fun shouldTrustUrl(url: URL): Boolean {
     val trustable = context.resources.getIdentifier(
@@ -742,8 +831,17 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Workaround for trusting self signed certificates.  Only call this
-   * on server connections you trust implicitly.
+   * Configures an `HttpsURLConnection` to trust all SSL certificates, including self-signed ones.
+   * This method installs a custom `X509TrustManager` and `HostnameVerifier` that do not
+   * perform any validation.
+   *
+   * **Warning:** This should only be called on connections to servers that are implicitly
+   * trusted, such as a local development server. Using this in a production environment is a
+   * significant security risk.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @param urlConnection The connection to configure.
    */
   private fun setTrustAllCertificates(urlConnection: HttpsURLConnection) {
     val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
@@ -768,8 +866,14 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Set the appropriate level of trust for the connection.  If it is listed
-   * as a host that we can trust, then enable all certificates.
+   * Sets the appropriate level of trust for a given `HttpsURLConnection`.
+   * If the connection's URL is determined to be trustable by [shouldTrustUrl], this function
+   * will call [setTrustAllCertificates] to bypass SSL validation. Otherwise, the default
+   * trust settings are used.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @param urlConnection The connection to configure.
    */
   fun setAppropriateTrust(urlConnection: HttpsURLConnection) {
     if (shouldTrustUrl(urlConnection.url)) {
@@ -779,8 +883,15 @@ class DataManager(val context: Context) {
 
 
   /**
-   * Get the urlConnection's "input" stream (i.e. the result), whether that is the error
-   * stream or the regular stream
+   * Gets the appropriate input stream from an `HttpURLConnection`.
+   * If the response code indicates an error (400 or greater), it returns the `errorStream`.
+   * Otherwise, it returns the `inputStream`. This is a convenience method to handle both
+   * successful and failed HTTP responses.
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @param urlConnection The connection to get the stream from.
+   * @return The `InputStream` containing the server's response body.
    */
   fun getDataStream(urlConnection: HttpURLConnection): InputStream {
     val inputStream: InputStream
@@ -792,6 +903,18 @@ class DataManager(val context: Context) {
     return inputStream
   }
 
+  /**
+   * Performs a server request with `application/x-www-form-urlencoded` data.
+   * This function constructs a form-encoded string from the provided data map, and then
+   * calls [serverRequest] to perform the POST request.
+   *
+   * This function does not acquire the data lock, but it performs a network
+   * request and may block for a significant amount of time.
+   *
+   * @param url The URL to send the request to.
+   * @param data A map of key-value pairs to be form-encoded and sent as the request body.
+   * @return A `Pair` containing the HTTP response code and the response body as a `String`.
+   */
   fun serverFormPostRequest(url: URL, data: Map<String, String>): Pair<Int, String?> {
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
@@ -806,6 +929,19 @@ class DataManager(val context: Context) {
     return Pair(code, output)
   }
 
+  /**
+   * Performs a GET request to a server and streams the response body directly to a file.
+   * This is useful for downloading large files without loading the entire content into memory.
+   *
+   * This function does not acquire the data lock, but it performs a network
+   * request and file I/O, and may block for a significant amount of time.
+   *
+   * @param url The URL to download from.
+   * @param headers A map of HTTP headers to include in the request.
+   * @param fileOutputStream The `FileOutputStream` to write the response body to. The stream
+   * is not closed by this function.
+   * @return `true` if the download was successful (HTTP 2xx), `false` otherwise.
+   */
   fun serverGetToFileRequest(
     url: URL, headers: Map<String, String>,
     fileOutputStream: FileOutputStream
@@ -846,6 +982,25 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * A generic function for making HTTP requests to the server.
+   * This function handles the setup of the `HttpsURLConnection`, sets headers, writes the
+   * request body, and reads the response. It also handles setting the appropriate trust level
+   * for the connection and updates the server status `LiveData`.
+   *
+   * This function does not acquire the data lock, but it performs a network
+   * request and may block for a significant amount of time.
+   *
+   * @param url The URL for the request.
+   * @param requestMethod The HTTP method (e.g., "POST", "PUT", "GET").
+   * @param headers A map of request headers.
+   * @param data The request body as a `ByteArray`.
+   * @param outputHeader If not null, the name of a response header to extract and return.
+   * @return A `Triple` containing:
+   *   - The HTTP response code.
+   *   - The response body as a `String`.
+   *   - The value of the `outputHeader` if requested, otherwise `null`.
+   */
   fun serverRequest(
     url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
     outputHeader: String?
@@ -896,19 +1051,58 @@ class DataManager(val context: Context) {
     return Triple(code, output, outputFromHeader)
   }
 
-  fun getUsername(): String? {
+  /**
+   * Gets the current user's username from the in-memory login token.
+   *
+   * This function parses the username from the `loginToken` string.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return The username as a `String`, or `null` if the user is not logged in.
+   */
+  suspend fun getUsername(): String? {
+    dataManagerData.lock.withLock {
+      return getUsernameUnderLock()
+    }
+  }
+
+  /**
+   * Gets the current user's username from the in-memory login token.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return The username as a `String`, or `null` if the user is not logged in.
+   */
+  private fun getUsernameUnderLock(): String? {
     if (dataManagerData.loginToken == null) {
       return null
     }
     return dataManagerData.loginToken!!.split(':', limit = 2)[0]
   }
 
+  /**
+   * Gets the unique device ID.
+   * This function retrieves the device ID from the in-memory state.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return The device ID as a `String`.
+   * @throws IllegalStateException if the device ID has not been initialized.
+   */
   suspend fun getDeviceId(): String {
     dataManagerData.lock.withLock {
       return getDeviceIdUnderLock()
     }
   }
 
+  /**
+   * Gets the unique device ID from the in-memory state.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return The device ID as a `String`.
+   * @throws IllegalStateException if the device ID has not been initialized.
+   */
   private suspend fun getDeviceIdUnderLock(): String {
     // The initial value is loaded into the container by initializePromptState.
     // Subsequent reads should come directly from the container.
@@ -916,6 +1110,17 @@ class DataManager(val context: Context) {
       ?: throw IllegalStateException("Device ID not initialized.")
   }
 
+  /**
+   * Sets the unique device ID.
+   * This function updates the device ID in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param deviceId The new device ID.
+   * @throws IllegalStateException if the prompt state has not been initialized.
+   */
   suspend fun setDeviceId(deviceId: String) {
     dataManagerData.lock.withLock {
       val currentState = dataManagerData.promptStateContainer
@@ -929,6 +1134,15 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Retrieves the tutorial mode setting directly from the persistent `DataStore`.
+   * If the setting is not found, it returns the default value `TUTORIAL_MODE_DEFAULT`.
+   *
+   * This function does not acquire the data lock. It reads from `DataStore` and may block
+   * for a short time.
+   *
+   * @return The current tutorial mode setting from `DataStore`.
+   */
   private suspend fun getTutorialModeFromPrefStore(): Boolean {
     val keyObject = booleanPreferencesKey("tutorialMode")
     return context.prefStore.data.map {
@@ -936,17 +1150,41 @@ class DataManager(val context: Context) {
     }.firstOrNull() ?: TUTORIAL_MODE_DEFAULT
   }
 
+  /**
+   * Gets the current tutorial mode from the in-memory state.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return The current tutorial mode as a `Boolean`.
+   */
   suspend fun getTutorialMode(): Boolean {
     dataManagerData.lock.withLock {
       return getTutorialModeUnderLock()
     }
   }
 
+  /**
+   * Gets the current tutorial mode from the in-memory state.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return The current tutorial mode as a `Boolean`.
+   */
   private suspend fun getTutorialModeUnderLock(): Boolean {
     // Read directly from the in-memory state container.
     return dataManagerData.promptStateContainer?.tutorialMode ?: TUTORIAL_MODE_DEFAULT
   }
 
+  /**
+   * Sets the tutorial mode.
+   * This function updates the tutorial mode in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param mode The new tutorial mode.
+   */
   suspend fun setTutorialMode(mode: Boolean) {
     Log.d(TAG, "setTutorialMode($mode)")
     dataManagerData.lock.withLock {
@@ -954,6 +1192,17 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Sets the tutorial mode.
+   * This function updates the tutorial mode in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param mode The new tutorial mode.
+   * @throws IllegalStateException if the prompt state has not been initialized.
+   */
   private suspend fun setTutorialModeUnderLock(mode: Boolean) {
     val currentState = dataManagerData.promptStateContainer
       ?: throw IllegalStateException("Attempted to set tutorial mode before prompt state was initialized.")
@@ -964,6 +1213,14 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Retrieves the current section name directly from the persistent `DataStore`.
+   *
+   * This function does not acquire the data lock. It reads from `DataStore` and may block
+   * for a short time.
+   *
+   * @return The current section name as a `String`, or `null` if it's not set.
+   */
   private suspend fun getCurrentSectionNameFromPrefStore(): String? {
     val keyObject = stringPreferencesKey("currentSectionName")
     return context.prefStore.data.map {
@@ -971,22 +1228,57 @@ class DataManager(val context: Context) {
     }.firstOrNull()
   }
 
+  /**
+   * Gets the current section name from the in-memory state.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return The current section name as a `String`, or `null` if it's not set.
+   */
   suspend fun getCurrentSectionName(): String? {
     dataManagerData.lock.withLock {
       return getCurrentSectionNameUnderLock()
     }
   }
 
+  /**
+   * Gets the current section name from the in-memory state.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return The current section name as a `String`, or `null` if it's not set.
+   */
   private suspend fun getCurrentSectionNameUnderLock(): String? {
     return dataManagerData.promptStateContainer?.currentSectionName
   }
 
+  /**
+   * Sets the current active section.
+   * This function updates the section name in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param sectionName The name of the section to set as current.
+   */
   suspend fun setCurrentSection(sectionName: String) {
     dataManagerData.lock.withLock {
       setCurrentSectionUnderLock(sectionName)
     }
   }
 
+  /**
+   * Sets the current active section.
+   * This function updates the section name in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param sectionName The name of the section to set as current.
+   * @throws IllegalStateException if the prompt state has not been initialized.
+   */
   private suspend fun setCurrentSectionUnderLock(sectionName: String) {
     val currentState = dataManagerData.promptStateContainer
       ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
@@ -997,6 +1289,17 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Retrieves the user's prompt progress from the persistent `DataStore`.
+   * The progress is stored as a JSON string, which is parsed into a nested map structure.
+   *
+   * This function does not acquire the data lock. It reads from `DataStore` and may block
+   * for a short time.
+   *
+   * @return A map where the key is the section name and the value is another map
+   * containing the progress for that section (e.g., "mainIndex" and "tutorialIndex").
+   * Returns an empty map if no progress is saved.
+   */
   private suspend fun getPromptProgressFromPrefStore(): Map<String, Map<String, Int>> {
     val keyObject = stringPreferencesKey("promptProgress")
     val jsonString = context.prefStore.data.map {
@@ -1019,16 +1322,39 @@ class DataManager(val context: Context) {
     return progressMap
   }
 
+  /**
+   * Gets the user's prompt progress from the in-memory state.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return A map representing the user's progress.
+   */
   suspend fun getPromptProgress(): Map<String, Map<String, Int>> {
     dataManagerData.lock.withLock {
       return getPromptProgressUnderLock()
     }
   }
 
+  /**
+   * Gets the user's prompt progress from the in-memory state.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return A map representing the user's progress.
+   */
   private suspend fun getPromptProgressUnderLock(): Map<String, Map<String, Int>> {
     return dataManagerData.promptStateContainer?.promptProgress ?: emptyMap()
   }
 
+  /**
+   * Saves the user's prompt progress to the persistent `DataStore`.
+   * The progress map is serialized into a JSON string before being saved.
+   *
+   * This function does not acquire the data lock. It performs a write to `DataStore` and
+   * may block for a short time.
+   *
+   * @param progress The progress map to save.
+   */
   private suspend fun savePromptProgress(progress: Map<String, Map<String, Int>>) {
     val keyObject = stringPreferencesKey("promptProgress")
     val json = JSONObject()
@@ -1044,12 +1370,33 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Saves the current prompt index for the active section and tutorial mode.
+   * This function updates the progress in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param index The prompt index to save.
+   */
   suspend fun saveCurrentPromptIndex(index: Int) {
     dataManagerData.lock.withLock {
       saveCurrentPromptIndexUnderLock(index)
     }
   }
 
+  /**
+   * Saves the current prompt index for the active section and tutorial mode.
+   * This function updates the progress in both the in-memory state and the persistent
+   * `DataStore`.
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to `DataStore`, which can block for a short time.
+   *
+   * @param index The prompt index to save.
+   * @throws IllegalStateException if the prompt state or current section is not initialized.
+   */
   private suspend fun saveCurrentPromptIndexUnderLock(index: Int) {
     val currentState = dataManagerData.promptStateContainer
       ?: throw IllegalStateException(
@@ -1072,6 +1419,14 @@ class DataManager(val context: Context) {
     savePromptProgress(newProgress) // Persist to storage
   }
 
+  /**
+   * Sets the current section and resets the tutorial progress for that section if tutorial
+   * mode is active.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @param sectionName The name of the section to switch to.
+   */
   suspend fun resetToSection(sectionName: String) {
     dataManagerData.lock.withLock {
       setCurrentSectionUnderLock(sectionName)
@@ -1081,6 +1436,12 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Toggles the tutorial mode on or off.
+   * If tutorial mode is enabled, it also resets the tutorial progress for the current section to 0.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   */
   suspend fun toggleTutorialMode() {
     dataManagerData.lock.withLock {
       val tutorialMode = !getTutorialModeUnderLock()
@@ -1091,23 +1452,27 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Generates a new, unique session ID.
+   * The session ID is a combination of the device ID and an auto-incrementing session index,
+   * which is persisted in `DataStore`.
+   *
+   * This function acquires the data lock to get the device ID. It also performs a read/write
+   * operation on `DataStore` to update the session index. It may block.
+   *
+   * @return A unique session ID string (e.g., "abcdef12-s001").
+   */
   suspend fun newSessionId(): String {
-    val deviceId = getDeviceId()
-    val keyObject = intPreferencesKey("sessionIdIndex")
-    val oldValue = context.prefStore.edit { preferences ->
-      preferences[keyObject] = (preferences[keyObject] ?: 0) + 1
+    dataManagerData.lock.withLock {
+      val deviceId = getDeviceIdUnderLock()
+      val username = getUsernameUnderLock()
+      val keyObject = intPreferencesKey("sessionIdIndex")
+      val oldValue = context.prefStore.edit { preferences ->
+        preferences[keyObject] = (preferences[keyObject] ?: 0) + 1
+      }
+      val sessionIndex = oldValue[keyObject] ?: 0
+      return "${deviceId}-${username}-s${padZeroes(sessionIndex, 3)}"
     }
-    val sessionIndex = oldValue[keyObject] ?: 0
-    return "${deviceId}-s${padZeroes(sessionIndex, 3)}"
-  }
-
-  fun deleteLoginToken() {
-    File(LOGIN_TOKEN_FULL_PATH).delete()
-    dataManagerData.loginToken = null
-  }
-
-  fun hasAccount(): Boolean {
-    return dataManagerData.loginToken != null
   }
 
   private suspend fun reloadPromptsFromServerUnderLock(): Boolean {
@@ -1134,6 +1499,26 @@ class DataManager(val context: Context) {
     return retVal
   }
 
+  /**
+   * Creates a new user account and initializes the local state.
+   *
+   * This function performs several actions:
+   * 1.  Validates the username format.
+   * 2.  Generates a new random password and creates a login token.
+   * 3.  Sends a request to the server to register the new login token, authenticated by an
+   *     admin password.
+   * 4.  If registration is successful, it saves the new login token to a local file.
+   * 5.  It then reloads the prompts from the server and re-initializes the local application
+   *     state for the new user.
+   *
+   * This function acquires the data lock for its entire execution, which can be lengthy due
+   * to network requests and file I/O. This will block other data operations.
+   *
+   * @param username The desired username. Must be at least 3 lowercase alphanumeric or
+   * underscore characters, starting with a letter.
+   * @param adminPassword The admin password required to authorize account creation on the server.
+   * @return `true` if the account was created successfully, `false` otherwise.
+   */
   suspend fun createAccount(username: String, adminPassword: String): Boolean {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
       logToServer("createAccount username \"$username\" is invalid")
@@ -1195,7 +1580,7 @@ class DataManager(val context: Context) {
     val json = JSONObject()
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     json.put("timestamp", timestamp)
-    json.put("username", getUsername())
+    json.put("username", getUsernameUnderLock())
     json.put("deviceId", getDeviceIdUnderLock())
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val lifetimeRecordingCount = context.prefStore.data
@@ -1305,6 +1690,18 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Creates a `Notification` for the upload foreground service.
+   *
+   * This is a helper function to construct a standardized notification for displaying
+   * the status of the upload service.
+   *
+   * This function does not acquire the data lock and does not block.
+   *
+   * @param title The title of the notification.
+   * @param message The body text of the notification.
+   * @return A configured `Notification` object.
+   */
   fun createNotification(title: String, message: String): Notification {
     return Notification.Builder(context, UPLOAD_NOTIFICATION_CHANNEL_ID)
       .setSmallIcon(R.drawable.upload_service_notification_icon)
@@ -1315,6 +1712,18 @@ class DataManager(val context: Context) {
       .build()
   }
 
+  /**
+   * Records the current timestamp as the APK installation time.
+   *
+   * This function is typically called after a successful app update. It saves the current
+   * timestamp to the `prefStore` `DataStore` and also logs the installation event to the
+   * server via [logToServer].
+   *
+   * This function does not acquire the data lock. It performs a write to `DataStore` and
+   * may block for a short time.
+   *
+   * @return `true` (the return value is not currently used meaningfully).
+   */
   suspend fun updateApkTimestamp(): Boolean {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     val keyObject = stringPreferencesKey("apkInstallTimestamp")
@@ -1325,6 +1734,19 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Checks with the server for a new application update.
+   *
+   * This function sends a request to the server, providing the timestamp of the currently
+   * installed APK. The server can then determine if a newer version is available. The logic
+   * for actually downloading and installing the update is handled by a server directive.
+   *
+   * This function does not acquire the data lock, but it performs a network request and
+   * may block for a significant amount of time.
+   *
+   * @return `true` if the check was successful (even if no update is available), `false`
+   * if the server request fails.
+   */
   suspend fun updateApp(): Boolean {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("updateApp was interrupted.")
@@ -1356,6 +1778,23 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Manages the entire data upload process.
+   *
+   * This function orchestrates the upload of all persisted data to the server. It performs
+   * the following steps in order:
+   * 1.  Runs server directives by calling [runDirectives].
+   * 2.  Uploads all staged key-value pairs from the `dataStore` in batches.
+   * 3.  Uploads all registered files from the `registerFileStore`, providing progress updates
+   *     via the `progressCallback`.
+   *
+   * This function acquires the data lock for its entire execution, which can be very lengthy
+   * due to network requests and file I/O. This will block other data operations.
+   *
+   * @param notificationManager An optional `NotificationManager` to display upload progress.
+   * @param progressCallback A function that is called with the upload progress percentage (0-100).
+   * @return `true` if the entire upload process completes successfully, `false` otherwise.
+   */
   suspend fun uploadData(
     notificationManager: NotificationManager? = null,
     progressCallback: (Int) -> Unit
@@ -1445,6 +1884,15 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * A utility function that blocks until the data lock can be acquired and released.
+   *
+   * This function is used to synchronize operations by ensuring that any ongoing data
+   * operations complete before proceeding. It acquires the lock and then immediately
+   * releases it.
+   *
+   * This function will block if another thread is currently holding the data lock.
+   */
   suspend fun waitForDataLock() {
     dataManagerData.lock.lock()
     dataManagerData.lock.unlock()
@@ -1470,6 +1918,15 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Deletes the lifetime recording statistics from persistent storage.
+   *
+   * This function removes the keys for the lifetime recording count and duration from the
+   * `prefStore` `DataStore`, effectively resetting them to zero.
+   *
+   * This function does not acquire the data lock. It performs a write to `DataStore` and
+   * may block for a short time.
+   */
   suspend fun resetStatistics() {
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
@@ -1645,6 +2102,21 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Initiates the installation of a downloaded APK file.
+   *
+   * This function uses the Android `PackageInstaller` API to create an installation session
+   * and write the APK data to it. It then creates a `PendingIntent` that will be broadcast
+   * when the installation is complete (or requires user action). Finally, it commits the
+   * session, which prompts the user to approve the installation.
+   *
+   * This function does not acquire the data lock. It performs file I/O and interacts with
+   * a system service, so it may block for a short time.
+   *
+   * @param relativePath The path to the APK file, relative to the app's files directory.
+   * @param apkData A `JSONObject` containing metadata about the APK, such as its MD5 hash
+   * and server timestamp. This data is passed through to the completion broadcast.
+   */
   fun installPackage(relativePath: String, apkData: JSONObject) {
     val packageInstaller = context.packageManager.packageInstaller
     val sessionParams = SessionParams(SessionParams.MODE_FULL_INSTALL)
@@ -1676,6 +2148,20 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Fetches and executes a list of commands (directives) from the server.
+   *
+   * This function is a key part of the server-driven application management. It requests a
+   * list of directives from the server and then executes them one by one. Directives can
+   * include operations like changing users, updating the APK, reloading prompts, or deleting
+   * files.
+   *
+   * This function does not acquire the data lock itself, but the directives it executes
+   * (via [executeDirective]) may acquire the lock. It performs a network request and
+   * potentially many other blocking operations depending on the directives received.
+   *
+   * @return `true` if all directives were fetched and executed successfully, `false` otherwise.
+   */
   suspend fun runDirectives(): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
@@ -1727,35 +2213,65 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Asynchronously stages a log message for upload to the server.
+   *
+   * This function creates a timestamped key and calls [addKeyValue] to stage the log
+   * message. The actual database operation happens in a background coroutine launched
+   * on the IO dispatcher.
+   *
+   * This function returns immediately and does not block.
+   *
+   * @param message The log message to save.
+   */
   fun logToServer(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     logToServerAtTimestamp(timestamp, message)
   }
 
+  /**
+   * Asynchronously stages a log message with a specific timestamp for upload to the server.
+   *
+   * This function calls [addKeyValue] to stage the log message with the provided timestamp.
+   * The actual database operation happens in a background coroutine launched on the IO
+   * dispatcher.
+   *
+   * This function returns immediately and does not block.
+   *
+   * @param timestamp The ISO 8601 timestamp for the log entry.
+   * @param message The log message to save.
+   */
   fun logToServerAtTimestamp(timestamp: String, message: String) {
     CoroutineScope(Dispatchers.IO).launch {
       addKeyValue("log-$timestamp", message, "log")
     }
   }
 
-  fun logToServerUnderLock(message: String) {
+  private suspend fun logToServerUnderLock(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     logToServerAtTimestampUnderLock(timestamp, message)
   }
 
-  fun logToServerAtTimestampUnderLock(timestamp: String, message: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-      addKeyValue("log-$timestamp", message, "log", holdingLock = true)
-    }
+  private suspend fun logToServerAtTimestampUnderLock(timestamp: String, message: String) {
+    addKeyValue("log-$timestamp", message, "log", holdingLock = true)
   }
 
   /**
-   * Save a key value pair to the server.  Re-using the same key will overwrite
-   * the existing value (either before uploading to the server, or if it has already
-   * been uploaded then on the server).
+   * Saves a key-value pair to a staging area for eventual upload to the server.
    *
-   * No data will be sent to the server unless persistData() is called (which stores a snapshot
-   * of the key values to a dataStore).
+   * This function adds the given key, value, and partition to an in-memory map
+   * (`dataManagerData.keyValues`). The data is not sent to the server immediately but is
+   * held until [persistData] is called, which writes the staged data to persistent storage.
+   * Re-using the same key will overwrite the existing value in the staging area.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @param key A unique identifier for the data.
+   * @param value The string value to be saved.
+   * @param partition A category or partition for the data on the server.
+   * @param holdingLock If `true`, the function assumes the caller is already holding the data
+   * lock and will not attempt to acquire it again. This is an optimization to avoid nested
+   * lock acquisitions. Defaults to `false`.
    */
   suspend fun addKeyValue(
     key: String,
@@ -1777,6 +2293,23 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Saves a key-value pair, where the value is a `JSONObject`, to a staging area for
+   * eventual upload to the server.
+   *
+   * This function is an overload of [addKeyValue] for JSON object values. It adds the given
+   * key, JSON object, and partition to an in-memory map (`dataManagerData.keyValues`).
+   * The data is not sent to the server immediately but is held until [persistData] is called.
+   * Re-using the same key will overwrite the existing value in the staging area.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @param key A unique identifier for the data.
+   * @param json The `JSONObject` to be saved.
+   * @param partition A category or partition for the data on the server.
+   * @param holdingLock If `true`, the function assumes the caller is already holding the data
+   * lock and will not attempt to acquire it again. Defaults to `false`.
+   */
   suspend fun addKeyValue(
     key: String,
     json: JSONObject,
@@ -1797,6 +2330,17 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Registers a file to be uploaded to the server.
+   *
+   * This function adds the file's relative path to an in-memory map (`dataManagerData.registeredFiles`).
+   * The file is not uploaded immediately but is staged until the upload process is initiated
+   * (e.g., by [uploadData]). The actual upload logic is handled by the `UploadSession` class.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @param relativePath The path of the file relative to the application's files directory.
+   */
   suspend fun registerFile(relativePath: String) {
     Log.i(TAG, "Register file for upload: \"$relativePath\"")
     dataManagerData.lock.withLock {
@@ -1805,11 +2349,18 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Persist the key value and registered files data and upload it to the server when convenient.
+   * Persists all staged key-value pairs and registered files to local storage.
    *
-   * This function doesn't return until the data has been persisted to disk.  During that time
-   * this function will hold the dataManagerData lock which means all calls to addKeyValue and
-   * registerFile will block until this function is done.
+   * This function takes all the data that has been staged in the in-memory maps
+   * (`dataManagerData.keyValues` and `dataManagerData.registeredFiles`) and writes it to
+   * the appropriate `DataStore`. After the data is persisted, the in-memory maps are cleared.
+   * This is a critical step to ensure that data is not lost if the application is closed
+   * before the upload is complete.
+   *
+   * This function acquires the data lock for the entire duration of the persistence process.
+   * As a result, any other calls to functions that require the lock (like [addKeyValue] and
+   * [registerFile]) will block until this function completes. It performs file I/O and may
+   * block for a significant amount of time.
    */
   suspend fun persistData() {
     dataManagerData.lock.withLock {
@@ -1839,16 +2390,46 @@ class DataManager(val context: Context) {
     }
   }
 
+  /**
+   * Gets the current collection of prompts from the in-memory state.
+   *
+   * This function provides access to the `PromptsCollection` object, which contains all the
+   * sections and prompts currently loaded by the application.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   *
+   * @return The current `PromptsCollection`, or `null` if it has not been loaded yet.
+   */
   suspend fun getPromptsCollection(): PromptsCollection? {
     dataManagerData.lock.withLock {
       return getPromptsCollectionUnderLock()
     }
   }
 
+  /**
+   * Gets the current collection of prompts from the in-memory state.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return The current `PromptsCollection`, or `null` if it has not been loaded yet.
+   */
   private suspend fun getPromptsCollectionUnderLock(): PromptsCollection? {
     return dataManagerData.promptStateContainer?.promptsCollection
   }
 
+  /**
+   * Reads the prompts collection from the local filesystem.
+   *
+   * This function initializes a `PromptsCollection` object from the `prompts.json` file
+   * stored in the application's local data directory. It also calls [ensureResources] to
+   * trigger the download of any images or other resources required by the prompts.
+   *
+   * This function does not acquire the data lock, but it performs file I/O and network
+   * requests, and may block for a significant amount of time.
+   *
+   * @return The loaded `PromptsCollection`, or `null` if the prompts file cannot be
+   * read or if a required resource cannot be downloaded.
+   */
   private suspend fun getPromptsCollectionFromDisk(): PromptsCollection? {
     val newPromptsCollection = PromptsCollection(context)
     if (!newPromptsCollection.initialize()) {
@@ -1860,6 +2441,18 @@ class DataManager(val context: Context) {
     return newPromptsCollection
   }
 
+  /**
+   * Ensures that all resources required by a `PromptsCollection` are available locally.
+   *
+   * This function iterates through all sections and prompts within the given collection
+   * and calls [ensureResources] on each set of prompts to download any missing resources.
+   *
+   * This function does not acquire the data lock, but it can trigger network requests via
+   * [ensureResource] and may block for a significant amount of time.
+   *
+   * @param promptsCollection The collection of prompts to check.
+   * @return `true` if all resources are successfully downloaded, `false` otherwise.
+   */
   suspend fun ensureResources(promptsCollection: PromptsCollection): Boolean {
     Log.i(TAG, "ensureResources for promptsCollection")
     for (section in promptsCollection.sections.values) {
@@ -1874,6 +2467,18 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Ensures that all resources required by a list of prompts are available locally.
+   *
+   * This function iterates through the given `Prompts` object and calls [ensureResource]
+   * for each prompt that has an associated `resourcePath`.
+   *
+   * This function does not acquire the data lock, but it can trigger network requests via
+   * [ensureResource] and may block for a significant amount of time.
+   *
+   * @param prompts The `Prompts` object containing the list of prompts to check.
+   * @return `true` if all resources are successfully downloaded, `false` otherwise.
+   */
   suspend fun ensureResources(prompts: Prompts): Boolean {
     for (prompt in prompts.array) {
       // Log.d(TAG, "prompt ${prompt.toJson()}")
@@ -1887,6 +2492,19 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Ensures that a specific resource is available locally, downloading it if necessary.
+   *
+   * This function checks if a file exists at the given `resourcePath` within the app's
+   * local file storage. If the file does not exist, it calls [downloadResource] to fetch
+   * it from the server. It also enforces that all resource paths must start with "resource/".
+   *
+   * This function does not acquire the data lock, but it may perform a network request
+   * and can block for a significant amount of time if the resource needs to be downloaded.
+   *
+   * @param resourcePath The server path of the resource (e.g., "resource/image.png").
+   * @return `true` if the resource exists locally or was downloaded successfully, `false` otherwise.
+   */
   suspend fun ensureResource(resourcePath: String): Boolean {
     Log.d(TAG, "ensureResource: resourcePath ${resourcePath}")
     // Explicitly enforce that all resources are in resource/ in GCP bucket
@@ -1902,6 +2520,20 @@ class DataManager(val context: Context) {
     return downloadResource(resourcePath)
   }
 
+  /**
+   * Downloads a resource file from the server.
+   *
+   * This function constructs the full URL for the resource, creates the necessary local
+   * directories, and then uses [serverGetToFileRequest] to download the file and save it
+   * to the specified `resourcePath`. If the download fails, it cleans up by deleting the
+   * partially downloaded file.
+   *
+   * This function does not acquire the data lock, but it performs network and file I/O
+   * and will block for a significant amount of time.
+   *
+   * @param resourcePath The server path of the resource to download.
+   * @return `true` if the download was successful, `false` otherwise.
+   */
   suspend fun downloadResource(resourcePath: String): Boolean {
     val resource = File(context.filesDir, resourcePath)
     resource.parentFile?.let { parent ->
@@ -1943,6 +2575,18 @@ class DataManager(val context: Context) {
     return true
   }
 
+  /**
+   * Updates the lifetime recording statistics for the user.
+   *
+   * This function increments the total number of recordings and adds the duration of the
+   * last session to the total recording time. These statistics are stored persistently
+   * in the `prefStore` `DataStore`.
+   *
+   * This function does not acquire the data lock. It performs a write to `DataStore` and
+   * may block for a short time.
+   *
+   * @param sessionLength The `Duration` of the recording session to add to the total.
+   */
   suspend fun updateLifetimeStatistics(sessionLength: Duration) {
     val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
     val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
@@ -1954,24 +2598,50 @@ class DataManager(val context: Context) {
   }
 
   /**
-   * Check server connection by pinging server
-   * method must be called whenever you want to check the server status
-   * TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
-   * other server calls (which could just set this directly).
+   * Initiates a check of the server connection status.
+   *
+   * This function launches a coroutine on the IO dispatcher to ping the server by calling
+   * [pingServer]. The result of the ping is then posted to the `_serverStatus` `LiveData`,
+   * allowing the UI to observe changes in server connectivity.
+   *
+   * This function returns immediately and does not block. The network request happens
+   * asynchronously in the background.
    */
   fun checkServerConnection() {
+    // TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
+    // other server calls (which could just set this directly).
     CoroutineScope(Dispatchers.IO).launch {
       pingServer()
     }
   }
 
+  /**
+   * Updates the in-memory state container and posts the new state to the `LiveData`.
+   *
+   * This is a central helper function for managing the application's state. It updates the
+   * `promptStateContainer` with the new state and then calls `postValue` on the `_promptState`
+   * `MutableLiveData` to notify all observers (typically the UI) of the change.
+   *
+   * This function should be called from within a data lock to ensure thread safety.
+   *
+   * @param newState The new `PromptState` to set as the current state.
+   */
   private fun updatePromptStateAndPost(newState: PromptState) {
     dataManagerData.promptStateContainer = newState
     dataManagerData._promptState.postValue(newState)
   }
 
   /**
-   * Ping server by calling server and checking connectivity
+   * Pings the server to check for connectivity.
+   *
+   * This function attempts to open a connection to the server's base URL with a short
+   * timeout. It updates the `_serverStatus` `LiveData` with the result of the connection
+   * attempt.
+   *
+   * This function does not acquire the data lock, but it performs a network request and
+   * will block for the duration of the timeout (or until a connection is established/fails).
+   *
+   * @return `true` if the server is reachable (responds with HTTP 200 OK), `false` otherwise.
    */
   private fun pingServer(): Boolean {
     try {
