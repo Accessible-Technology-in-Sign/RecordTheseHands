@@ -31,7 +31,6 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
 import android.util.TypedValue
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -51,13 +50,45 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
@@ -78,6 +109,7 @@ import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT
+import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toHex
@@ -287,7 +319,8 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
    * as the activity launches, so this value will be true in some instances that `isSigning` may
    * be false.
    */
-  private var isRecording = false
+  private var isRecording by mutableStateOf(false)
+  private var goTextVisible by mutableStateOf(false)
 
   /**
    * In the event that the user is holding down the Record button when the timer runs out, this
@@ -439,7 +472,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       }
     }
 
-  private fun startCamera() {
+  private fun startCamera(onTick: (String) -> Unit) {
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
     cameraProviderFuture = ProcessCameraProvider.getInstance(this)
     cameraProviderFuture.addListener({
@@ -462,8 +495,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         cameraProvider.bindToLifecycle(
           this, cameraSelector, preview, videoCapture
         )
-        startRecording()
-        // binding.recordingLightContainer.visibility = View.VISIBLE
+        startRecording(onTick)
         isRecording = true
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
@@ -481,7 +513,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         val rawSeconds = (p0 / 1000).toInt() + 1
         val minutes = padZeroes(rawSeconds / 60, 2)
         val seconds = padZeroes(rawSeconds % 60, 2)
-        // binding.timerLabel.text = "$minutes:$seconds"
+        onTick("$minutes:$seconds")
       }
 
       // When the timer expires, move to the summary page (or have the app move there as soon
@@ -500,7 +532,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     countdownTimer.start()
   }
 
-  private fun startRecording() {
+  private fun startRecording(onTick: (String) -> Unit) {
     if (isRecording) {
       dataManager.logToServer("startRecording called when isRecording is true.")
       return
@@ -536,9 +568,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     recording?.stop()
     recording = null
     isRecording = false
-    runOnUiThread {
-      // binding.recordingLightContainer.visibility = View.GONE
-    }
   }
 
   private fun newClipId(): String {
@@ -547,10 +576,13 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     return output
   }
 
-  private fun recordButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
+  private fun recordButtonOnTouchListener(
+    event: MotionEvent,
+    onStateChange: (Boolean, Boolean) -> Unit
+  ): Boolean {
     when (event.action) {
       MotionEvent.ACTION_DOWN -> {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
@@ -568,12 +600,12 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
         isSigning = true
         runOnUiThread {
-          animateGoText()
+          goTextVisible = true
         }
       }
 
       MotionEvent.ACTION_UP -> {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "recordButton up")
@@ -584,19 +616,19 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             dataManager.saveClipData(currentClipDetails!!)
           }
         }
-        runOnUiThread {
-          // setButtonState(binding.recordButton, false)
-          // setButtonState(binding.restartButton, true)
-        }
+        onStateChange(false, true)
       }
     }
     return true
   }
 
-  private fun restartButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
+  private fun restartButtonOnTouchListener(
+    event: MotionEvent,
+    onStateChange: (Boolean, Boolean) -> Unit
+  ): Boolean {
     when (event.action) {
       MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "restartButton down")
@@ -620,12 +652,12 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         runOnUiThread {
           // setButtonState(binding.recordButton, false)
           // setButtonState(binding.restartButton, true)
-          animateGoText()
+          goTextVisible = true
         }
       }
 
       MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
         val now = Instant.now()
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
         dataManager.logToServerAtTimestamp(timestamp, "restartButton up")
@@ -744,6 +776,10 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    var timerText by mutableStateOf("00:00")
+    var recordButtonVisible by mutableStateOf(true)
+    var restartButtonVisible by mutableStateOf(false)
+    var isRecording by mutableStateOf(false)
     setContent {
       val lifecycleOwner = LocalLifecycleOwner.current
       var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
@@ -767,14 +803,45 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             provider.bindToLifecycle(
               lifecycleOwner, cameraSelector, preview, videoCapture
             )
-            startRecording()
+            startCamera(
+              onTick = { timerText = it }
+            )
             isRecording = true
           } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
           }
         }, ContextCompat.getMainExecutor(this@RecordingActivity))
       }
-      CameraPreviewComposable(preview)
+      Box(modifier = Modifier.fillMaxSize()) {
+        CameraPreviewComposable(preview)
+        TimerLabel(timerText)
+        RecordButtons(
+          recordButtonVisible = recordButtonVisible,
+          restartButtonVisible = restartButtonVisible,
+          onRecordTouchEvent = { event ->
+            recordButtonOnTouchListener(
+              event,
+              onStateChange = { record, restart ->
+                recordButtonVisible = record
+                restartButtonVisible = restart
+              })
+          },
+          onRestartTouchEvent = { event ->
+            restartButtonOnTouchListener(
+              event,
+              onStateChange = { record, restart ->
+                recordButtonVisible = record
+                restartButtonVisible = restart
+              })
+          }
+        )
+        RecordingLight(isRecording)
+        GoText(goTextVisible) { goTextVisible = false }
+        BackButton {
+          dataManager.logToServer("User pressed back button to end recording.")
+          concludeRecordingSession(RESULT_OK, "RESULT_OK")
+        }
+      }
     }
 
     windowInsetsController =
@@ -873,10 +940,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     //   scaleRecordButton(binding.restartButton as Button)
     // }
 
-    // binding.backButton.setOnClickListener {
-    //   dataManager.logToServer("User pressed back button to end recording.")
-    //   concludeRecordingSession(RESULT_OK, "RESULT_OK")
-    // }
 
     // binding.recordingLightContainer.visibility = View.GONE
 
@@ -1033,93 +1096,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     }
   }
 
-  private fun animateGoText() {
-    // binding.goText.visibility = View.VISIBLE
-
-    // Set the pivot point for SCALE_X and SCALE_Y transformations to the
-    // top-left corner of the zoomed-in view. The default is the center of
-    // the view.
-    //binding.expandedImage.pivotX = 0f
-    //binding.expandedImage.pivotY = 0f
-
-    // Construct and run the parallel animation of the four translation and
-    // scale properties: X, Y, SCALE_X, and SCALE_Y.
-    /*
-    AnimatorSet().apply {
-      play(
-        ObjectAnimator.ofFloat(
-          binding.goText,
-          View.SCALE_X,
-          .5f,
-          2f
-        )
-      ).apply {
-        with(
-          ObjectAnimator.ofFloat(
-            binding.goText,
-            View.SCALE_Y,
-            .5f,
-            2f
-          )
-        )
-      }
-      duration = 500
-      interpolator = CycleInterpolator(0.5f)
-      addListener(object : AnimatorListenerAdapter() {
-
-        override fun onAnimationEnd(animation: Animator) {
-          // currentAnimator = null
-          binding.goText.visibility = View.GONE
-        }
-
-        override fun onAnimationCancel(animation: Animator) {
-          // currentAnimator = null
-          binding.goText.visibility = View.GONE
-        }
-      })
-      start()
-    }
-    */
-    /*
-    var contractAnimator = AnimatorSet().apply {
-      play(
-        ObjectAnimator.ofFloat(
-          goText,
-          View.SCALE_X,
-          2f,
-          0f
-        )
-      ).apply {
-        with(
-          ObjectAnimator.ofFloat(
-            goText,
-            View.SCALE_Y,
-            2f,
-            0f
-          )
-        )
-      }
-      duration = 10000
-      interpolator = DecelerateInterpolator()
-      addListener(object : AnimatorListenerAdapter() {
-
-        override fun onAnimationEnd(animation: Animator) {
-          // currentAnimator = null
-          goText.visibility = View.GONE
-        }
-
-        override fun onAnimationCancel(animation: Animator) {
-          // currentAnimator = null
-          goText.visibility = View.GONE
-        }
-      })
-      start()
-    }
-    val animations = AnimationSet(false)
-    animations.addAnimation(expandAnimator)
-    animations.addAnimation(contractAnimator)
-    */
-  }
 
   /**
    * Handle activity resumption (typically from multitasking)
@@ -1232,23 +1208,197 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     }
   }
 
-} // RecordingActivity
 
-@Composable
-fun CameraPreviewComposable(preview: Preview?) {
-  AndroidView(
-    factory = { context ->
-      PreviewView(context).apply {
-        layoutParams = ViewGroup.LayoutParams(
-          ViewGroup.LayoutParams.MATCH_PARENT,
-          ViewGroup.LayoutParams.MATCH_PARENT
+  @Composable
+  fun RecordingLight(isRecording: Boolean) {
+    if (isRecording) {
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(top = 200.dp, end = 30.dp),
+        contentAlignment = Alignment.TopEnd
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text(
+            text = stringResource(R.string.recording),
+            color = Color.White,
+            modifier = Modifier.padding(end = 10.dp)
+          )
+          Box(
+            modifier = Modifier
+              .size(20.dp)
+              .background(color = Color(0xFFFF160C), shape = CircleShape)
+          )
+        }
+      }
+    }
+  }
+
+  @Composable
+  fun RecordButtons(
+    recordButtonVisible: Boolean,
+    restartButtonVisible: Boolean,
+    onRecordTouchEvent: (MotionEvent) -> Unit,
+    onRestartTouchEvent: (MotionEvent) -> Unit
+  ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val view = LocalView.current
+
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(bottom = 60.dp, end = 120.dp),
+      contentAlignment = Alignment.BottomEnd
+    ) {
+      Column {
+        if (recordButtonVisible) {
+          Button(
+            onClick = { },
+            modifier = Modifier.pointerInput(Unit) {
+              awaitPointerEventScope {
+                while (true) {
+                  val event = awaitPointerEvent()
+                  val motionEvent = event.changes.first().historical.first().uptimeMillis.let {
+                    MotionEvent.obtain(
+                      it,
+                      it,
+                      event.changes.first().pressed.let { if (it) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP },
+                      event.changes.first().position.x,
+                      event.changes.first().position.y,
+                      0
+                    )
+                  }
+                  onRecordTouchEvent(motionEvent)
+                  if (event.changes.first().pressed) {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                  } else {
+                    // No haptic feedback on release, as it's not standard UX in Compose.
+                  }
+                }
+              }
+            },
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6200EE))
+          ) {
+            Text(text = stringResource(R.string.record), color = Color.White)
+          }
+        }
+        if (restartButtonVisible) {
+          Button(
+            onClick = { },
+            modifier = Modifier.pointerInput(Unit) {
+              awaitPointerEventScope {
+                while (true) {
+                  val event = awaitPointerEvent()
+                  val motionEvent = event.changes.first().historical.first().uptimeMillis.let {
+                    MotionEvent.obtain(
+                      it,
+                      it,
+                      event.changes.first().pressed.let { if (it) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP },
+                      event.changes.first().position.x,
+                      event.changes.first().position.y,
+                      0
+                    )
+                  }
+                  onRestartTouchEvent(motionEvent)
+                  if (event.changes.first().pressed) {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                  } else {
+                    // No haptic feedback on release, as it's not standard UX in Compose.
+                  }
+                }
+              }
+            },
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFB00020))
+          ) {
+            Text(text = stringResource(R.string.restart), color = Color.White)
+          }
+        }
+      }
+    }
+  }
+
+
+  @Composable
+  fun TimerLabel(text: String) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(15.dp),
+      contentAlignment = Alignment.BottomStart
+    ) {
+      Text(
+        text = text,
+        color = Color.White,
+        fontSize = 20.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier
+          .clip(RoundedCornerShape(10.dp))
+          .background(Color.Black.copy(alpha = 0.5f))
+          .padding(10.dp)
+      )
+    }
+  }
+
+  @Composable
+  fun CameraPreviewComposable(preview: Preview?) {
+    AndroidView(
+      factory = { context ->
+        PreviewView(context).apply {
+          layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+          )
+        }
+      },
+      update = { previewView ->
+        preview?.setSurfaceProvider(previewView.surfaceProvider)
+      }
+    )
+  }
+
+  @Composable
+  fun GoText(visible: Boolean, onAnimationFinish: () -> Unit) {
+    if (visible) {
+      val scale = remember { Animatable(0.5f) }
+      LaunchedEffect(Unit) {
+        scale.animateTo(2f, animationSpec = tween(500))
+        onAnimationFinish()
+      }
+      Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+      ) {
+        Text(
+          text = stringResource(R.string.go),
+          color = Color.Black,
+          fontSize = 50.sp,
+          textAlign = TextAlign.Center,
+          modifier = Modifier
+            .background(Color.White)
+            .size(150.dp, 100.dp)
+            .scale(scale.value)
         )
       }
-    },
-    update = { previewView ->
-      preview?.setSurfaceProvider(previewView.surfaceProvider)
     }
-  )
+  }
+
+  @Composable
+  fun BackButton(onClick: () -> Unit) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp),
+      contentAlignment = Alignment.TopStart
+    ) {
+      IconButton(onClick = onClick) {
+        Icon(
+          imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+          contentDescription = stringResource(R.string.back_button),
+          tint = Color.White
+        )
+      }
+    }
+  }
 }
 
 
