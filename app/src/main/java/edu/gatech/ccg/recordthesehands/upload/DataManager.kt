@@ -1,7 +1,7 @@
 /**
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2023-2024
+ * Copyright (c) 2023-2025
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageInstaller.SessionParams
-import android.util.Base64
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -47,7 +46,6 @@ import edu.gatech.ccg.recordthesehands.Constants.PROMPTS_FILENAME
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.fromHex
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.toHex
 import kotlinx.coroutines.CoroutineScope
@@ -85,9 +83,6 @@ import javax.net.ssl.X509TrustManager
 
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "dataStore")
-private val Context.registerFileStore: DataStore<Preferences> by preferencesDataStore(
-  name = "registerFileStore"
-)
 val Context.prefStore: DataStore<Preferences> by preferencesDataStore(
   name = "prefStore"
 )
@@ -148,476 +143,6 @@ class DataManagerReceiver : BroadcastReceiver() {
   }
 }
 
-class UploadSession(
-  private val dataManager: DataManager, private val loginToken: String,
-  private val relativePath: String
-) {
-
-  companion object {
-    private val TAG = UploadSession::class.simpleName
-  }
-
-  private var fileSize: Long? = null
-  private var md5sum: String? = null
-  private var uploadLink: String? = null
-  private var sessionLink: String? = null
-  private var uploadCompleted: Boolean = false
-  private var uploadVerified: Boolean = false
-  private var tutorialMode: Boolean = false
-
-  fun loadState(registerStoreValue: String) {
-    Log.i(TAG, "Loading current session state $registerStoreValue")
-    fileSize = null
-    md5sum = null
-    uploadLink = null
-    sessionLink = null
-    uploadCompleted = false
-    uploadVerified = false
-    tutorialMode = false
-
-    val inputJson = JSONObject(registerStoreValue)
-    if (inputJson.has("fileSize")) {
-      fileSize = inputJson.getLong("fileSize")
-    }
-    if (inputJson.has("md5")) {
-      md5sum = inputJson.getString("md5")
-    }
-    if (inputJson.has("uploadLink")) {
-      uploadLink = inputJson.getString("uploadLink")
-    }
-    if (inputJson.has("sessionLink")) {
-      sessionLink = inputJson.getString("sessionLink")
-    }
-    if (inputJson.has("uploadCompleted")) {
-      uploadCompleted = inputJson.getBoolean("uploadCompleted")
-    }
-    if (inputJson.has("uploadVerified")) {
-      uploadVerified = inputJson.getBoolean("uploadVerified")
-    }
-    if (inputJson.has("tutorialMode")) {
-      tutorialMode = inputJson.getBoolean("tutorialMode")
-    }
-  }
-
-  suspend fun saveState() {
-    Log.i(TAG, "Saving current session state")
-    val keyObject = stringPreferencesKey(relativePath)
-    dataManager.context.registerFileStore.edit { preferences ->
-      val json = JSONObject()
-      if (md5sum != null) {
-        json.put("md5", md5sum)
-      }
-      if (fileSize != null) {
-        json.put("fileSize", fileSize)
-      }
-      if (uploadCompleted) {
-        json.put("uploadCompleted", uploadCompleted)
-      }
-      if (uploadVerified) {
-        json.put("uploadVerified", uploadVerified)
-      }
-      if (uploadLink != null) {
-        json.put("uploadLink", uploadLink)
-      }
-      if (sessionLink != null) {
-        json.put("sessionLink", sessionLink)
-      }
-      if (tutorialMode) {
-        json.put("tutorialMode", tutorialMode)
-      }
-      preferences[keyObject] = json.toString()
-    }
-  }
-
-  suspend fun resetState() {
-    fileSize = null
-    md5sum = null
-    uploadLink = null
-    sessionLink = null
-    uploadCompleted = false
-    uploadVerified = false
-
-    val keyObject = stringPreferencesKey(relativePath)
-    dataManager.context.registerFileStore.edit { preferences ->
-      preferences[keyObject] = JSONObject().toString()
-    }
-  }
-
-  suspend fun deleteState() {
-    fileSize = null
-    md5sum = null
-    uploadLink = null
-    sessionLink = null
-    uploadCompleted = false
-    uploadVerified = false
-
-    val keyObject = stringPreferencesKey(relativePath)
-    dataManager.context.registerFileStore.edit { preferences ->
-      preferences.remove(keyObject)
-    }
-  }
-
-  private suspend fun acquireMd5(): Boolean {
-    val filepath = File(dataManager.context.filesDir, relativePath)
-
-    val digest = MessageDigest.getInstance("MD5")
-    val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
-    val buffer = ByteArray(STREAM_BUFFER_LENGTH)
-    Log.i(TAG, "computing md5sum for $filepath")
-    try {
-      FileInputStream(filepath.absolutePath).use { stream ->
-        var read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-        while (read > -1) {
-          digest.update(buffer, 0, read)
-          read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-          if (UploadService.isPaused()) {
-            throw InterruptedUploadException("Computation of md5sum was interrupted.")
-          }
-        }
-      }
-    } catch (e: FileNotFoundException) {
-      Log.e(TAG, "File not found when computing md5sum: $filepath")
-      return false
-    }
-    md5sum = toHex(digest.digest())
-    Log.i(TAG, "Computed md5sum for \"$filepath\" as $md5sum")
-    saveState()
-    return true
-  }
-
-  private suspend fun acquireUploadLink(): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("acquireUploadLink interrupted.")
-    }
-    Log.i(TAG, "acquiring upload link: \"${relativePath}\"")
-    val url = URL(dataManager.getServer() + "/upload")
-    val (code, data) =
-      dataManager.serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "login_token" to loginToken,
-          "path" to relativePath,
-          "md5" to md5sum!!,
-          "file_size" to fileSize!!.toString(),
-          "tutorial_mode" to tutorialMode.toString(),
-        )
-      )
-    if (code >= 200 && code < 300) {
-      if (data == null) {
-        Log.e(TAG, "data was null.")
-        return false
-      }
-      val json = JSONObject(data)
-      uploadLink = json.getString("uploadLink")
-      Log.i(TAG, "uploadLink: $uploadLink")
-      saveState()
-    } else {
-      Log.e(
-        TAG,
-        "Unable to obtain upload link for \"${relativePath}\".  Will try again later."
-      )
-      return false
-    }
-    return true
-  }
-
-  private suspend fun acquireSessionLink(): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("acquireSessionLink interrupted.")
-    }
-    Log.i(TAG, "Getting Upload link: \"${relativePath}\"")
-    val url = URL(uploadLink)
-    val md5Base64 = Base64.encode(fromHex(md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
-    val (code, _, outputFromHeader) =
-      dataManager.serverRequest(
-        url,
-        "POST",
-        mapOf(
-          "Content-Length" to "0",
-          "Content-Type" to "video/mp4",
-          "Content-MD5" to md5Base64,
-          "X-Goog-Resumable" to "start"
-        ),
-        ByteArray(0),
-        "Location"
-      )
-    if (code >= 200 && code < 300) {
-      check(outputFromHeader != null) { "outputFromHeader was null" }
-      sessionLink = outputFromHeader
-      Log.i(TAG, "sessionLink: $sessionLink")
-      saveState()
-    } else {
-      Log.e(
-        TAG,
-        "Unable to obtain session link for \"${relativePath}\".  Will try again later."
-      )
-      return false
-    }
-    return true
-  }
-
-  private suspend fun acquireSessionState(): Long? {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("acquireSessionState interrupted.")
-    }
-    val numSavedBytes: Long
-
-    Log.i(TAG, "acquireSessionState: \"${relativePath}\"")
-    val url = URL(sessionLink)
-    val (code, _, outputFromHeader) =
-      dataManager.serverRequest(
-        url,
-        "PUT",
-        mapOf(
-          "Content-Length" to "0",
-          "Content-Range" to "bytes */" + fileSize,
-        ),
-        ByteArray(0),
-        "Range"
-      )
-    if (code >= 200 && code < 300) {
-      uploadCompleted = true
-      Log.i(TAG, "uploadCompleted")
-      saveState()
-      return fileSize
-    } else if (code == 308) {  // Continue uploading.
-      if (outputFromHeader == null) {
-        numSavedBytes = 0L
-        Log.i(TAG, "No data has been uploaded.")
-      } else {
-        Log.i(TAG, "Upload has not yet been completed.  Range: $outputFromHeader")
-        val m = Regex("^bytes=(\\d+)-(\\d+)$").matchEntire(outputFromHeader)
-        check(m != null) { "Range header field did not have proper format." }
-        val firstSavedByte = m.groups[1]!!.value.toLong()
-        check(firstSavedByte == 0L) { "The Range header did not start from 0" }
-        numSavedBytes = m.groups[2]!!.value.toLong() + 1L
-        Log.i(TAG, "$numSavedBytes bytes have already been uploaded.")
-      }
-    } else {
-      Log.e(
-        TAG,
-        "Session link for \"${relativePath}\" is broken, starting upload from scratch."
-      )
-      resetState()
-      return null
-    }
-    return numSavedBytes
-  }
-
-  private suspend fun uploadFileToSession(numSavedBytes: Long): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("uploadFileToSession interrupted.")
-    }
-    Log.i(TAG, "uploading from byte $numSavedBytes")
-
-    val filepath = File(dataManager.context.filesDir, relativePath)
-    val url = URL(sessionLink)
-
-    val urlConnection = url.openConnection() as HttpsURLConnection
-    dataManager.setAppropriateTrust(urlConnection)
-
-    var code: Int = -1
-    var output: String? = null
-    var interrupted = false
-    try {
-      urlConnection.setDoOutput(true)
-      urlConnection.setFixedLengthStreamingMode(fileSize!! - numSavedBytes)
-      urlConnection.requestMethod = "PUT"
-      urlConnection.setRequestProperty("Content-Length", "${fileSize!! - numSavedBytes}")
-      urlConnection.setRequestProperty(
-        "Content-Range",
-        "bytes $numSavedBytes-${fileSize!! - 1L}/${fileSize!!}"
-      )
-
-      urlConnection.outputStream.use { outputStream ->
-        FileInputStream(filepath.absolutePath).use { fileStream ->
-          val STREAM_BUFFER_LENGTH = 1048576  // 1MiB
-          val buffer = ByteArray(STREAM_BUFFER_LENGTH)
-          Log.i(TAG, "Uploading $filepath")
-          fileStream.skip(numSavedBytes)
-          var read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-          while (read > -1) {
-            outputStream.write(buffer, 0, read)
-            if (UploadService.isPaused()) {
-              throw InterruptedUploadException("Uploading of file interrupted.")
-            }
-            read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-          }
-        }
-      }
-
-      code = urlConnection.responseCode
-      dataManager.getDataStream(urlConnection).use { inputStream ->
-        output = inputStream.readBytes().toString(Charsets.UTF_8)
-      }
-      if (code < 200 || code >= 300) {
-        uploadCompleted = true
-        saveState()
-        return true
-      } else if (urlConnection.responseCode >= 400) {
-        Log.e(TAG, "Response code: $code " + output)
-        resetState()
-        return false
-      }
-    } catch (e: InterruptedUploadException) {
-      Log.i(TAG, "InterruptedUploadException caught and being rethrown: ${e.message}")
-      interrupted = true
-      throw e
-    } catch (e: IOException) {
-      Log.e(TAG, "Upload Failed: $e")
-    } finally {
-      if (!interrupted) {
-        dataManager.dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
-      }
-      urlConnection.disconnect()
-    }
-    return true
-  }
-
-  private suspend fun verifyUpload(): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("verifyUpload interrupted.")
-    }
-    Log.i(TAG, "verifying upload: \"${relativePath}\"")
-    val url = URL(dataManager.getServer() + "/verify")
-    val (code, data) =
-      dataManager.serverFormPostRequest(
-        url,
-        mapOf(
-          "app_version" to APP_VERSION,
-          "login_token" to loginToken,
-          "path" to relativePath,
-          "md5" to md5sum!!,
-          "file_size" to fileSize!!.toString(),
-          "tutorial_mode" to tutorialMode.toString(),
-        )
-      )
-    if (code >= 200 && code < 300) {
-      if (data == null) {
-        Log.e(TAG, "data was null.")
-        return false
-      }
-      val json = JSONObject(data)
-      uploadVerified = json.getBoolean("verified")
-      Log.i(TAG, "uploadVerified: $uploadVerified")
-      saveState()
-      deleteLocalFile()
-    } else if (code == 503) {
-      if (data == null) {
-        return false
-      }
-      val json = JSONObject(data)
-      if (json.has("fileNotFound") && json.getBoolean("fileNotFound")) {
-        Log.w(TAG, "verify said file not found, getting state again.")
-        uploadCompleted = false
-        uploadVerified = false
-        saveState()
-      }
-      return false
-    } else {
-      Log.e(
-        TAG,
-        "Unable to verify \"${relativePath}\".  Will try again later."
-      )
-      return true  // Continue with other files.
-    }
-    return true
-  }
-
-  private suspend fun deleteLocalFile() {
-    val filepath = File(dataManager.context.filesDir, relativePath)
-    deleteState()
-    if (filepath.delete()) {
-      Log.i(TAG, "Deleted $filepath")
-    } else {
-      Log.e(TAG, "failed to delete $filepath")
-    }
-  }
-
-  suspend fun tryUploadFile(): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("tryUploadFile interrupted.")
-    }
-
-    if (md5sum != null && !Regex("^[a-f0-9]{32}$").matches(md5sum!!)) {
-      Log.e(TAG, "An error has occurred, md5sum is not valid.")
-      return false
-    }
-
-    if (uploadCompleted) {
-      Log.i(TAG, "Upload has already been completed.")
-      if (!uploadVerified) {
-        if (!verifyUpload()) {
-          return false
-        }
-      }
-      return true
-    }
-
-    val filepath = File(dataManager.context.filesDir, relativePath)
-    if (!filepath.exists()) {
-      Log.e(TAG, "File $filepath is registered but does not exist.")
-      return true  // Continue with other files.
-    }
-    if (fileSize == null) {
-      val size = filepath.length()
-      check(size != 0L) { "Could not determine the file size." }
-      fileSize = size
-    } else {
-      if (filepath.length() != fileSize) {
-        Log.e(TAG, "fileSize has changed resetting State.")
-        resetState()
-        return true  // continue with other files.
-      }
-    }
-
-    // Step 1 is computing an md5.
-    if (md5sum == null) {
-      if (!acquireMd5()) {
-        return false
-      }
-    }
-    // Step 2 is to get the upload link.
-    if (uploadLink == null) {
-      if (!acquireUploadLink()) {
-        return false
-      }
-    }
-    // Step 3 is to obtain the sessionLink.
-    var createdNewSessionLink = false
-    if (sessionLink == null) {
-      if (!acquireSessionLink()) {
-        return false
-      }
-      createdNewSessionLink = true
-    }
-    // Step 4 is to get the state of the upload.
-    var numSavedBytes = 0L
-    if (!createdNewSessionLink) {
-      val sessionState = acquireSessionState()
-      if (sessionState == null) {
-        return false
-      }
-      numSavedBytes = sessionState
-    }
-    // Step 5 is to upload the file.
-    if (!uploadCompleted) {
-      if (!uploadFileToSession(numSavedBytes)) {
-        return false
-      }
-    }
-    // Step 6 is to verify with the server that the file is properly uploaded.
-    // Note, the md5 has already been verified by the gcs bucket's resumable upload.
-    if (!uploadVerified) {
-      if (!verifyUpload()) {
-        return false
-      }
-    }
-    return true
-  }
-}
-
 
 /**
  * Manages all data interactions with the backend server, local storage, and in-memory state.
@@ -665,7 +190,7 @@ class UploadSession(
  * using `dataManagerData.lock.withLock { ... }`. This prevents race conditions and ensures that
  * all data operations are atomic. As a result, any function that acquires this lock may block if
  * another thread is currently holding the lock. The Kdoc for each function explicitly mentions
-* whether it acquires the lock and has the potential to block.
+ * whether it acquires the lock and has the potential to block.
  *
  * @param context The application context, used for accessing resources and local storage.
  */
@@ -1608,18 +1133,13 @@ class DataManager(val context: Context) {
         }
       }
 
-    val filesJson = JSONArray()
-    json.put("registeredFiles", filesJson)
-    context.registerFileStore.data
-      .map {
-        it.asMap().entries
-      }.firstOrNull()?.let {
-        for (entry in it.iterator()) {
-          val entryJson = JSONObject(entry.value as String)
-          entryJson.put("filepath", entry.key.name)
-          filesJson.put(entryJson)
-        }
+    val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
+    val filesJson = JSONArray().apply {
+      for (registeredFile in registeredFiles) {
+        put(registeredFile.toJson())
       }
+    }
+    json.put("registeredFiles", filesJson)
 
     val localFilesJson = JSONArray()
     json.put("localFiles", localFilesJson)
@@ -1841,43 +1361,29 @@ class DataManager(val context: Context) {
           return false
         }
       }
-      val fileEntries = context.registerFileStore.data
-        .map {
-          it.asMap().entries
-        }.firstOrNull()
-
-      // Calculates total files to upload
-      val totalFileEntries = context.registerFileStore.data
-        .map { it.asMap().entries }
-        .firstOrNull()?.size ?: 0
+      val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
       var completedItems = 0
+      var i = 0
+      for (registeredFile in registeredFiles) {
+        notificationManager?.notify(
+          UPLOAD_NOTIFICATION_ID,
+          createNotification("Uploading file", "${i + 1} of ${registeredFiles.size}")
+        )
 
-      if (fileEntries == null) {
-        Log.i(TAG, "fileEntries was null")
-      } else {
-        var i = 0
-        for (entry in fileEntries.iterator()) {
-          notificationManager?.notify(
-            UPLOAD_NOTIFICATION_ID,
-            createNotification("Uploading file", "${i + 1} of ${fileEntries.size}")
-          )
+        Log.i(TAG, "Creating UploadSession for ${registeredFile.relativePath}")
 
-          Log.i(TAG, "Creating UploadSession for ${entry.key.name}")
-
-          val uploadSession = UploadSession(this, dataManagerData.loginToken!!, entry.key.name)
-          uploadSession.loadState(entry.value as String)
-
-          if (!uploadSession.tryUploadFile()) {
-            return false
-          }
-
-          completedItems += 1
-          val progress = (completedItems * 100 / totalFileEntries).coerceIn(0, 100)
-          Log.d(TAG, "Progress after file upload: $progress%")
-          progressCallback(progress)
-
-          i += 1
+        val uploadSession = UploadSession(this, registeredFile)
+        if (!uploadSession.tryUploadFile()) {
+          return false
         }
+
+        completedItems += 1
+        // TODO make the progress bar include the key value uploads.
+        val progress = (completedItems * 100 / registeredFiles.size).coerceIn(0, 100)
+        Log.d(TAG, "Progress after file upload: $progress%")
+        progressCallback(progress)
+
+        i += 1
       }
 
       return directivesReturnValue
@@ -2024,19 +1530,8 @@ class DataManager(val context: Context) {
     } else if (op == "deleteFile") {
       val json = JSONObject(value)
       val relativePath = json.getString("filepath")
-      val filepath = File(context.filesDir, relativePath)
-
-      if (filepath.exists()) {
-        filepath.delete()
-        logToServerUnderLock("As directed: Deleted file $relativePath")
-      }
-      val keyObject = stringPreferencesKey(relativePath)
-      context.registerFileStore.edit { preferences ->
-        if (preferences.contains(keyObject)) {
-          preferences.remove(keyObject)
-          logToServerUnderLock("As directed: Unregistered file $relativePath")
-        }
-      }
+      RegisteredFile.deleteFile(context, relativePath)
+      logToServerUnderLock("As directed: Deleted and unregistered file $relativePath")
       if (!directiveCompleted(id)) {
         return false
       }
@@ -2341,11 +1836,8 @@ class DataManager(val context: Context) {
    *
    * @param relativePath The path of the file relative to the application's files directory.
    */
-  suspend fun registerFile(relativePath: String) {
-    Log.i(TAG, "Register file for upload: \"$relativePath\"")
-    dataManagerData.lock.withLock {
-      dataManagerData.registeredFiles[relativePath] = JSONObject()
-    }
+  suspend fun registerFile(relativePath: String, tutorialMode: Boolean) {
+    RegisteredFile.registerFile(context, relativePath, tutorialMode)
   }
 
   /**
@@ -2376,16 +1868,6 @@ class DataManager(val context: Context) {
         }
       }
       dataManagerData.keyValues.clear()
-      context.registerFileStore.edit { preferences ->
-        dataManagerData.registeredFiles.forEach {
-          val keyObject = stringPreferencesKey(it.key)
-          if (tutorialMode) {
-            it.value.put("tutorialMode", tutorialMode)
-          }
-          preferences[keyObject] = it.value.toString()
-        }
-      }
-      dataManagerData.registeredFiles.clear()
       Log.i(TAG, "Finished persisting data.")
     }
   }

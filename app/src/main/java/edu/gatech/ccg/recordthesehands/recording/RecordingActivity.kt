@@ -731,7 +731,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       json.put("filename", filename)
       json.put("endTimestamp", timestamp)
       dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
-      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path)
+      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path, tutorialMode)
       sessionInfo.endTimestamp = now
       sessionInfo.finalPromptIndex = currentPromptIndex
       dataManager.saveCurrentPromptIndex(currentPromptIndex)
