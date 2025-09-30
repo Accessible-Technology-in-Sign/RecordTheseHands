@@ -24,6 +24,8 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.Manifest
+import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -83,8 +85,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -303,6 +305,8 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     private val TAG = RecordingActivity::class.java.simpleName
   }
 
+  private val viewModel: RecordingViewModel by viewModels()
+
 
   // UI state variables
   /**
@@ -315,14 +319,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
    * for the duration that the user holds down the Record button.
    */
   private var isSigning = false
-
-  /**
-   * Marks whether or not the camera is currently recording or not. We record continuously as soon
-   * as the activity launches, so this value will be true in some instances that `isSigning` may
-   * be false.
-   */
-  private var isRecording by mutableStateOf(false)
-  private var goTextVisible by mutableStateOf(false)
 
   /**
    * In the event that the user is holding down the Record button when the timer runs out, this
@@ -498,7 +494,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
           this, cameraSelector, preview, videoCapture
         )
         startRecording(onTick)
-        isRecording = true
+        viewModel.setRecordingState(true)
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
       }
@@ -535,7 +531,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   }
 
   private fun startRecording(onTick: (String) -> Unit) {
-    if (isRecording) {
+    if (viewModel.isRecording.value) {
       dataManager.logToServer("startRecording called when isRecording is true.")
       return
     }
@@ -569,7 +565,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   private fun stopRecording() {
     recording?.stop()
     recording = null
-    isRecording = false
+    viewModel.setRecordingState(false)
   }
 
   private fun newClipId(): String {
@@ -602,7 +598,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
         isSigning = true
         runOnUiThread {
-          goTextVisible = true
+          viewModel.showGoText()
         }
       }
 
@@ -654,7 +650,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         runOnUiThread {
           // setButtonState(binding.recordButton, false)
           // setButtonState(binding.restartButton, true)
-          goTextVisible = true
+          viewModel.showGoText()
         }
       }
 
@@ -778,11 +774,13 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    var timerText by mutableStateOf("00:00")
-    var recordButtonVisible by mutableStateOf(true)
-    var restartButtonVisible by mutableStateOf(false)
-    var isRecording by mutableStateOf(false)
     setContent {
+      val timerText by viewModel.timerText.collectAsState()
+      val recordButtonVisible by viewModel.recordButtonVisible.collectAsState()
+      val restartButtonVisible by viewModel.restartButtonVisible.collectAsState()
+      val isRecording by viewModel.isRecording.collectAsState()
+      val goTextVisible by viewModel.goTextVisible.collectAsState()
+
       val lifecycleOwner = LocalLifecycleOwner.current
       var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
@@ -806,9 +804,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
               lifecycleOwner, cameraSelector, preview, videoCapture
             )
             startCamera(
-              onTick = { timerText = it }
+              onTick = { viewModel.onTick(it) }
             )
-            isRecording = true
+            viewModel.setRecordingState(true)
           } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
           }
@@ -854,15 +852,13 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             currentPromptIndex = promptIndex
             runOnUiThread {
               title = "${currentPromptIndex + 1} of ${prompts.array.size}"
-              recordButtonVisible = true
-              restartButtonVisible = false
+              viewModel.setButtonState(recordVisible = true, restartVisible = false)
             }
           } else if (promptIndex == sessionLimit) {
             dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
             currentPromptIndex = promptIndex
             title = ""
-            recordButtonVisible = false
-            restartButtonVisible = false
+            viewModel.setButtonState(recordVisible = false, restartVisible = false)
           } else {
             dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
             if (!promptsMetadata.useCorrectionsPage) {
@@ -872,8 +868,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
               )
             }
             title = ""
-            recordButtonVisible = false
-            restartButtonVisible = false
+            viewModel.setButtonState(recordVisible = false, restartVisible = false)
             // pagerState.isUserInputEnabled = false // TODO: Find equivalent in Compose
 
             sessionInfo.result = "ON_CORRECTIONS_PAGE"
@@ -894,21 +889,19 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             recordButtonOnTouchListener(
               event,
               onStateChange = { record, restart ->
-                recordButtonVisible = record
-                restartButtonVisible = restart
+                viewModel.setButtonState(record, restart)
               })
           },
           onRestartTouchEvent = { event ->
             restartButtonOnTouchListener(
               event,
               onStateChange = { record, restart ->
-                recordButtonVisible = record
-                restartButtonVisible = restart
+                viewModel.setButtonState(record, restart)
               })
           }
         )
         RecordingLight(isRecording)
-        GoText(goTextVisible) { goTextVisible = false }
+        GoText(goTextVisible) { viewModel.hideGoText() }
         BackButton {
           dataManager.logToServer("User pressed back button to end recording.")
           concludeRecordingSession(RESULT_OK, "RESULT_OK")

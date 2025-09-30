@@ -88,6 +88,8 @@ dependencies {
     // App compat and UI things
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleServiceVersion"
     implementation "androidx.lifecycle:lifecycle-service:$lifecycleServiceVersion"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycleServiceVersion"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:$lifecycleServiceVersion"
 
     implementation 'com.google.guava:guava:33.5.0-android'
 
