@@ -24,9 +24,11 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -41,7 +43,8 @@ fun WordPrompt(prompt: Prompt) {
     modifier = Modifier
       .fillMaxWidth()
       .padding(12.dp)
-      .background(Color.White)
+      .border(1.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+      .background(Color.White, shape = RoundedCornerShape(8.dp))
       .padding(12.dp)
   ) {
     Text(

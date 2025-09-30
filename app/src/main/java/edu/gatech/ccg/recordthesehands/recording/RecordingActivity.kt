@@ -476,6 +476,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     cameraProviderFuture.addListener({
       val cameraProvider = cameraProviderFuture.get()
 
+      // TODO Should this code be uncommented or deleted?
       preview = Preview.Builder().build()//.also {
       // it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
       // }
@@ -493,7 +494,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         cameraProvider.bindToLifecycle(
           this, cameraSelector, preview, videoCapture
         )
-        startRecording(onTick)
+        startRecording()
         viewModel.setRecordingState(true)
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
@@ -502,6 +503,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
     // TODO analyze where the pause Upload Timeout is being set.
     UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+
+    // TODO should the countdownTimer setup code be moved somewhere else?  It doesn't have anything
+    // directly to do with the camera.
 
     // Set up the countdown timer.
     // binding.timerLabel.text = "00:00"
@@ -530,7 +534,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     countdownTimer.start()
   }
 
-  private fun startRecording(onTick: (String) -> Unit) {
+  private fun startRecording() {
     if (viewModel.isRecording.value) {
       dataManager.logToServer("startRecording called when isRecording is true.")
       return
@@ -791,6 +795,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
           cameraProvider = provider
           preview = Preview.Builder().build()
 
+          // TODO Should this sort of camera configuration code be called from within setContent?
           val recorder = Recorder.Builder()
             .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
             .build()
