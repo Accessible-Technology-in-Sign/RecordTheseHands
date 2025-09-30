@@ -24,10 +24,6 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.Manifest
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -39,11 +35,10 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.CycleInterpolator
 import android.widget.Button
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -54,14 +49,15 @@ import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
+import androidx.compose.material.Text
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.viewpager2.widget.ViewPager2
 import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
@@ -73,7 +69,6 @@ import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT
-import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toHex
@@ -260,15 +255,11 @@ suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
 /**
  * This class handles the recording of ASL into videos.
  */
-class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
+class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   companion object {
     private val TAG = RecordingActivity::class.java.simpleName
   }
 
-  /**
-   * Save the binding.
-   */
-  private lateinit var binding: ActivityRecordBinding
 
   // UI state variables
   /**
@@ -446,9 +437,9 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     cameraProviderFuture.addListener({
       val cameraProvider = cameraProviderFuture.get()
 
-      preview = Preview.Builder().build().also {
-        it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
-      }
+      preview = Preview.Builder().build()//.also {
+      // it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
+      // }
 
       val recorder = Recorder.Builder()
         .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
@@ -464,7 +455,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
           this, cameraSelector, preview, videoCapture
         )
         startRecording()
-        binding.recordingLightContainer.visibility = View.VISIBLE
+        // binding.recordingLightContainer.visibility = View.VISIBLE
         isRecording = true
       } catch (exc: Exception) {
         Log.e(TAG, "Use case binding failed", exc)
@@ -475,14 +466,14 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
 
     // Set up the countdown timer.
-    binding.timerLabel.text = "00:00"
+    // binding.timerLabel.text = "00:00"
     countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
       // Update the timer text every second.
       override fun onTick(p0: Long) {
         val rawSeconds = (p0 / 1000).toInt() + 1
         val minutes = padZeroes(rawSeconds / 60, 2)
         val seconds = padZeroes(rawSeconds % 60, 2)
-        binding.timerLabel.text = "$minutes:$seconds"
+        // binding.timerLabel.text = "$minutes:$seconds"
       }
 
       // When the timer expires, move to the summary page (or have the app move there as soon
@@ -538,7 +529,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     recording = null
     isRecording = false
     runOnUiThread {
-      binding.recordingLightContainer.visibility = View.GONE
+      // binding.recordingLightContainer.visibility = View.GONE
     }
   }
 
@@ -586,8 +577,8 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
           }
         }
         runOnUiThread {
-          setButtonState(binding.recordButton, false)
-          setButtonState(binding.restartButton, true)
+          // setButtonState(binding.recordButton, false)
+          // setButtonState(binding.restartButton, true)
         }
       }
     }
@@ -619,8 +610,8 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
         isSigning = true
         runOnUiThread {
-          setButtonState(binding.recordButton, false)
-          setButtonState(binding.restartButton, true)
+          // setButtonState(binding.recordButton, false)
+          // setButtonState(binding.restartButton, true)
           animateGoText()
         }
       }
@@ -648,8 +639,8 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     }
     runOnUiThread {
       // Move to the next prompt and allow the user to swipe back and forth.
-      binding.sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
-      binding.sessionPager.isUserInputEnabled = false
+      // binding.sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
+      // binding.sessionPager.isUserInputEnabled = false
     }
   }
 
@@ -681,7 +672,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
   }
 
   private fun resetConstraintLayout() {
-    origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
+    // origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
   }
 
   /**
@@ -745,6 +736,9 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    setContent {
+      Text("Hello Compose!")
+    }
 
     windowInsetsController =
       WindowCompat.getInsetsController(window, window.decorView)?.also {
@@ -762,13 +756,13 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     Log.i(TAG, "Computed screen size: $diagonal inches")
 
     isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
-    binding = ActivityRecordBinding.inflate(this.layoutInflater)
+    // binding = ActivityRecordBinding.inflate(this.layoutInflater)
 
-    origAspectRatioLayout = ConstraintSet().apply {
-      clone(binding.aspectRatioConstraint)
-    }
+    // origAspectRatioLayout = ConstraintSet().apply {
+    //   clone(binding.aspectRatioConstraint)
+    // }
 
-    setContentView(binding.root)
+    // setContentView(binding.root)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
     // Fetch word data, user id, etc. from the splash screen activity which
@@ -828,112 +822,111 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-    setButtonState(binding.recordButton, true)
-    setButtonState(binding.restartButton, false)
+    // setButtonState(binding.recordButton, true)
+    // setButtonState(binding.restartButton, false)
 
-    binding.recordButton.isHapticFeedbackEnabled = true
-    binding.restartButton.isHapticFeedbackEnabled = true
+    // binding.recordButton.isHapticFeedbackEnabled = true
+    // binding.restartButton.isHapticFeedbackEnabled = true
 
-    binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
-    binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
+    // binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
+    // binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
 
-    if (!isTablet) {
-      scaleRecordButton(binding.recordButton as Button)
-      scaleRecordButton(binding.restartButton as Button)
-    }
+    // if (!isTablet) {
+    //   scaleRecordButton(binding.recordButton as Button)
+    //   scaleRecordButton(binding.restartButton as Button)
+    // }
 
-    binding.backButton.setOnClickListener {
-      dataManager.logToServer("User pressed back button to end recording.")
-      concludeRecordingSession(RESULT_OK, "RESULT_OK")
-    }
+    // binding.backButton.setOnClickListener {
+    //   dataManager.logToServer("User pressed back button to end recording.")
+    //   concludeRecordingSession(RESULT_OK, "RESULT_OK")
+    // }
 
-    binding.recordingLightContainer.visibility = View.GONE
+    // binding.recordingLightContainer.visibility = View.GONE
 
-    binding.sessionPager.adapter = WordPagerAdapter(this, promptsMetadata)
+    // binding.sessionPager.adapter = WordPagerAdapter(this, promptsMetadata)
 
     // Set up swipe handler for the word selector UI
-    binding.sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-      /**
-       * Page changed
-       */
-      override fun onPageSelected(position: Int) {
-        Log.d(
-          TAG,
-          "onPageSelected(${position}) sessionPager.currentItem ${binding.sessionPager.currentItem} currentPage (before updating) ${currentPage}"
-        )
-        if (currentClipDetails != null) {
-          val now = Instant.now()
-          DateTimeFormatter.ISO_INSTANT.format(now)
-          if (currentPage < binding.sessionPager.currentItem) {
-            // Swiped forward (currentPage is still the old value)
-            currentClipDetails!!.swipeForwardTimestamp = now
-          } else {
-            // Swiped backwards (currentPage is still the old value)
-            currentClipDetails!!.swipeBackTimestamp = now
-          }
-          currentClipDetails!!.lastModifiedTimestamp = now
-          val saveClipDetails = currentClipDetails!!
-          currentClipDetails = null
-          CoroutineScope(Dispatchers.IO).launch {
-            dataManager.saveClipData(saveClipDetails)
-          }
-        }
-        currentPage = binding.sessionPager.currentItem
-        super.onPageSelected(currentPage)
-        if (endSessionOnClipEnd) {
-          currentPromptIndex += 1
-          goToSummaryPage()
-          return
-        }
-        val promptIndex = sessionStartIndex + currentPage
+    // binding.sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+    //   /**
+    //    * Page changed
+    //    */
+    //   override fun onPageSelected(position: Int) {
+    //     Log.d(
+    //       TAG,
+    //       "onPageSelected(${position}) sessionPager.currentItem ${binding.sessionPager.currentItem} currentPage (before updating) ${currentPage}"
+    //     )
+    //     if (currentClipDetails != null) {
+    //       val now = Instant.now()
+    //       DateTimeFormatter.ISO_INSTANT.format(now)
+    //       if (currentPage < binding.sessionPager.currentItem) {
+    //         // Swiped forward (currentPage is still the old value)
+    //         currentClipDetails!!.swipeForwardTimestamp = now
+    //       } else {
+    //         // Swiped backwards (currentPage is still the old value)
+    //         currentClipDetails!!.swipeBackTimestamp = now
+    //       }
+    //       currentClipDetails!!.lastModifiedTimestamp = now
+    //       val saveClipDetails = currentClipDetails!!
+    //       currentClipDetails = null
+    //       CoroutineScope(Dispatchers.IO).launch {
+    //         dataManager.saveClipData(saveClipDetails)
+    //       }
+    //     }
+    //     currentPage = binding.sessionPager.currentItem
+    //     super.onPageSelected(currentPage)
+    //     if (endSessionOnClipEnd) {
+    //       currentPromptIndex += 1
+    //       goToSummaryPage()
+    //       return
+    //     }
+    //     val promptIndex = sessionStartIndex + currentPage
 
-        if (promptIndex < sessionLimit) {
-          dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-          currentPromptIndex = promptIndex
-          runOnUiThread {
-            title = "${currentPromptIndex + 1} of ${prompts.array.size}"
+    //     if (promptIndex < sessionLimit) {
+    //       dataManager.logToServer("selected page for promptIndex ${promptIndex}")
+    //       currentPromptIndex = promptIndex
+    //       runOnUiThread {
+    //         title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-            setButtonState(binding.recordButton, true)
-            setButtonState(binding.restartButton, false)
-          }
-        } else if (promptIndex == sessionLimit) {
-          dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
-          currentPromptIndex = promptIndex
-          /**
-           * Page to give the user a chance to swipe back and record more before
-           * finishing.
-           */
-          title = ""
+    //         setButtonState(binding.recordButton, true)
+    //         setButtonState(binding.restartButton, false)
+    //       }
+    //     } else if (promptIndex == sessionLimit) {
+    //       dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
+    //       currentPromptIndex = promptIndex
+    //       /**
+    //        * Page to give the user a chance to swipe back and record more before
+    //        * finishing.
+    //        */
+    //       title = ""
 
-          setButtonState(binding.recordButton, false)
-          setButtonState(binding.restartButton, false)
-        } else {
-          dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-          if (!promptsMetadata.useCorrectionsPage) {
-            // Shouldn't happen, but just in case.
-            concludeRecordingSession(
-              RESULT_ACTIVITY_UNREACHABLE,
-              "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
-            )
-          }
-          title = ""
+    //       setButtonState(binding.recordButton, false)
+    //       setButtonState(binding.restartButton, false)
+    //     } else {
+    //       dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
+    //       if (!promptsMetadata.useCorrectionsPage) {
+    //         // Shouldn't happen, but just in case.
+    //         concludeRecordingSession(
+    //           RESULT_ACTIVITY_UNREACHABLE,
+    //           "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
+    //         )
+    //       }
+    //       title = ""
 
-          setButtonState(binding.recordButton, false)
-          setButtonState(binding.restartButton, false)
-          binding.sessionPager.isUserInputEnabled = false
+    //       setButtonState(binding.recordButton, false)
+    //       setButtonState(binding.restartButton, false)
+    //       binding.sessionPager.isUserInputEnabled = false
 
-          sessionInfo.result = "ON_CORRECTIONS_PAGE"
-          setResult(RESULT_ACTIVITY_UNREACHABLE)
-          stopRecording()
-          countdownTimer.cancel()
-          UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-          // The RecordingListFragment has a button which calls concludeRecordingSession()
-          // If anything goes wrong, then the lifecycle of this activity should
-          // call concludeRecordingSession() anyway.
-        }
-      }
-    })
-
+    //       sessionInfo.result = "ON_CORRECTIONS_PAGE"
+    //       setResult(RESULT_ACTIVITY_UNREACHABLE)
+    //       stopRecording()
+    //       countdownTimer.cancel()
+    //       UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    //       // The RecordingListFragment has a button which calls concludeRecordingSession()
+    //       // If anything goes wrong, then the lifecycle of this activity should
+    //       // call concludeRecordingSession() anyway.
+    //     }
+    //   }
+    // })
 
 
     startCamera()
@@ -949,7 +942,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     height: Int
   ) {
     Log.i(TAG, "setting promptGuideline to height of ${height}")
-    binding.promptGuideline.setGuidelineBegin(height)
+    // binding.promptGuideline.setGuidelineBegin(height)
 
     resetConstraintLayout()
 
@@ -1004,7 +997,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
   }
 
   private fun animateGoText() {
-    binding.goText.visibility = View.VISIBLE
+    // binding.goText.visibility = View.VISIBLE
 
     // Set the pivot point for SCALE_X and SCALE_Y transformations to the
     // top-left corner of the zoomed-in view. The default is the center of
@@ -1014,6 +1007,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
     // Construct and run the parallel animation of the four translation and
     // scale properties: X, Y, SCALE_X, and SCALE_Y.
+    /*
     AnimatorSet().apply {
       play(
         ObjectAnimator.ofFloat(
@@ -1048,6 +1042,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       })
       start()
     }
+    */
     /*
     var contractAnimator = AnimatorSet().apply {
       play(
@@ -1124,7 +1119,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     // are leaked in the adapter in, for example, listeners, setting the adapter to null
     // might still allow them to be garbage collected.
     runOnUiThread {
-      binding.sessionPager.adapter = null
+      // binding.sessionPager.adapter = null
     }
     finish()
   }

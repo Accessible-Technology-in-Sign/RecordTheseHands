@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.2.20'
 }
 
 android {
@@ -18,6 +19,11 @@ android {
 
     buildFeatures {
         viewBinding = true
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
     }
 
     buildTypes {
@@ -64,8 +70,8 @@ dependencies {
     // implementation 'androidx.datastore:datastore:1.0.0'
     implementation 'androidx.datastore:datastore-preferences:1.1.7'
 
-    implementation 'androidx.media3:media3-exoplayer:1.3.1'
-    implementation 'androidx.media3:media3-ui:1.3.1'
+    implementation 'androidx.media3:media3-exoplayer:1.8.0'
+    implementation 'androidx.media3:media3-ui:1.8.0'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
@@ -83,7 +89,7 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleServiceVersion"
     implementation "androidx.lifecycle:lifecycle-service:$lifecycleServiceVersion"
 
-    implementation 'com.google.guava:guava:33.4.8-android'
+    implementation 'com.google.guava:guava:33.5.0-android'
 
     implementation('org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2')
 
@@ -95,11 +101,11 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 
-    implementation 'com.google.flogger:flogger:latest.release'
-    implementation 'com.google.flogger:flogger-system-backend:latest.release'
-    implementation 'com.google.code.findbugs:jsr305:latest.release'
-    implementation 'com.google.guava:guava:33.4.8-android'
-    implementation 'com.google.protobuf:protobuf-javalite:4.32.0'
+    implementation 'com.google.flogger:flogger:0.9'
+    implementation 'com.google.flogger:flogger-system-backend:0.9'
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation 'com.google.guava:guava:33.5.0-android'
+    implementation 'com.google.protobuf:protobuf-javalite:4.32.1'
 
     implementation 'com.sun.mail:android-mail:1.6.8'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
@@ -112,4 +118,12 @@ dependencies {
     kapt "com.google.auto.value:auto-value:$auto_value_version"
 
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
+
+    def compose_version = '1.9.2'
+    implementation "androidx.compose.ui:ui:$compose_version"
+    implementation "androidx.compose.material:material:$compose_version"
+    implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
+    implementation 'androidx.activity:activity-compose:1.11.0'
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
+    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
 }
