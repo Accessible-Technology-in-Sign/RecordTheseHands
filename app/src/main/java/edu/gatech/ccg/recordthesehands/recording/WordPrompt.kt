@@ -38,9 +38,9 @@ import androidx.compose.ui.unit.sp
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 
 @Composable
-fun WordPrompt(prompt: Prompt) {
+fun WordPrompt(prompt: Prompt, modifier: Modifier = Modifier) {
   Box(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxWidth()
       .padding(12.dp)
       .border(1.dp, Color.Black, shape = RoundedCornerShape(8.dp))

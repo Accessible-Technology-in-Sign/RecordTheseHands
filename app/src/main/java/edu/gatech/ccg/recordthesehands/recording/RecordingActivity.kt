@@ -24,8 +24,6 @@
 package edu.gatech.ccg.recordthesehands.recording
 
 import android.Manifest
-import androidx.activity.viewModels
-import androidx.compose.runtime.collectAsState
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -38,9 +36,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -58,6 +58,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -74,10 +75,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,7 +89,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -94,6 +98,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
@@ -101,6 +107,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
@@ -124,6 +131,7 @@ import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -471,21 +479,16 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     }
 
   private fun startCamera(onTick: (String) -> Unit) {
-    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
-    cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+    val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
     cameraProviderFuture.addListener({
       val cameraProvider = cameraProviderFuture.get()
-
-      // TODO Should this code be uncommented or deleted?
-      preview = Preview.Builder().build()//.also {
-      // it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
-      // }
+      preview = Preview.Builder().build()
 
       val recorder = Recorder.Builder()
         .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
         .build()
       videoCapture = VideoCapture.withOutput(recorder)
-      // TODO set framerate
+      // TODO set the framerate.
 
       cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
@@ -786,44 +789,149 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       val goTextVisible by viewModel.goTextVisible.collectAsState()
 
       val lifecycleOwner = LocalLifecycleOwner.current
-      var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
-
-      LaunchedEffect(cameraProvider) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this@RecordingActivity)
-        cameraProviderFuture.addListener({
-          val provider = cameraProviderFuture.get()
-          cameraProvider = provider
-          preview = Preview.Builder().build()
-
-          // TODO Should this sort of camera configuration code be called from within setContent?
-          val recorder = Recorder.Builder()
-            .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
-            .build()
-          videoCapture = VideoCapture.withOutput(recorder)
-
-          cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
-          try {
-            provider.unbindAll()
-            provider.bindToLifecycle(
-              lifecycleOwner, cameraSelector, preview, videoCapture
-            )
-            startCamera(
-              onTick = { viewModel.onTick(it) }
-            )
-            viewModel.setRecordingState(true)
-          } catch (exc: Exception) {
-            Log.e(TAG, "Use case binding failed", exc)
-          }
-        }, ContextCompat.getMainExecutor(this@RecordingActivity))
+      val context = LocalContext.current
+      val previewView = remember {
+        PreviewView(context).apply {
+          scaleType = PreviewView.ScaleType.FIT_CENTER
+        }
       }
-      Box(modifier = Modifier.fillMaxSize()) {
-        CameraPreviewComposable(preview)
+
+      LaunchedEffect(Unit) {
+        // This effect uses a snapshotFlow to safely observe the preview state.
+        // It will suspend until the preview is non-null, then set the surface
+        // provider once. This is the robust way to handle the asynchronous
+        // initialization of the camera preview.
+        snapshotFlow { preview }
+          .filterNotNull()
+          .first()
+          .setSurfaceProvider(previewView.surfaceProvider)
+      }
+
+      Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Color.Black)) {
         val pagerState = rememberPagerState(
           initialPage = 0,
           initialPageOffsetFraction = 0f
         ) {
-          sessionLimit - sessionStartIndex
+          sessionLimit - sessionStartIndex + 2
+        }
+        HorizontalPager(state = pagerState) { page ->
+          ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+            val (wordPrompt, cameraPreview, timerLabel, recordButtons, recordingLight, goText, backButton) = createRefs()
+
+            if (page < sessionLimit - sessionStartIndex && sessionStartIndex + page < prompts.array.size) {
+              WordPrompt(
+                prompt = prompts.array[sessionStartIndex + page],
+                modifier = Modifier.constrainAs(wordPrompt) {
+                  top.linkTo(parent.top)
+                  start.linkTo(parent.start)
+                  end.linkTo(parent.end)
+                  width = Dimension.matchParent
+                  height = Dimension.wrapContent
+                }
+              )
+              AndroidView(
+                factory = { context ->
+                  // Each page of the pager gets its own FrameLayout container.
+                  // This container is what the AndroidView manages the lifecycle of.
+                  FrameLayout(context)
+                },
+                update = { container ->
+                  if (previewView.parent !== container) {
+                    (previewView.parent as? ViewGroup)?.removeView(previewView)
+                    container.addView(previewView)
+                  }
+                },
+                onRelease = { container ->
+                  // When a page is scrolled out of view and its container is disposed,
+                  // this callback is invoked. We MUST remove our singleton PreviewView
+                  // from the container, otherwise it will be detached from the window
+                  // and its surface will be destroyed.
+                  container.removeView(previewView)
+                },
+                modifier = Modifier
+                  .constrainAs(cameraPreview) {
+                    top.linkTo(wordPrompt.bottom)
+                    bottom.linkTo(parent.bottom)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                    width = Dimension.fillToConstraints
+                    height = Dimension.fillToConstraints
+                  }
+              )
+              TimerLabel(
+                text = timerText,
+                modifier = Modifier.constrainAs(timerLabel) {
+                  bottom.linkTo(parent.bottom)
+                  start.linkTo(parent.start)
+                }
+              )
+              RecordButtons(
+                recordButtonVisible = recordButtonVisible,
+                restartButtonVisible = restartButtonVisible,
+                onRecordTouchEvent = { event ->
+                  recordButtonOnTouchListener(
+                    event,
+                    onStateChange = { record, restart ->
+                      viewModel.setButtonState(record, restart)
+                    })
+                },
+                onRestartTouchEvent = { event ->
+                  restartButtonOnTouchListener(
+                    event,
+                    onStateChange = { record, restart ->
+                      viewModel.setButtonState(record, restart)
+                    })
+                },
+                modifier = Modifier.constrainAs(recordButtons) {
+                  bottom.linkTo(parent.bottom)
+                  end.linkTo(parent.end)
+                }
+              )
+              RecordingLight(
+                isRecording = isRecording,
+                modifier = Modifier.constrainAs(recordingLight) {
+                  top.linkTo(parent.top)
+                  end.linkTo(parent.end)
+                }
+              )
+              GoText(
+                visible = goTextVisible,
+                onAnimationFinish = { viewModel.hideGoText() },
+                modifier = Modifier.constrainAs(goText) {
+                  top.linkTo(parent.top)
+                  bottom.linkTo(parent.bottom)
+                  start.linkTo(parent.start)
+                  end.linkTo(parent.end)
+                }
+              )
+              BackButton(
+                onClick = {
+                  dataManager.logToServer("User pressed back button to end recording.")
+                  concludeRecordingSession(RESULT_OK, "RESULT_OK")
+                },
+                modifier = Modifier.constrainAs(backButton) {
+                  top.linkTo(parent.top)
+                  start.linkTo(parent.start)
+                }
+              )
+            } else if (page == sessionLimit - sessionStartIndex) {
+              // TODO Replace this with the same functionality as end_of_recording_page.xml
+
+              // TODO Swiping right should be disabled for this page.  Swiping left (back)
+              // should still be allowed.
+              Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text("Swipe right to finish", color = Color.White, fontSize = 24.sp)
+              }
+            } else {
+              // TODO Replace this with the same functionality as the
+              // RecordingListFragment/RecordingListAdapter based behavior we had previously.
+              Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text("Corrections Page", color = Color.White, fontSize = 24.sp)
+              }
+            }
+          }
         }
         LaunchedEffect(pagerState.currentPage) {
           val newPage = pagerState.currentPage
@@ -855,61 +963,33 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
           if (promptIndex < sessionLimit) {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
             currentPromptIndex = promptIndex
-            runOnUiThread {
-              title = "${currentPromptIndex + 1} of ${prompts.array.size}"
-              viewModel.setButtonState(recordVisible = true, restartVisible = false)
-            }
+            title = "${currentPromptIndex + 1} of ${prompts.array.size}"
+            viewModel.setButtonState(recordVisible = true, restartVisible = false)
           } else if (promptIndex == sessionLimit) {
-            dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
+            dataManager.logToServer("selected confirm page (promptIndex ${promptIndex})")
             currentPromptIndex = promptIndex
             title = ""
             viewModel.setButtonState(recordVisible = false, restartVisible = false)
           } else {
-            dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-            if (!promptsMetadata.useCorrectionsPage) {
-              concludeRecordingSession(
-                RESULT_ACTIVITY_UNREACHABLE,
-                "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
-              )
-            }
-            title = ""
-            viewModel.setButtonState(recordVisible = false, restartVisible = false)
-            // pagerState.isUserInputEnabled = false // TODO: Find equivalent in Compose
+            if (!pagerState.isScrollInProgress) {
+              dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
+              if (!promptsMetadata.useCorrectionsPage) {
+                concludeRecordingSession(
+                  RESULT_ACTIVITY_UNREACHABLE,
+                  "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
+                )
+              }
+              title = ""
+              viewModel.setButtonState(recordVisible = false, restartVisible = false)
+              // pagerState.isUserInputEnabled = false // TODO: Find equivalent in Compose
 
-            sessionInfo.result = "ON_CORRECTIONS_PAGE"
-            setResult(RESULT_ACTIVITY_UNREACHABLE)
-            stopRecording()
-            countdownTimer.cancel()
-            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+              sessionInfo.result = "ON_CORRECTIONS_PAGE"
+              setResult(RESULT_ACTIVITY_UNREACHABLE)
+              stopRecording()
+              countdownTimer.cancel()
+              UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            }
           }
-        }
-        HorizontalPager(state = pagerState) { page ->
-          WordPrompt(prompts.array[sessionStartIndex + page])
-        }
-        TimerLabel(timerText)
-        RecordButtons(
-          recordButtonVisible = recordButtonVisible,
-          restartButtonVisible = restartButtonVisible,
-          onRecordTouchEvent = { event ->
-            recordButtonOnTouchListener(
-              event,
-              onStateChange = { record, restart ->
-                viewModel.setButtonState(record, restart)
-              })
-          },
-          onRestartTouchEvent = { event ->
-            restartButtonOnTouchListener(
-              event,
-              onStateChange = { record, restart ->
-                viewModel.setButtonState(record, restart)
-              })
-          }
-        )
-        RecordingLight(isRecording)
-        GoText(goTextVisible) { viewModel.hideGoText() }
-        BackButton {
-          dataManager.logToServer("User pressed back button to end recording.")
-          concludeRecordingSession(RESULT_OK, "RESULT_OK")
         }
       }
     }
@@ -1010,10 +1090,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     //   scaleRecordButton(binding.restartButton as Button)
     // }
 
-
-    // binding.recordingLightContainer.visibility = View.GONE
-
-
+    startCamera {
+      viewModel.onTick(it)
+    }
   }
 
 
@@ -1190,10 +1269,10 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
 
   @Composable
-  fun RecordingLight(isRecording: Boolean) {
+  fun RecordingLight(isRecording: Boolean, modifier: Modifier = Modifier) {
     if (isRecording) {
       Box(
-        modifier = Modifier
+        modifier = modifier
           .fillMaxSize()
           .padding(top = 200.dp, end = 30.dp),
         contentAlignment = Alignment.TopEnd
@@ -1219,13 +1298,14 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     recordButtonVisible: Boolean,
     restartButtonVisible: Boolean,
     onRecordTouchEvent: (MotionEvent) -> Unit,
-    onRestartTouchEvent: (MotionEvent) -> Unit
+    onRestartTouchEvent: (MotionEvent) -> Unit,
+    modifier: Modifier = Modifier
   ) {
     val hapticFeedback = LocalHapticFeedback.current
     val view = LocalView.current
 
     Box(
-      modifier = Modifier
+      modifier = modifier
         .fillMaxSize()
         .padding(bottom = 60.dp, end = 120.dp),
       contentAlignment = Alignment.BottomEnd
@@ -1299,9 +1379,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
 
   @Composable
-  fun TimerLabel(text: String) {
+  fun TimerLabel(text: String, modifier: Modifier = Modifier) {
     Box(
-      modifier = Modifier
+      modifier = modifier
         .fillMaxSize()
         .padding(15.dp),
       contentAlignment = Alignment.BottomStart
@@ -1320,24 +1400,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   }
 
   @Composable
-  fun CameraPreviewComposable(preview: Preview?) {
-    AndroidView(
-      factory = { context ->
-        PreviewView(context).apply {
-          layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-          )
-        }
-      },
-      update = { previewView ->
-        preview?.setSurfaceProvider(previewView.surfaceProvider)
-      }
-    )
-  }
-
-  @Composable
-  fun GoText(visible: Boolean, onAnimationFinish: () -> Unit) {
+  fun GoText(visible: Boolean, onAnimationFinish: () -> Unit, modifier: Modifier = Modifier) {
     if (visible) {
       val scale = remember { Animatable(0.5f) }
       LaunchedEffect(Unit) {
@@ -1345,7 +1408,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         onAnimationFinish()
       }
       Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
       ) {
         Text(
@@ -1363,9 +1426,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   }
 
   @Composable
-  fun BackButton(onClick: () -> Unit) {
+  fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-      modifier = Modifier
+      modifier = modifier
         .fillMaxSize()
         .padding(16.dp),
       contentAlignment = Alignment.TopStart
