@@ -31,7 +31,6 @@ import android.animation.ObjectAnimator
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -39,7 +38,6 @@ import android.util.TypedValue
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.CycleInterpolator
 import android.widget.Button
@@ -75,7 +73,6 @@ import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT
-import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityRecordBinding
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
@@ -442,16 +439,6 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       }
     }
 
-  /**
-   * Experimental values for portrait, landscape, tablet, non-tablet camera preview scaling.
-   */
-  private val originalPortraitWidthScaleFactor = 0.85f
-
-  private val originalLandscapeWidthScaleFactor = 0.5f
-
-  private val splitLandscapeWidthScaleFactor = 0.5f
-
-  private val splitPortraitHeightScaleFactor = 0.5f
 
   private fun startCamera() {
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -731,7 +718,10 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       json.put("filename", filename)
       json.put("endTimestamp", timestamp)
       dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
-      dataManager.registerFile(outputFile.relativeTo(applicationContext.filesDir).path, tutorialMode)
+      dataManager.registerFile(
+        outputFile.relativeTo(applicationContext.filesDir).path,
+        tutorialMode
+      )
       sessionInfo.endTimestamp = now
       sessionInfo.finalPromptIndex = currentPromptIndex
       dataManager.saveCurrentPromptIndex(currentPromptIndex)
@@ -944,29 +934,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       }
     })
 
-    // TODO clone from the original constraints.
-    val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
-    val currentOrientation = resources.configuration.orientation
 
-    val screenWidth = resources.displayMetrics.widthPixels
-    val screenHeight = resources.displayMetrics.heightPixels
-
-    val density = resources.displayMetrics.density
-    val widthDp = screenWidth / density
-    screenHeight / density
-
-    val desiredOriginalPortraitWidthPx =
-      calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
-    val desiredOriginalLandscapeWidthPx =
-      calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
-
-    setOriginalScreen(
-      binding.aspectRatioConstraint,
-      aspectRatioParams,
-      currentOrientation,
-      desiredOriginalPortraitWidthPx,
-      desiredOriginalLandscapeWidthPx
-    )
 
     startCamera()
   }
@@ -980,61 +948,22 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     displayMode: PromptDisplayMode?,
     height: Int
   ) {
-    val aspectRatioParams = binding.aspectRatioConstraint.layoutParams as LayoutParams
-
-    // Detects screen's orientation as portrait or landscape
-    val currentOrientation = resources.configuration.orientation
-
-    // These values depend on screen orientation
-    val screenWidth = resources.displayMetrics.widthPixels
-    val screenHeight = resources.displayMetrics.heightPixels
-
-    val density = resources.displayMetrics.density
-    val widthDp = screenWidth / density
-    val heightDp = screenHeight / density
-
-    val desiredOriginalPortraitWidthPx =
-      calculateScaledPixelWidth(widthDp, originalPortraitWidthScaleFactor)
-    val desiredOriginalLandscapeWidthPx =
-      calculateScaledPixelWidth(widthDp, originalLandscapeWidthScaleFactor)
-    val desiredSplitLandscapeWidthPx =
-      calculateScaledPixelWidth(widthDp, splitLandscapeWidthScaleFactor)
-    val desiredSplitPortraitHeightPx =
-      calculateScaledPixelWidth(heightDp, splitPortraitHeightScaleFactor)
-
     Log.i(TAG, "setting promptGuideline to height of ${height}")
     binding.promptGuideline.setGuidelineBegin(height)
 
+    resetConstraintLayout()
+
     when (displayMode) {
-      // Handles full-screening the camera preview
       PromptDisplayMode.FULL -> {
-        resetConstraintLayout()
-        // Same logic for both phone and tablet
-        setFullScreen(binding.aspectRatioConstraint, aspectRatioParams)
+        Log.d(TAG, "FULL display mode selected, defaulting to ORIGINAL")
       }
 
-      // Handles split-screening the camera preview
       PromptDisplayMode.SPLIT -> {
-        resetConstraintLayout()
-        setSplitScreen(
-          binding.aspectRatioConstraint,
-          aspectRatioParams,
-          currentOrientation,
-          desiredSplitPortraitHeightPx,
-          desiredSplitLandscapeWidthPx
-        )
+        Log.d(TAG, "SPLIT display mode selected, defaulting to ORIGINAL")
       }
 
-      // Handles minimizing the camera preview to original size
       PromptDisplayMode.ORIGINAL -> {
-        resetConstraintLayout()
-        setOriginalScreen(
-          binding.aspectRatioConstraint,
-          aspectRatioParams,
-          currentOrientation,
-          desiredOriginalPortraitWidthPx,
-          desiredOriginalLandscapeWidthPx
-        )
+        Log.d(TAG, "ORIGINAL display mode selected")
       }
 
       else -> {
@@ -1043,89 +972,6 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     }
   }
 
-  /**
-   * Sets the camera preview to default screen mode.
-   */
-  private fun setOriginalScreen(
-    aspectRatioLayout: View,
-    aspectRatioParams: LayoutParams,
-    currentOrientation: Int,
-    desiredOriginalPortraitWidthPx: Int,
-    desiredOriginalLandscapeWidthPx: Int
-  ) {
-    aspectRatioLayout.visibility = View.VISIBLE
-    // binding.recordingLightContainer.visibility = View.GONE
-    // aspectRatioLayout.layoutParams = aspectRatioParams
-    Log.d(TAG, "setOriginalScreen")
-  }
-
-  /**
-   * Sets the camera preview to split screen mode.
-   */
-  private fun setSplitScreen(
-    aspectRatioLayout: View,
-    aspectRatioParams: LayoutParams,
-    currentOrientation: Int,
-    desiredSplitPortraitHeightPx: Int,
-    desiredSplitLandscapeWidthPx: Int
-  ) {
-    Log.d(TAG, "setSplitScreen")
-    aspectRatioLayout.visibility = View.VISIBLE
-    if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
-      if (isTablet) {
-        aspectRatioParams.height = desiredSplitPortraitHeightPx
-        aspectRatioParams.width = (aspectRatioParams.height * (3f / 4f)).toInt()
-
-        aspectRatioParams.marginStart = 0
-        aspectRatioParams.bottomMargin = 0
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = R.id.sessionPager
-        Log.i(TAG, "Configuring Layout in Tablet Mode")
-      } else {
-        aspectRatioParams.height = desiredSplitPortraitHeightPx
-        aspectRatioParams.width = (aspectRatioParams.height * (3f / 4f)).toInt()
-
-        aspectRatioParams.marginStart = 0
-        aspectRatioParams.bottomMargin = 0
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = R.id.sessionPager
-        Log.i(TAG, "Configuring Layout in Phone Mode")
-      }
-      Log.i(TAG, "In split portrait")
-    } else if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-      if (isTablet) {
-        aspectRatioParams.width = desiredSplitLandscapeWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = 0
-        aspectRatioParams.bottomMargin = 100
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = LayoutParams.UNSET
-      } else {
-        aspectRatioParams.width = desiredSplitLandscapeWidthPx
-        aspectRatioParams.height = (aspectRatioParams.width * (3f / 4f)).toInt()
-        aspectRatioParams.topMargin = 100
-        aspectRatioParams.marginStart = 0
-        aspectRatioParams.bottomMargin = 100
-        aspectRatioParams.startToStart = ViewGroup.LayoutParams.MATCH_PARENT
-        aspectRatioParams.endToEnd = LayoutParams.UNSET
-      }
-      Log.i(TAG, "In split landscape")
-    }
-    aspectRatioLayout.layoutParams = aspectRatioParams
-  }
-
-  /**
-   * Sets the camera preview to full screen mode.
-   */
-  private fun setFullScreen(
-    aspectRatioLayout: View,
-    aspectRatioParams: LayoutParams
-  ) {
-    Log.d(TAG, "setFullScreen")
-    aspectRatioLayout.visibility = View.GONE
-    // aspectRatioLayout.layoutParams = aspectRatioParams
-  }
 
   /**
    * Function to scale down the overly large record button on non-tablet devices.
@@ -1155,18 +1001,6 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
       setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
     }
-  }
-
-  /**
-   * Calculates pixel width given a scaling factor and returns the dp integer value.
-   */
-  private fun calculateScaledPixelWidth(pixelWidthDensity: Float, scaleFactor: Float): Int {
-    val scaledPixelDensityWidth = pixelWidthDensity * scaleFactor
-    return TypedValue.applyDimension(
-      TypedValue.COMPLEX_UNIT_DIP,
-      scaledPixelDensityWidth,
-      resources.displayMetrics
-    ).toInt()
   }
 
   private fun animateGoText() {

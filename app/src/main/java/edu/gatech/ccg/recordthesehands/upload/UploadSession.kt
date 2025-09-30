@@ -33,7 +33,6 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.io.InterruptedIOException
 import java.net.URL
 import java.security.MessageDigest
 import javax.net.ssl.HttpsURLConnection
@@ -42,13 +41,15 @@ class UploadSession(
   private val dataManager: DataManager,
   private val registeredFile: RegisteredFile
 ) {
-  private val relativePath: String get() {
-    return registeredFile.relativePath
-  }
+  private val relativePath: String
+    get() {
+      return registeredFile.relativePath
+    }
 
-  private val loginToken: String get() {
-    return dataManager.dataManagerData.loginToken!!
-  }
+  private val loginToken: String
+    get() {
+      return dataManager.dataManagerData.loginToken!!
+    }
 
   companion object {
     private val TAG = UploadSession::class.simpleName
@@ -125,7 +126,8 @@ class UploadSession(
     }
     Log.i(TAG, "Getting Upload link: \"${relativePath}\"")
     val url = URL(registeredFile.uploadLink)
-    val md5Base64 = Base64.encode(fromHex(registeredFile.md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
+    val md5Base64 =
+      Base64.encode(fromHex(registeredFile.md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
     val (code, _, outputFromHeader) =
       dataManager.serverRequest(
         url,
@@ -221,7 +223,10 @@ class UploadSession(
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(registeredFile.fileSize!! - numSavedBytes)
       urlConnection.requestMethod = "PUT"
-      urlConnection.setRequestProperty("Content-Length", "${registeredFile.fileSize!! - numSavedBytes}")
+      urlConnection.setRequestProperty(
+        "Content-Length",
+        "${registeredFile.fileSize!! - numSavedBytes}"
+      )
       urlConnection.setRequestProperty(
         "Content-Range",
         "bytes $numSavedBytes-${registeredFile.fileSize!! - 1L}/${registeredFile.fileSize!!}"

@@ -65,7 +65,7 @@ class RegisteredFile(
       val keyObject = stringPreferencesKey(relativePath)
       context.registerFileStore.edit { preferences ->
         preferences[keyObject] = JSONObject().apply {
-           put("tutorialMode", tutorialMode)
+          put("tutorialMode", tutorialMode)
         }.toString()
       }
     }

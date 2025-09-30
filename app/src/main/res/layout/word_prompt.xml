@@ -115,18 +115,6 @@
                 android:src="@drawable/full_screen_button"
                 android:visibility="visible"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/disableSplitScreenButton"
-                app:tint="@color/white" />
-
-            <ImageButton
-                android:id="@+id/disableSplitScreenButton"
-                android:layout_width="50dp"
-                android:layout_height="48dp"
-                android:layout_marginBottom="0dp"
-                android:backgroundTint="@android:color/transparent"
-                android:src="@drawable/disable_split_screen_button"
-                android:visibility="visible"
-                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/splitScreenButton"
                 app:tint="@color/white" />
 
@@ -170,12 +158,5 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!--    <androidx.constraintlayout.widget.Barrier-->
-    <!--        android:id="@+id/rightBarrier"-->
-    <!--        android:layout_width="wrap_content"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        app:barrierDirection="start"-->
-    <!--        app:constraint_referenced_ids="promptImage,promptVideo" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
