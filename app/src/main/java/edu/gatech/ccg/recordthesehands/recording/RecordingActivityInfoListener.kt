@@ -28,11 +28,11 @@ package edu.gatech.ccg.recordthesehands.recording
  * mode changes to [RecordingActivity].
  */
 enum class PromptDisplayMode {
-    FULL,
-    SPLIT,
-    ORIGINAL
+  FULL,
+  SPLIT,
+  ORIGINAL
 }
 
 interface RecordingActivityInfoListener {
-    fun onActivityInfoChanged(displayMode: PromptDisplayMode?, height: Int)
+  fun onActivityInfoChanged(displayMode: PromptDisplayMode?, height: Int)
 }

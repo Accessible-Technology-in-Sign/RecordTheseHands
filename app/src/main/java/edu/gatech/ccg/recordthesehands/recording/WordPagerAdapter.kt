@@ -28,6 +28,7 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
+import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 
 /**
  * The Adapter for swiping through the prompts.  The name "Word" is in
@@ -35,12 +36,12 @@ import edu.gatech.ccg.recordthesehands.summary.RecordingListFragment
  */
 class WordPagerAdapter(
   private var recordingActivity: RecordingActivity,
-  private val useSummaryPage: Boolean,
+  private val promptsMetadata: PromptsSectionMetadata,
 ) : FragmentStateAdapter(recordingActivity) {
 
   val numPromptPages = recordingActivity.sessionLimit - recordingActivity.sessionStartIndex
   override fun getItemCount(): Int {
-    if (useSummaryPage) {
+    if (promptsMetadata.useCorrectionsPage) {
       return numPromptPages + 2
     }
     return numPromptPages + 1
@@ -53,7 +54,11 @@ class WordPagerAdapter(
       val prompt = recordingActivity.prompts.array[recordingActivity.sessionStartIndex + position]
       return WordPromptFragment(prompt, R.layout.word_prompt)
     } else if (position == numPromptPages) {
-      return SaveRecordingFragment(recordingActivity.prompts.array, R.layout.end_of_recording_page)
+      return SaveRecordingFragment(
+        recordingActivity,
+        recordingActivity.prompts.array,
+        R.layout.end_of_recording_page
+      )
     } else {
       return RecordingListFragment(
         recordingActivity, R.layout.recording_list

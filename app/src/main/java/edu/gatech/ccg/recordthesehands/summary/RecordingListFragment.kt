@@ -23,6 +23,7 @@
  */
 package edu.gatech.ccg.recordthesehands.summary
 
+import android.app.Activity.RESULT_OK
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -68,7 +69,7 @@ class RecordingListFragment(
     binding.closeSession.setOnTouchListener(::hapticFeedbackOnTouchListener)
     binding.closeSession.setOnClickListener {
       binding.closeSession.isEnabled = false
-      activity.concludeRecordingSession()
+      activity.concludeRecordingSession(RESULT_OK, "RESULT_OK")
     }
 
     // Hide the loading spinner and gray-out screen once the view is loaded.

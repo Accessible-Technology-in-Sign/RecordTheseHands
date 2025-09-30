@@ -23,21 +23,50 @@
  */
 package edu.gatech.ccg.recordthesehands.recording
 
+import android.app.Activity.RESULT_OK
+import android.content.Context
+import android.graphics.Rect
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.LayoutRes
+import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import edu.gatech.ccg.recordthesehands.databinding.EndOfRecordingPageBinding
+import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 
-class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes layout: Int) :
+class SaveRecordingFragment(
+  private var recordingActivity: RecordingActivity,
+  private var prompts: ArrayList<Prompt>,
+  @LayoutRes layout: Int
+) :
   Fragment(layout) {
 
   private var _binding: EndOfRecordingPageBinding? = null
   private val binding get() = _binding!!
+
+  private var infoListener: RecordingActivityInfoListener? = null
+
+  /**
+   * Binds the fragment to [RecordingActivity]. Checks if it properly implements [RecordingActivityInfoListener] interface.
+   */
+  override fun onAttach(context: Context) {
+    super.onAttach(context)
+    if (context is RecordingActivityInfoListener) {
+      infoListener = context
+    }
+  }
+
+  /**
+   * Unbinds the fragment when finished with the activity.
+   */
+  override fun onDetach() {
+    super.onDetach()
+    infoListener = null
+  }
 
   override fun onCreateView(
     inflater: LayoutInflater,
@@ -51,13 +80,38 @@ class SaveRecordingFragment(private var prompts: ArrayList<Prompt>, @LayoutRes l
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
 
-    for (prompt in prompts) {
-      val tv = TextView(requireContext()).apply {
-        text = prompt.prompt
-        textSize = 20f
-        setPadding(0, 0, 0, 0)
-      }
-      binding.signedPromptsList.addView(tv)
+    binding.promptView.doOnLayout {
+      notifyDisplayMode(PromptDisplayMode.ORIGINAL)
+    }
+    // Set the save button to finish the recording activity when pressed.
+    binding.finishButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    binding.finishButton.setOnClickListener {
+      binding.finishButton.isEnabled = false
+      recordingActivity.concludeRecordingSession(RESULT_OK, "RESULT_OK")
+    }
+
+  }
+
+  override fun onResume() {
+    super.onResume()
+    // The view is already laid out when this is called on subsequent page views,
+    // so we can notify the listener directly. The initial call is handled by
+    // the doOnLayout in onViewCreated.
+    if (binding.promptView.height > 0) {
+      notifyDisplayMode(PromptDisplayMode.ORIGINAL)
     }
   }
+
+  /**
+   * Calculates the position of the prompt view and notifies the listener with the
+   * correct height, so the camera preview can be positioned correctly.
+   */
+  private fun notifyDisplayMode(mode: PromptDisplayMode) {
+    val offsetViewBounds = Rect()
+    val target = binding.promptView
+    val margin = 10
+    binding.root.offsetDescendantRectToMyCoords(target, offsetViewBounds)
+    infoListener?.onActivityInfoChanged(mode, offsetViewBounds.top + target.bottom + margin)
+  }
+
 }

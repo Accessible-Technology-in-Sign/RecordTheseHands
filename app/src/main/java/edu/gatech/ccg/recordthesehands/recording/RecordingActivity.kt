@@ -68,6 +68,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
@@ -82,6 +83,7 @@ import edu.gatech.ccg.recordthesehands.toHex
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
+import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -325,9 +327,9 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
   lateinit var prompts: Prompts
 
   /**
-   * Whether to use the summary page.
+   * The prompts data.
    */
-  var useSummaryPage = false
+  lateinit var promptsMetadata: PromptsSectionMetadata
 
   // Recording and session data
   /**
@@ -599,26 +601,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
         runOnUiThread {
           setButtonState(binding.recordButton, false)
           setButtonState(binding.restartButton, true)
-          setButtonState(binding.finishedButton, false)
         }
-      }
-    }
-    return true
-  }
-
-  private fun finishedButtonOnTouchListener(view: View, event: MotionEvent): Boolean {
-    Log.d(TAG, "finishedButtonOnTouchListener ${event}")
-    when (event.action) {
-      MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        dataManager.logToServer("finishedButton down")
-        goToSummaryPage()
-      }
-
-      MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
-        Log.e(TAG, "Finished button should already be gone.")
-        dataManager.logToServer("finishedButton up")
       }
     }
     return true
@@ -651,7 +634,6 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
         runOnUiThread {
           setButtonState(binding.recordButton, false)
           setButtonState(binding.restartButton, true)
-          setButtonState(binding.finishedButton, false)
           animateGoText()
         }
       }
@@ -674,10 +656,8 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
   fun goToSummaryPage() {
     isSigning = false
 
-    if (!useSummaryPage) {
-      sessionInfo.result = "RESULT_OK"
-      setResult(RESULT_OK)
-      concludeRecordingSession()
+    if (!promptsMetadata.useCorrectionsPage) {
+      concludeRecordingSession(RESULT_OK, "RESULT_OK")
     }
     runOnUiThread {
       // Move to the next prompt and allow the user to swipe back and forth.
@@ -709,10 +689,8 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     // This should be completely unreachable.
     super.onRestart()
     stopRecording()
-    sessionInfo.result = "RESULT_ACTIVITY_UNREACHABLE"
-    setResult(RESULT_ACTIVITY_UNREACHABLE)
     dataManager.logToServer("onRestart called.")
-    concludeRecordingSession()
+    concludeRecordingSession(RESULT_ACTIVITY_UNREACHABLE, "ON_RESTART")
   }
 
   private fun resetConstraintLayout() {
@@ -730,9 +708,7 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
     dataManager.logToServer("onStop called.")
-    sessionInfo.result = "RESULT_ACTIVITY_STOPPED"
-    setResult(RESULT_ACTIVITY_STOPPED)
-    concludeRecordingSession()
+    concludeRecordingSession(RESULT_ACTIVITY_STOPPED, "RESULT_ACTIVITY_STOPPED")
   }
 
   /**
@@ -823,11 +799,13 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
       throw IllegalStateException("Prompt state not available.")
     }
     this.prompts = tmpCurrentPrompts
+    val tmpMetadata = initialState.currentPromptsMetadata
+    if (tmpMetadata == null) {
+      throw IllegalStateException("Prompts Metadata not available.")
+    }
+    this.promptsMetadata = tmpMetadata
     this.sessionStartIndex = tmpCurrentPromptIndex
     this.currentPromptIndex = tmpCurrentPromptIndex
-    this.useSummaryPage =
-      initialState.promptsCollection?.sections?.get(initialState.currentSectionName)?.metadata?.useSummaryPage
-        ?: false
     username = initialState.username ?: throw IllegalStateException("username not available.")
     tutorialMode = initialState.tutorialMode
     val sessionType = if (tutorialMode) "tutorial" else "normal"
@@ -849,6 +827,9 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     sessionInfo.startTimestamp = sessionStartTime
     runBlocking { dataManager.saveSessionInfo(sessionInfo) }
 
+    sessionInfo.result = "RESULT_FAILED"
+    setResult(RESULT_ACTIVITY_FAILED)
+
     dataManager.logToServer(
       "Setting up recording with filename ${filename} for prompts " +
           "[${sessionStartIndex}, ${sessionLimit})"
@@ -859,32 +840,26 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
     setButtonState(binding.recordButton, true)
     setButtonState(binding.restartButton, false)
-    setButtonState(binding.finishedButton, false)
 
     binding.recordButton.isHapticFeedbackEnabled = true
     binding.restartButton.isHapticFeedbackEnabled = true
-    binding.finishedButton.isHapticFeedbackEnabled = true
 
     binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
     binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
-    binding.finishedButton.setOnTouchListener(::finishedButtonOnTouchListener)
 
     if (!isTablet) {
       scaleRecordButton(binding.recordButton as Button)
       scaleRecordButton(binding.restartButton as Button)
-      scaleRecordButton(binding.finishedButton as Button)
     }
 
     binding.backButton.setOnClickListener {
-      sessionInfo.result = "RESULT_OK"
-      setResult(RESULT_OK)
       dataManager.logToServer("User pressed back button to end recording.")
-      concludeRecordingSession()
+      concludeRecordingSession(RESULT_OK, "RESULT_OK")
     }
 
     binding.recordingLightContainer.visibility = View.GONE
 
-    binding.sessionPager.adapter = WordPagerAdapter(this, useSummaryPage)
+    binding.sessionPager.adapter = WordPagerAdapter(this, promptsMetadata)
 
     // Set up swipe handler for the word selector UI
     binding.sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -930,7 +905,6 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
             setButtonState(binding.recordButton, true)
             setButtonState(binding.restartButton, false)
-            setButtonState(binding.finishedButton, false)
           }
         } else if (promptIndex == sessionLimit) {
           dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
@@ -943,24 +917,23 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
 
           setButtonState(binding.recordButton, false)
           setButtonState(binding.restartButton, false)
-          setButtonState(binding.finishedButton, true)
         } else {
           dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-          if (!useSummaryPage) {
+          if (!promptsMetadata.useCorrectionsPage) {
             // Shouldn't happen, but just in case.
-            sessionInfo.result = "RESULT_ACTIVITY_UNREACHABLE"
-            setResult(RESULT_ACTIVITY_UNREACHABLE)
-            concludeRecordingSession()
+            concludeRecordingSession(
+              RESULT_ACTIVITY_UNREACHABLE,
+              "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
+            )
           }
           title = ""
 
           setButtonState(binding.recordButton, false)
           setButtonState(binding.restartButton, false)
-          setButtonState(binding.finishedButton, false)
           binding.sessionPager.isUserInputEnabled = false
 
           sessionInfo.result = "ON_CORRECTIONS_PAGE"
-          setResult(RESULT_OK)
+          setResult(RESULT_ACTIVITY_UNREACHABLE)
           stopRecording()
           countdownTimer.cancel()
           UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
@@ -1295,7 +1268,14 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
    * Finish the recording session and close the activity.
    * Set sessionInfo.result and setResult() before calling this function.
    */
-  fun concludeRecordingSession() {
+  fun concludeRecordingSession(result: Int? = null, resultString: String? = null) {
+    if (result != null) {
+      setResult(result)
+    }
+    if (resultString != null) {
+      sessionInfo.result = resultString
+    }
+
     stopRecording()
     countdownTimer.cancel()
     saveRecordingData()

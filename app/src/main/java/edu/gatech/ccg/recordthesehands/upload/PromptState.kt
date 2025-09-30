@@ -21,6 +21,11 @@ data class PromptState(
       }
     }
 
+  val currentPromptsMetadata: PromptsSectionMetadata?
+    get() {
+      return promptsCollection?.sections?.get(currentSectionName)?.metadata
+    }
+
   val currentPromptIndex: Int?
     get() {
       return if (currentSectionName != null) {

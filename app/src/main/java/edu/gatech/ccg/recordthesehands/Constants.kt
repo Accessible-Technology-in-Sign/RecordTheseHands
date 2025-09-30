@@ -47,19 +47,19 @@ object Constants {
   const val MAX_RECORDINGS_IN_SITTING = 20
 
   /**
-   * Result code for when the RecordingActivity finishes normally.
+   * Result code for when the RecordingActivity fails because we lost access to the camera.
    */
-  const val RESULT_OK = 0
+  const val RESULT_ACTIVITY_FAILED = 1
 
   /**
    * Result code for when the RecordingActivity fails because we lost access to the camera.
    */
-  const val RESULT_ACTIVITY_STOPPED = 1
+  const val RESULT_ACTIVITY_STOPPED = 2
 
   /**
    * Result code for when the RecordingActivity fails because we lost access to the camera.
    */
-  const val RESULT_ACTIVITY_UNREACHABLE = 2
+  const val RESULT_ACTIVITY_UNREACHABLE = 3
 
   /**
    * Record video at 15 Mbps. At 1944x2592 @ 30 fps, this level of detail should be more
