@@ -59,6 +59,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
@@ -814,6 +816,76 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       }
       Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewComposable(preview)
+        val pagerState = rememberPagerState(
+          initialPage = 0,
+          initialPageOffsetFraction = 0f
+        ) {
+          sessionLimit - sessionStartIndex
+        }
+        LaunchedEffect(pagerState.currentPage) {
+          val newPage = pagerState.currentPage
+          if (currentClipDetails != null) {
+            val now = Instant.now()
+            DateTimeFormatter.ISO_INSTANT.format(now)
+            if (currentPage < newPage) {
+              // Swiped forward
+              currentClipDetails!!.swipeForwardTimestamp = now
+            } else {
+              // Swiped backwards
+              currentClipDetails!!.swipeBackTimestamp = now
+            }
+            currentClipDetails!!.lastModifiedTimestamp = now
+            val saveClipDetails = currentClipDetails!!
+            currentClipDetails = null
+            CoroutineScope(Dispatchers.IO).launch {
+              dataManager.saveClipData(saveClipDetails)
+            }
+          }
+          currentPage = newPage
+          if (endSessionOnClipEnd) {
+            currentPromptIndex += 1
+            goToSummaryPage()
+            return@LaunchedEffect
+          }
+          val promptIndex = sessionStartIndex + currentPage
+
+          if (promptIndex < sessionLimit) {
+            dataManager.logToServer("selected page for promptIndex ${promptIndex}")
+            currentPromptIndex = promptIndex
+            runOnUiThread {
+              title = "${currentPromptIndex + 1} of ${prompts.array.size}"
+              recordButtonVisible = true
+              restartButtonVisible = false
+            }
+          } else if (promptIndex == sessionLimit) {
+            dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
+            currentPromptIndex = promptIndex
+            title = ""
+            recordButtonVisible = false
+            restartButtonVisible = false
+          } else {
+            dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
+            if (!promptsMetadata.useCorrectionsPage) {
+              concludeRecordingSession(
+                RESULT_ACTIVITY_UNREACHABLE,
+                "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
+              )
+            }
+            title = ""
+            recordButtonVisible = false
+            restartButtonVisible = false
+            // pagerState.isUserInputEnabled = false // TODO: Find equivalent in Compose
+
+            sessionInfo.result = "ON_CORRECTIONS_PAGE"
+            setResult(RESULT_ACTIVITY_UNREACHABLE)
+            stopRecording()
+            countdownTimer.cancel()
+            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+          }
+        }
+        HorizontalPager(state = pagerState) { page ->
+          WordPrompt(prompts.array[sessionStartIndex + page])
+        }
         TimerLabel(timerText)
         RecordButtons(
           recordButtonVisible = recordButtonVisible,
@@ -943,91 +1015,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
     // binding.recordingLightContainer.visibility = View.GONE
 
-    // binding.sessionPager.adapter = WordPagerAdapter(this, promptsMetadata)
-
-    // Set up swipe handler for the word selector UI
-    // binding.sessionPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-    //   /**
-    //    * Page changed
-    //    */
-    //   override fun onPageSelected(position: Int) {
-    //     Log.d(
-    //       TAG,
-    //       "onPageSelected(${position}) sessionPager.currentItem ${binding.sessionPager.currentItem} currentPage (before updating) ${currentPage}"
-    //     )
-    //     if (currentClipDetails != null) {
-    //       val now = Instant.now()
-    //       DateTimeFormatter.ISO_INSTANT.format(now)
-    //       if (currentPage < binding.sessionPager.currentItem) {
-    //         // Swiped forward (currentPage is still the old value)
-    //         currentClipDetails!!.swipeForwardTimestamp = now
-    //       } else {
-    //         // Swiped backwards (currentPage is still the old value)
-    //         currentClipDetails!!.swipeBackTimestamp = now
-    //       }
-    //       currentClipDetails!!.lastModifiedTimestamp = now
-    //       val saveClipDetails = currentClipDetails!!
-    //       currentClipDetails = null
-    //       CoroutineScope(Dispatchers.IO).launch {
-    //         dataManager.saveClipData(saveClipDetails)
-    //       }
-    //     }
-    //     currentPage = binding.sessionPager.currentItem
-    //     super.onPageSelected(currentPage)
-    //     if (endSessionOnClipEnd) {
-    //       currentPromptIndex += 1
-    //       goToSummaryPage()
-    //       return
-    //     }
-    //     val promptIndex = sessionStartIndex + currentPage
-
-    //     if (promptIndex < sessionLimit) {
-    //       dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-    //       currentPromptIndex = promptIndex
-    //       runOnUiThread {
-    //         title = "${currentPromptIndex + 1} of ${prompts.array.size}"
-
-    //         setButtonState(binding.recordButton, true)
-    //         setButtonState(binding.restartButton, false)
-    //       }
-    //     } else if (promptIndex == sessionLimit) {
-    //       dataManager.logToServer("selected last chance page (promptIndex ${promptIndex})")
-    //       currentPromptIndex = promptIndex
-    //       /**
-    //        * Page to give the user a chance to swipe back and record more before
-    //        * finishing.
-    //        */
-    //       title = ""
-
-    //       setButtonState(binding.recordButton, false)
-    //       setButtonState(binding.restartButton, false)
-    //     } else {
-    //       dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-    //       if (!promptsMetadata.useCorrectionsPage) {
-    //         // Shouldn't happen, but just in case.
-    //         concludeRecordingSession(
-    //           RESULT_ACTIVITY_UNREACHABLE,
-    //           "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
-    //         )
-    //       }
-    //       title = ""
-
-    //       setButtonState(binding.recordButton, false)
-    //       setButtonState(binding.restartButton, false)
-    //       binding.sessionPager.isUserInputEnabled = false
-
-    //       sessionInfo.result = "ON_CORRECTIONS_PAGE"
-    //       setResult(RESULT_ACTIVITY_UNREACHABLE)
-    //       stopRecording()
-    //       countdownTimer.cancel()
-    //       UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-    //       // The RecordingListFragment has a button which calls concludeRecordingSession()
-    //       // If anything goes wrong, then the lifecycle of this activity should
-    //       // call concludeRecordingSession() anyway.
-    //     }
-    //   }
-    // })
-
 
   }
 
@@ -1128,12 +1115,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     )
     notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
 
-    // Set adapter to null to make the Garbage Collector's job easier.  If context or views
-    // are leaked in the adapter in, for example, listeners, setting the adapter to null
-    // might still allow them to be garbage collected.
-    runOnUiThread {
-      // binding.sessionPager.adapter = null
-    }
+
     finish()
   }
 
