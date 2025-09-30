@@ -34,6 +34,7 @@ import android.util.TypedValue
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.Toast
@@ -49,7 +50,15 @@ import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
-import androidx.compose.material.Text
+import androidx.camera.view.PreviewView
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
@@ -392,7 +401,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   // CameraX variables
   private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
   private lateinit var cameraSelector: CameraSelector
-  private var preview: Preview? = null
+  private var preview by mutableStateOf<Preview?>(null)
   private var videoCapture: VideoCapture<Recorder>? = null
   private var recording: Recording? = null
 
@@ -429,7 +438,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         }
       }
     }
-
 
   private fun startCamera() {
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -737,7 +745,36 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContent {
-      Text("Hello Compose!")
+      val lifecycleOwner = LocalLifecycleOwner.current
+      var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+
+      LaunchedEffect(cameraProvider) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this@RecordingActivity)
+        cameraProviderFuture.addListener({
+          val provider = cameraProviderFuture.get()
+          cameraProvider = provider
+          preview = Preview.Builder().build()
+
+          val recorder = Recorder.Builder()
+            .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+            .build()
+          videoCapture = VideoCapture.withOutput(recorder)
+
+          cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+
+          try {
+            provider.unbindAll()
+            provider.bindToLifecycle(
+              lifecycleOwner, cameraSelector, preview, videoCapture
+            )
+            startRecording()
+            isRecording = true
+          } catch (exc: Exception) {
+            Log.e(TAG, "Use case binding failed", exc)
+          }
+        }, ContextCompat.getMainExecutor(this@RecordingActivity))
+      }
+      CameraPreviewComposable(preview)
     }
 
     windowInsetsController =
@@ -929,8 +966,8 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     // })
 
 
-    startCamera()
   }
+
 
   /**
    * Takes a [PromptDisplayMode] enum value from [WordPromptFragment] and adjusts camera preview
@@ -1196,4 +1233,22 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   }
 
 } // RecordingActivity
+
+@Composable
+fun CameraPreviewComposable(preview: Preview?) {
+  AndroidView(
+    factory = { context ->
+      PreviewView(context).apply {
+        layoutParams = ViewGroup.LayoutParams(
+          ViewGroup.LayoutParams.MATCH_PARENT,
+          ViewGroup.LayoutParams.MATCH_PARENT
+        )
+      }
+    },
+    update = { previewView ->
+      preview?.setSurfaceProvider(previewView.surfaceProvider)
+    }
+  )
+}
+
 
