@@ -811,9 +811,9 @@ class RecordingActivity : AppCompatActivity(), RecordingActivityInfoListener {
     val sessionType = if (tutorialMode) "tutorial" else "normal"
     val sessionId = runBlocking { dataManager.newSessionId() }
     if (tutorialMode) {
-      filename = "tutorial-${username}-${sessionId}-${timestamp}.mp4"
+      filename = "tutorial-${sessionId}-${timestamp}.mp4"
     } else {
-      filename = "${username}-${sessionId}-${timestamp}.mp4"
+      filename = "${sessionId}-${timestamp}.mp4"
     }
     outputFile = filenameToFilepath(filename)
     val sessionLength =

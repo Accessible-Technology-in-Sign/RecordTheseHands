@@ -55,7 +55,7 @@ def delete_collection_recursive(c_ref):
 
 
 def print_directives(username):
-  """Create a directive for the given user."""
+  """Print all the directives for the given user."""
   db = firestore.Client()
   c_ref = db.collection(f'collector/users/{username}/data/directive')
   max_sequence_number = -1
@@ -147,7 +147,6 @@ def main():
         '    setTutorialMode [true|false]',
         '    cancel DIRECTIVE_ID',
         '    deleteUser',
-        '    getState',
         sep='\n      ',
         file=sys.stderr,
     )
@@ -201,8 +200,6 @@ def main():
     cancel_directive(sys.argv[1], directive_id)
   elif sys.argv[2] == 'deleteUser':
     delete_user(sys.argv[1])
-  elif sys.argv[2] == 'getState':
-    print_state(sys.argv[1])
   else:
     raise AssertionError(f'Unknown Operation {sys.argv[2]}. Full command line: ' +
                          ' '.join(sys.argv))

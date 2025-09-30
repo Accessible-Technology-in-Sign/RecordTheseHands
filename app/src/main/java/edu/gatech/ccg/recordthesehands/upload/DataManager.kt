@@ -985,7 +985,7 @@ class DataManager(val context: Context) {
    * This function acquires the data lock to get the device ID. It also performs a read/write
    * operation on `DataStore` to update the session index. It may block.
    *
-   * @return A unique session ID string (e.g., "abcdef12-s001").
+   * @return A unique session ID string (e.g., "user-abcdef12-s001").
    */
   suspend fun newSessionId(): String {
     dataManagerData.lock.withLock {
@@ -996,7 +996,7 @@ class DataManager(val context: Context) {
         preferences[keyObject] = (preferences[keyObject] ?: 0) + 1
       }
       val sessionIndex = oldValue[keyObject] ?: 0
-      return "${deviceId}-${username}-s${padZeroes(sessionIndex, 3)}"
+      return "${username}-${deviceId}-s${padZeroes(sessionIndex, 3)}"
     }
   }
 
@@ -1136,7 +1136,9 @@ class DataManager(val context: Context) {
     val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
     val filesJson = JSONArray().apply {
       for (registeredFile in registeredFiles) {
-        put(registeredFile.toJson())
+        val entry = registeredFile.toJson()
+        entry.put("relativePath", registeredFile.relativePath)
+        put(entry)
       }
     }
     json.put("registeredFiles", filesJson)
@@ -1145,7 +1147,7 @@ class DataManager(val context: Context) {
     json.put("localFiles", localFilesJson)
     context.filesDir.walk().forEach {
       if (it.isFile) {
-        val entryJson = JSONObject(it.path)
+        val entryJson = JSONObject()
         entryJson.put("path", it.path)
         localFilesJson.put(entryJson)
       }

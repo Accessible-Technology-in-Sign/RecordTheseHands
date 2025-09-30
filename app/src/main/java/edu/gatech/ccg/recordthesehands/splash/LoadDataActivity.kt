@@ -111,6 +111,9 @@ class LoadDataActivity : AppCompatActivity() {
       val adminPassword = binding.adminPasswordTextField.text.toString()
       lifecycleScope.launch(Dispatchers.IO) {
         val result = dataManager.createAccount(username, adminPassword)
+        if (result) {
+          finish()
+        }
         runOnUiThread {
           AlertDialog.Builder(this@LoadDataActivity).apply {
             if (result) {
@@ -119,7 +122,6 @@ class LoadDataActivity : AppCompatActivity() {
               binding.createAccountButton.isEnabled = true
               binding.createAccountButton.isClickable = true
               binding.createAccountButton.text = "Create account"
-              finish()
             } else {
               setTitle("Failed")
               setMessage("Failed to Create account for \"$username\".")
