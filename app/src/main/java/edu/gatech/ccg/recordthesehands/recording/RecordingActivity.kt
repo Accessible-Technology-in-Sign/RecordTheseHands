@@ -1334,26 +1334,26 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
               awaitPointerEventScope {
                 while (true) {
                   val event = awaitPointerEvent()
-                  val motionEvent = event.changes.first().historical.first().uptimeMillis.let {
-                    MotionEvent.obtain(
-                      it,
-                      it,
-                      event.changes.first().pressed.let { if (it) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP },
-                      event.changes.first().position.x,
-                      event.changes.first().position.y,
-                      0
-                    )
-                  }
+                  val motionEvent = MotionEvent.obtain(
+                    event.changes.first().uptimeMillis,
+                    event.changes.first().uptimeMillis,
+                    if (event.changes.first().pressed) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP,
+                    event.changes.first().position.x,
+                    event.changes.first().position.y,
+                    0
+                  )
                   onRecordTouchEvent(motionEvent)
                   if (event.changes.first().pressed) {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                  } else {
-                    // No haptic feedback on release, as it's not standard UX in Compose.
                   }
                 }
               }
             },
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6200EE))
+            colors = ButtonDefaults.buttonColors(
+              backgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.ButtonGreen,
+              contentColor = Color.White,
+              disabledBackgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.AlertRed
+            )
           ) {
             Text(text = stringResource(R.string.record), color = Color.White)
           }
@@ -1365,26 +1365,26 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
               awaitPointerEventScope {
                 while (true) {
                   val event = awaitPointerEvent()
-                  val motionEvent = event.changes.first().historical.first().uptimeMillis.let {
-                    MotionEvent.obtain(
-                      it,
-                      it,
-                      event.changes.first().pressed.let { if (it) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP },
-                      event.changes.first().position.x,
-                      event.changes.first().position.y,
-                      0
-                    )
-                  }
+                  val motionEvent = MotionEvent.obtain(
+                    event.changes.first().uptimeMillis,
+                    event.changes.first().uptimeMillis,
+                    if (event.changes.first().pressed) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP,
+                    event.changes.first().position.x,
+                    event.changes.first().position.y,
+                    0
+                  )
                   onRestartTouchEvent(motionEvent)
                   if (event.changes.first().pressed) {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                  } else {
-                    // No haptic feedback on release, as it's not standard UX in Compose.
                   }
                 }
               }
             },
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFB00020))
+            colors = ButtonDefaults.buttonColors(
+              backgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.AlertRed,
+              contentColor = Color.White,
+              disabledBackgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.MediumGray
+            )
           ) {
             Text(text = stringResource(R.string.restart), color = Color.White)
           }
