@@ -86,7 +86,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -797,6 +800,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         FrameLayout(context)
       }
 
+      var guidelinePosition by remember { mutableStateOf(0.dp) }
+      val density = LocalDensity.current
+
       LaunchedEffect(Unit) {
         // This effect uses a snapshotFlow to safely observe the preview state.
         // It will suspend until the preview is non-null, then set the surface
@@ -807,108 +813,141 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
           .first().surfaceProvider = previewView.surfaceProvider
       }
 
-      Box(
+      ConstraintLayout(
         modifier = Modifier
           .fillMaxSize()
           .background(Color.Black)
       ) {
-        CameraPreview(previewView, previewViewHolder)
+        val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton) = createRefs()
+        val guideline = createGuidelineFromTop(guidelinePosition)
+
+        CameraPreview(
+          previewView,
+          previewViewHolder,
+          modifier = Modifier.constrainAs(cameraPreview) {
+            top.linkTo(guideline)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            bottom.linkTo(parent.bottom)
+            width = Dimension.fillToConstraints
+            height = Dimension.fillToConstraints
+          }
+        )
+
         val pagerState = rememberPagerState(
           initialPage = 0,
           initialPageOffsetFraction = 0f
         ) {
           sessionLimit - sessionStartIndex + 2
         }
-        HorizontalPager(state = pagerState) { page ->
-          Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+          state = pagerState,
+          modifier = Modifier.constrainAs(pager) {
+            top.linkTo(parent.top)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            bottom.linkTo(parent.bottom)
+            width = Dimension.fillToConstraints
+            height = Dimension.fillToConstraints
+          }
+        ) { page ->
+          if (page < sessionLimit - sessionStartIndex && sessionStartIndex + page < prompts.array.size) {
             ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-              val (wordPrompt, timerLabel, recordButtons, recordingLight, goText, backButton) = createRefs()
-
-              if (page < sessionLimit - sessionStartIndex && sessionStartIndex + page < prompts.array.size) {
-                WordPrompt(
-                  prompt = prompts.array[sessionStartIndex + page],
-                  modifier = Modifier.constrainAs(wordPrompt) {
+              val (wordPrompt) = createRefs()
+              WordPrompt(
+                prompt = prompts.array[sessionStartIndex + page],
+                modifier = Modifier
+                  .constrainAs(wordPrompt) {
                     top.linkTo(parent.top)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                     width = Dimension.matchParent
                     height = Dimension.wrapContent
                   }
-                )
-                TimerLabel(
-                  text = timerText,
-                  modifier = Modifier.constrainAs(timerLabel) {
-                    bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start)
+                  .onGloballyPositioned { layoutCoordinates ->
+                    val yPositionInPixels =
+                      layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
+                    val newPosition = (yPositionInPixels / density.density).dp
+                    if (guidelinePosition != newPosition) {
+                      guidelinePosition = newPosition
+                    }
                   }
-                )
-                RecordButtons(
-                  recordButtonVisible = recordButtonVisible,
-                  restartButtonVisible = restartButtonVisible,
-                  onRecordTouchEvent = { event ->
-                    recordButtonOnTouchListener(
-                      event,
-                      onStateChange = { record, restart ->
-                        viewModel.setButtonState(record, restart)
-                      })
-                  },
-                  onRestartTouchEvent = { event ->
-                    restartButtonOnTouchListener(
-                      event,
-                      onStateChange = { record, restart ->
-                        viewModel.setButtonState(record, restart)
-                      })
-                  },
-                  modifier = Modifier.constrainAs(recordButtons) {
-                    bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end)
-                  }
-                )
-                RecordingLight(
-                  isRecording = isRecording,
-                  modifier = Modifier.constrainAs(recordingLight) {
-                    top.linkTo(parent.top)
-                    end.linkTo(parent.end)
-                  }
-                )
-                GoText(
-                  visible = goTextVisible,
-                  onAnimationFinish = { viewModel.hideGoText() },
-                  modifier = Modifier.constrainAs(goText) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                  }
-                )
-                BackButton(
-                  onClick = {
-                    dataManager.logToServer("User pressed back button to end recording.")
-                    concludeRecordingSession(RESULT_OK, "RESULT_OK")
-                  },
-                  modifier = Modifier.constrainAs(backButton) {
-                    top.linkTo(parent.top)
-                    start.linkTo(parent.start)
-                  }
-                )
-              } else if (page == sessionLimit - sessionStartIndex) {
-                // TODO Replace this with the same functionality as end_of_recording_page.xml
+              )
+            }
+          } else if (page == sessionLimit - sessionStartIndex) {
+            // TODO Replace this with the same functionality as end_of_recording_page.xml
 
-                // TODO Swiping right should be disabled for this page.  Swiping left (back)
-                // should still be allowed.
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                  Text("Swipe right to finish", color = Color.White, fontSize = 24.sp)
-                }
-              } else {
-                // TODO Replace this with the same functionality as the
-                // RecordingListFragment/RecordingListAdapter based behavior we had previously.
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                  Text("Corrections Page", color = Color.White, fontSize = 24.sp)
-                }
-              }
+            // TODO Swiping right should be disabled for this page.  Swiping left (back)
+            // should still be allowed.
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+              Text("Swipe right to finish", color = Color.White, fontSize = 24.sp)
+            }
+          } else {
+            // TODO Replace this with the same functionality as the
+            // RecordingListFragment/RecordingListAdapter based behavior we had previously.
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+              Text("Corrections Page", color = Color.White, fontSize = 24.sp)
             }
           }
         }
+
+        TimerLabel(
+          text = timerText,
+          modifier = Modifier.constrainAs(timerLabel) {
+            bottom.linkTo(parent.bottom)
+            start.linkTo(parent.start)
+          }
+        )
+        RecordButtons(
+          recordButtonVisible = recordButtonVisible,
+          restartButtonVisible = restartButtonVisible,
+          onRecordTouchEvent = { event ->
+            recordButtonOnTouchListener(
+              event,
+              onStateChange = { record, restart ->
+                viewModel.setButtonState(record, restart)
+              })
+          },
+          onRestartTouchEvent = { event ->
+            restartButtonOnTouchListener(
+              event,
+              onStateChange = { record, restart ->
+                viewModel.setButtonState(record, restart)
+              })
+          },
+          modifier = Modifier.constrainAs(recordButtons) {
+            bottom.linkTo(parent.bottom)
+            end.linkTo(parent.end)
+          }
+        )
+        RecordingLight(
+          isRecording = isRecording,
+          modifier = Modifier.constrainAs(recordingLight) {
+            top.linkTo(parent.top)
+            end.linkTo(parent.end)
+          }
+        )
+        GoText(
+          visible = goTextVisible,
+          onAnimationFinish = { viewModel.hideGoText() },
+          modifier = Modifier.constrainAs(goText) {
+            top.linkTo(parent.top)
+            bottom.linkTo(parent.bottom)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+          }
+        )
+        BackButton(
+          onClick = {
+            dataManager.logToServer("User pressed back button to end recording.")
+            concludeRecordingSession(RESULT_OK, "RESULT_OK")
+          },
+          modifier = Modifier.constrainAs(backButton) {
+            top.linkTo(parent.top)
+            start.linkTo(parent.start)
+          }
+        )
+
         LaunchedEffect(pagerState.currentPage) {
           val newPage = pagerState.currentPage
           if (currentClipDetails != null) {
