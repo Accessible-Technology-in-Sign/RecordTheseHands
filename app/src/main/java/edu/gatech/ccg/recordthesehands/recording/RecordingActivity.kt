@@ -582,10 +582,6 @@ class RecordingActivity : FragmentActivity() {
   private fun activateReadCountdownCircle(durationMs: Long) {
     viewModel.setReadCountdownDuration(durationMs.toInt())
     viewModel.setReadTimerActive(true)
-    lifecycleScope.launch {
-      kotlinx.coroutines.delay(durationMs)
-      viewModel.setReadTimerActive(false)
-    }
   }
 
   private fun newClipId(): String {
@@ -728,6 +724,8 @@ class RecordingActivity : FragmentActivity() {
       val goTextVisible by viewModel.goTextVisible.collectAsState()
       val isReadTimerActive by viewModel.isReadTimerActive.collectAsState()
       val readCountdownDuration by viewModel.readCountdownDuration.collectAsState()
+      val isRecordingTimerActive by viewModel.isRecordingTimerActive.collectAsState()
+      val recordingCountdownDuration by viewModel.recordingCountdownDuration.collectAsState()
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -784,7 +782,7 @@ class RecordingActivity : FragmentActivity() {
         }
         HorizontalPager(
           state = pagerState,
-          userScrollEnabled = !isReadTimerActive,
+          userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive,
           modifier = Modifier.constrainAs(pager) {
             top.linkTo(parent.top)
             start.linkTo(parent.start)
@@ -851,6 +849,21 @@ class RecordingActivity : FragmentActivity() {
             durationMs = readCountdownDuration,
             onFinished = {
               viewModel.setReadTimerActive(false)
+              viewModel.setRecordingCountdownDuration(15000)
+              viewModel.setRecordingTimerActive(true)
+            }
+          )
+        }
+
+        if (isRecordingTimerActive) {
+          CountdownCircle(
+            modifier = Modifier.constrainAs(readTimer) {
+              bottom.linkTo(recordButtons.top, margin = 16.dp)
+              end.linkTo(parent.end, margin = 16.dp)
+            },
+            durationMs = recordingCountdownDuration,
+            onFinished = {
+              viewModel.setRecordingTimerActive(false)
             }
           )
         }
@@ -1033,7 +1046,7 @@ class RecordingActivity : FragmentActivity() {
       viewModel.onTick(it)
     }
 
-    activateReadCountdownCircle(5000)
+    activateReadCountdownCircle(2000)
   }
 
   /**
