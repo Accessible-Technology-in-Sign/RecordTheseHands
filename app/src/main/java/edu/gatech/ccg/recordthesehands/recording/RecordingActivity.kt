@@ -52,6 +52,8 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseInCirc
+import androidx.compose.animation.core.EaseOutCirc
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -1418,25 +1420,29 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   @Composable
   fun GoText(visible: Boolean, onAnimationFinish: () -> Unit, modifier: Modifier = Modifier) {
     if (visible) {
-      val scale = remember { Animatable(0.5f) }
+      val scale = remember { Animatable(0f) }
       LaunchedEffect(Unit) {
-        scale.animateTo(2f, animationSpec = tween(500))
+        scale.animateTo(3f, animationSpec = tween(400, easing = EaseOutCirc))
+        scale.animateTo(0f, animationSpec = tween(400, easing = EaseInCirc))
         onAnimationFinish()
       }
       Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
       ) {
-        Text(
-          text = stringResource(R.string.go),
-          color = Color.Black,
-          fontSize = 50.sp,
-          textAlign = TextAlign.Center,
+        Box(
           modifier = Modifier
-            .background(Color.White)
-            .size(150.dp, 100.dp)
             .scale(scale.value)
-        )
+            .background(Color.White, shape = RoundedCornerShape(16.dp))
+        ) {
+          Text(
+            text = stringResource(R.string.go),
+            color = Color.Black,
+            fontSize = 50.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+          )
+        }
       }
     }
   }
