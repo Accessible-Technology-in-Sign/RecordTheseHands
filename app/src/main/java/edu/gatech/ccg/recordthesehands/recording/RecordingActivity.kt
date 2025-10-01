@@ -30,7 +30,6 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
 import android.util.TypedValue
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -88,7 +87,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
@@ -589,99 +587,55 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     return output
   }
 
-  private fun recordButtonOnTouchListener(
-    event: MotionEvent,
-    onStateChange: (Boolean, Boolean) -> Unit
-  ): Boolean {
-    when (event.action) {
-      MotionEvent.ACTION_DOWN -> {
-        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        val now = Instant.now()
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-        dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
-        currentClipDetails =
-          ClipDetails(
-            newClipId(), sessionInfo.sessionId, filename,
-            prompts.array[sessionStartIndex + currentPage], sessionStartTime
-          )
-        currentClipDetails!!.startButtonDownTimestamp = now
-        currentClipDetails!!.lastModifiedTimestamp = now
-        clipData.add(currentClipDetails!!)
-        CoroutineScope(Dispatchers.IO).launch {
-          dataManager.saveClipData(currentClipDetails!!)
-        }
-
-        isSigning = true
-        runOnUiThread {
-          viewModel.showGoText()
-        }
-      }
-
-      MotionEvent.ACTION_UP -> {
-        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
-        val now = Instant.now()
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-        dataManager.logToServerAtTimestamp(timestamp, "recordButton up")
-        if (currentClipDetails != null) {
-          currentClipDetails!!.startButtonUpTimestamp = now
-          currentClipDetails!!.lastModifiedTimestamp = now
-          CoroutineScope(Dispatchers.IO).launch {
-            dataManager.saveClipData(currentClipDetails!!)
-          }
-        }
-        onStateChange(false, true)
-      }
+  private fun recordButtonOnClickListener() {
+    val now = Instant.now()
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+    dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
+    currentClipDetails =
+      ClipDetails(
+        newClipId(), sessionInfo.sessionId, filename,
+        prompts.array[sessionStartIndex + currentPage], sessionStartTime
+      )
+    currentClipDetails!!.startButtonDownTimestamp = now
+    currentClipDetails!!.lastModifiedTimestamp = now
+    clipData.add(currentClipDetails!!)
+    CoroutineScope(Dispatchers.IO).launch {
+      dataManager.saveClipData(currentClipDetails!!)
     }
-    return true
+
+    isSigning = true
+    runOnUiThread {
+      viewModel.showGoText()
+      viewModel.setButtonState(recordVisible = false, restartVisible = true)
+    }
   }
 
-  private fun restartButtonOnTouchListener(
-    event: MotionEvent,
-    onStateChange: (Boolean, Boolean) -> Unit
-  ): Boolean {
-    when (event.action) {
-      MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
-        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        val now = Instant.now()
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-        dataManager.logToServerAtTimestamp(timestamp, "restartButton down")
-        val lastClipDetails = currentClipDetails!!
-        lastClipDetails.restartButtonDownTimestamp = now
-        lastClipDetails.lastModifiedTimestamp = now
-        lastClipDetails.valid = false
-        dataManager.saveClipData(lastClipDetails)
+  private fun restartButtonOnClickListener() {
+    lifecycleScope.launch(Dispatchers.IO) {
+      val now = Instant.now()
+      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+      dataManager.logToServerAtTimestamp(timestamp, "restartButton down")
+      val lastClipDetails = currentClipDetails!!
+      lastClipDetails.restartButtonDownTimestamp = now
+      lastClipDetails.lastModifiedTimestamp = now
+      lastClipDetails.valid = false
+      dataManager.saveClipData(lastClipDetails)
 
-        currentClipDetails =
-          ClipDetails(
-            newClipId(), sessionInfo.sessionId,
-            filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime
-          )
-        currentClipDetails!!.startButtonDownTimestamp = now
-        currentClipDetails!!.lastModifiedTimestamp = now
-        clipData.add(currentClipDetails!!)
-        dataManager.saveClipData(currentClipDetails!!)
+      currentClipDetails =
+        ClipDetails(
+          newClipId(), sessionInfo.sessionId,
+          filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime
+        )
+      currentClipDetails!!.startButtonDownTimestamp = now
+      currentClipDetails!!.lastModifiedTimestamp = now
+      clipData.add(currentClipDetails!!)
+      dataManager.saveClipData(currentClipDetails!!)
 
-        isSigning = true
-        runOnUiThread {
-          // setButtonState(binding.recordButton, false)
-          // setButtonState(binding.restartButton, true)
-          viewModel.showGoText()
-        }
-      }
-
-      MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
-        // view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
-        val now = Instant.now()
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-        dataManager.logToServerAtTimestamp(timestamp, "restartButton up")
-        if (currentClipDetails != null) {
-          currentClipDetails!!.startButtonUpTimestamp = now
-          currentClipDetails!!.lastModifiedTimestamp = now
-          dataManager.saveClipData(currentClipDetails!!)
-        }
+      isSigning = true
+      runOnUiThread {
+        viewModel.showGoText()
       }
     }
-    return true
   }
 
   fun goToSummaryPage() {
@@ -895,19 +849,11 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
         RecordButtons(
           recordButtonVisible = recordButtonVisible,
           restartButtonVisible = restartButtonVisible,
-          onRecordTouchEvent = { event ->
-            recordButtonOnTouchListener(
-              event,
-              onStateChange = { record, restart ->
-                viewModel.setButtonState(record, restart)
-              })
+          onRecordClick = {
+            recordButtonOnClickListener()
           },
-          onRestartTouchEvent = { event ->
-            restartButtonOnTouchListener(
-              event,
-              onStateChange = { record, restart ->
-                viewModel.setButtonState(record, restart)
-              })
+          onRestartClick = {
+            restartButtonOnClickListener()
           },
           modifier = Modifier.constrainAs(recordButtons) {
             bottom.linkTo(parent.bottom)
@@ -1069,20 +1015,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
-
-    // setButtonState(binding.recordButton, true)
-    // setButtonState(binding.restartButton, false)
-
-    // binding.recordButton.isHapticFeedbackEnabled = true
-    // binding.restartButton.isHapticFeedbackEnabled = true
-
-    // binding.recordButton.setOnTouchListener(::recordButtonOnTouchListener)
-    // binding.restartButton.setOnTouchListener(::restartButtonOnTouchListener)
-
-    // if (!isTablet) {
-    //   scaleRecordButton(binding.recordButton as Button)
-    //   scaleRecordButton(binding.restartButton as Button)
-    // }
 
     startCamera {
       viewModel.onTick(it)
@@ -1289,8 +1221,8 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   fun RecordButtons(
     recordButtonVisible: Boolean,
     restartButtonVisible: Boolean,
-    onRecordTouchEvent: (MotionEvent) -> Unit,
-    onRestartTouchEvent: (MotionEvent) -> Unit,
+    onRecordClick: () -> Unit,
+    onRestartClick: () -> Unit,
     modifier: Modifier = Modifier
   ) {
     val hapticFeedback = LocalHapticFeedback.current
@@ -1305,52 +1237,20 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       Column {
         if (recordButtonVisible) {
           PrimaryButton(
-            onClick = { /* Clicks are handled by pointerInput */ },
+            onClick = {
+              onRecordClick()
+              hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+            },
             text = stringResource(R.string.record),
-            modifier = Modifier.pointerInput(Unit) {
-              awaitPointerEventScope {
-                while (true) {
-                  val event = awaitPointerEvent()
-                  val motionEvent = MotionEvent.obtain(
-                    event.changes.first().uptimeMillis,
-                    event.changes.first().uptimeMillis,
-                    if (event.changes.first().pressed) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP,
-                    event.changes.first().position.x,
-                    event.changes.first().position.y,
-                    0
-                  )
-                  onRecordTouchEvent(motionEvent)
-                  if (event.changes.first().pressed) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                  }
-                }
-              }
-            }
           )
         }
         if (restartButtonVisible) {
           AlertButton(
-            onClick = { /* Clicks are handled by pointerInput */ },
+            onClick = {
+              onRestartClick()
+              hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+            },
             text = stringResource(R.string.restart),
-            modifier = Modifier.pointerInput(Unit) {
-              awaitPointerEventScope {
-                while (true) {
-                  val event = awaitPointerEvent()
-                  val motionEvent = MotionEvent.obtain(
-                    event.changes.first().uptimeMillis,
-                    event.changes.first().uptimeMillis,
-                    if (event.changes.first().pressed) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP,
-                    event.changes.first().position.x,
-                    event.changes.first().position.y,
-                    0
-                  )
-                  onRestartTouchEvent(motionEvent)
-                  if (event.changes.first().pressed) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                  }
-                }
-              }
-            }
           )
         }
       }
