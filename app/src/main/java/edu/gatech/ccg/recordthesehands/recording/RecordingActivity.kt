@@ -836,7 +836,7 @@ class RecordingActivity : FragmentActivity() {
               }
 
             if (page < sessionLimit - sessionStartIndex) {
-              WordPrompt(
+              PromptView(
                 prompt = prompts.array[sessionStartIndex + page],
                 modifier = commonModifier
               )
@@ -1357,4 +1357,20 @@ fun ConfirmPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
   }
 }
 
-
+@Composable
+fun PromptView(prompt: Prompt, modifier: Modifier = Modifier) {
+  Box(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(12.dp)
+      .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+      .background(Color.White, shape = RoundedCornerShape(8.dp))
+      .padding(12.dp)
+  ) {
+    Text(
+      text = prompt.prompt ?: "",
+      color = Color.Black,
+      fontSize = 30.sp
+    )
+  }
+}
