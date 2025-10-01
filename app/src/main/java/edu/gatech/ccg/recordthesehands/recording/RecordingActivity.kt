@@ -680,15 +680,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 
   fun goToSummaryPage() {
     isSigning = false
-
-    if (!promptsMetadata.useCorrectionsPage) {
-      concludeRecordingSession(RESULT_OK, "RESULT_OK")
-    }
-    runOnUiThread {
-      // Move to the next prompt and allow the user to swipe back and forth.
-      // binding.sessionPager.setCurrentItem(sessionLimit - sessionStartIndex + 1, false)
-      // binding.sessionPager.isUserInputEnabled = false
-    }
+    concludeRecordingSession(RESULT_OK, "RESULT_OK")
   }
 
 
@@ -839,7 +831,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
           initialPage = 0,
           initialPageOffsetFraction = 0f
         ) {
-          sessionLimit - sessionStartIndex + 2
+          sessionLimit - sessionStartIndex + 1
         }
         HorizontalPager(
           state = pagerState,
@@ -882,12 +874,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             // should still be allowed.
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
               Text("Swipe right to finish", color = Color.White, fontSize = 24.sp)
-            }
-          } else {
-            // TODO Replace this with the same functionality as the
-            // RecordingListFragment/RecordingListAdapter based behavior we had previously.
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-              Text("Corrections Page", color = Color.White, fontSize = 24.sp)
             }
           }
         }
@@ -990,25 +976,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             currentPromptIndex = promptIndex
             title = ""
             viewModel.setButtonState(recordVisible = false, restartVisible = false)
-          } else {
-            if (!pagerState.isScrollInProgress) {
-              dataManager.logToServer("selected corrections page (promptIndex ${promptIndex})")
-              if (!promptsMetadata.useCorrectionsPage) {
-                concludeRecordingSession(
-                  RESULT_ACTIVITY_UNREACHABLE,
-                  "ON_SUMMARY_PAGE_BUT_NO_SUMMARY_PAGE"
-                )
-              }
-              title = ""
-              viewModel.setButtonState(recordVisible = false, restartVisible = false)
-              // pagerState.isUserInputEnabled = false // TODO: Find equivalent in Compose
-
-              sessionInfo.result = "ON_CORRECTIONS_PAGE"
-              setResult(RESULT_ACTIVITY_UNREACHABLE)
-              // stopRecording()
-              countdownTimer.cancel()
-              UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-            }
           }
         }
       }
