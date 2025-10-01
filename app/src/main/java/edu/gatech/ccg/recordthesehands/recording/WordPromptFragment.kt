@@ -142,7 +142,6 @@ class WordPromptFragment(
         binding.promptVideo.visibility = View.VISIBLE
         prompt.resourcePath?.let { resourcePath ->
           val videoViewParams = binding.promptVideo.layoutParams as LayoutParams
-          // TODO remove all this unnecessary layout fine tuning.
 
           binding.fullScreenButton.setOnClickListener {
             notifyDisplayMode(PromptDisplayMode.FULL)
