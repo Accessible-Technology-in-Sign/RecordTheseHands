@@ -314,7 +314,7 @@ suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
 /**
  * This class handles the recording of ASL into videos.
  */
-class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
+class RecordingActivity : FragmentActivity() {
   companion object {
     private val TAG = RecordingActivity::class.java.simpleName
   }
@@ -670,10 +670,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     concludeRecordingSession(RESULT_ACTIVITY_UNREACHABLE, "ON_RESTART")
   }
 
-  private fun resetConstraintLayout() {
-    // origAspectRatioLayout.applyTo(binding.aspectRatioConstraint)
-  }
-
   /**
    * Handles stopping the recording session.
    */
@@ -829,7 +825,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
                 modifier = commonModifier
               )
             } else if (page == sessionLimit - sessionStartIndex) {
-              EndOfRecordingPage(
+              ConfirmPage(
                 onFinish = { goToSummaryPage() },
                 modifier = commonModifier
               )
@@ -1020,41 +1016,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       viewModel.onTick(it)
     }
   }
-
-
-  /**
-   * Takes a [PromptDisplayMode] enum value from [WordPromptFragment] and adjusts camera preview
-   * dynamically through implementation of [WordPromptFragment.PromptDisplayModeListener] interface
-   * as a callback.
-   */
-  override fun onActivityInfoChanged(
-    displayMode: PromptDisplayMode?,
-    height: Int
-  ) {
-    Log.i(TAG, "setting promptGuideline to height of ${height}")
-    // binding.promptGuideline.setGuidelineBegin(height)
-
-    resetConstraintLayout()
-
-    when (displayMode) {
-      PromptDisplayMode.FULL -> {
-        Log.d(TAG, "FULL display mode selected, defaulting to ORIGINAL")
-      }
-
-      PromptDisplayMode.SPLIT -> {
-        Log.d(TAG, "SPLIT display mode selected, defaulting to ORIGINAL")
-      }
-
-      PromptDisplayMode.ORIGINAL -> {
-        Log.d(TAG, "ORIGINAL display mode selected")
-      }
-
-      else -> {
-        throw IllegalStateException("Unknown display mode $displayMode")
-      }
-    }
-  }
-
 
   /**
    * Function to scale down the overly large record button on non-tablet devices.
@@ -1347,7 +1308,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
 }
 
 @Composable
-fun EndOfRecordingPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
+fun ConfirmPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
   Column(
     modifier = modifier,
   ) {
