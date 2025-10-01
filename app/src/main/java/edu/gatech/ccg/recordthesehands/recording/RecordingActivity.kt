@@ -71,8 +71,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
@@ -97,7 +95,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -132,6 +129,8 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toHex
+import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
+import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
@@ -1305,8 +1304,9 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
     ) {
       Column {
         if (recordButtonVisible) {
-          Button(
-            onClick = { },
+          PrimaryButton(
+            onClick = { /* Clicks are handled by pointerInput */ },
+            text = stringResource(R.string.record),
             modifier = Modifier.pointerInput(Unit) {
               awaitPointerEventScope {
                 while (true) {
@@ -1325,19 +1325,13 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
                   }
                 }
               }
-            },
-            colors = ButtonDefaults.buttonColors(
-              backgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.ButtonGreen,
-              contentColor = Color.White,
-              disabledBackgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.AlertRed
-            )
-          ) {
-            Text(text = stringResource(R.string.record), color = Color.White)
-          }
+            }
+          )
         }
         if (restartButtonVisible) {
-          Button(
-            onClick = { },
+          AlertButton(
+            onClick = { /* Clicks are handled by pointerInput */ },
+            text = stringResource(R.string.restart),
             modifier = Modifier.pointerInput(Unit) {
               awaitPointerEventScope {
                 while (true) {
@@ -1356,15 +1350,8 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
                   }
                 }
               }
-            },
-            colors = ButtonDefaults.buttonColors(
-              backgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.AlertRed,
-              contentColor = Color.White,
-              disabledBackgroundColor = edu.gatech.ccg.recordthesehands.ui.theme.MediumGray
-            )
-          ) {
-            Text(text = stringResource(R.string.restart), color = Color.White)
-          }
+            }
+          )
         }
       }
     }
@@ -1470,7 +1457,7 @@ fun EndOfRecordingPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
         .padding(12.dp)
         .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
         .background(Color.White, shape = RoundedCornerShape(8.dp))
-        .padding(horizontal=0.dp, vertical = 40.dp),
+        .padding(horizontal = 0.dp, vertical = 40.dp),
       contentAlignment = Alignment.Center
     ) {
       Column(
@@ -1484,21 +1471,10 @@ fun EndOfRecordingPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
           color = Color.Black
         )
         Spacer(modifier = Modifier.height(20.dp))
-        Button(
+        PrimaryButton(
           onClick = onFinish,
-          colors = ButtonDefaults.buttonColors(
-            backgroundColor = colorResource(id = R.color.button_green),
-            contentColor = Color.White,
-            disabledBackgroundColor = colorResource(id = R.color.alert_red)
-          ),
-          shape = RoundedCornerShape(4.dp)
-        ) {
-          Text(
-            text = stringResource(id = R.string.finish),
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-          )
-        }
+          text = stringResource(id = R.string.finish)
+        )
       }
     }
   }
