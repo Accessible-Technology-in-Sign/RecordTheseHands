@@ -1,7 +1,7 @@
 /**
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-2024
+ * Copyright (c) 2021-2025
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -578,6 +578,15 @@ class RecordingActivity : FragmentActivity() {
     viewModel.setRecordingState(false)
   }
 
+  private fun activateReadCountdownCircle(durationMs: Long) {
+    viewModel.setReadCountdownDuration(durationMs.toInt())
+    viewModel.setReadTimerActive(true)
+    lifecycleScope.launch {
+      kotlinx.coroutines.delay(durationMs)
+      viewModel.setReadTimerActive(false)
+    }
+  }
+
   private fun newClipId(): String {
     val output = "${sessionInfo.sessionId}-${padZeroes(clipIdIndex, 3)}"
     clipIdIndex += 1
@@ -715,6 +724,8 @@ class RecordingActivity : FragmentActivity() {
       val restartButtonVisible by viewModel.restartButtonVisible.collectAsState()
       val isRecording by viewModel.isRecording.collectAsState()
       val goTextVisible by viewModel.goTextVisible.collectAsState()
+      val isReadTimerActive by viewModel.isReadTimerActive.collectAsState()
+      val readCountdownDuration by viewModel.readCountdownDuration.collectAsState()
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -747,7 +758,7 @@ class RecordingActivity : FragmentActivity() {
           .fillMaxSize()
           .background(Color.Black)
       ) {
-        val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton) = createRefs()
+        val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton, readTimer) = createRefs()
         val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
         CameraPreview(
@@ -771,6 +782,7 @@ class RecordingActivity : FragmentActivity() {
         }
         HorizontalPager(
           state = pagerState,
+          userScrollEnabled = !isReadTimerActive,
           modifier = Modifier.constrainAs(pager) {
             top.linkTo(parent.top)
             start.linkTo(parent.start)
@@ -828,6 +840,19 @@ class RecordingActivity : FragmentActivity() {
           }
         }
 
+        if (isReadTimerActive) {
+          CountdownCircle(
+            modifier = Modifier.constrainAs(readTimer) {
+              bottom.linkTo(recordButtons.top, margin = 16.dp)
+              end.linkTo(parent.end, margin = 16.dp)
+            },
+            durationMs = readCountdownDuration,
+            onFinished = {
+              viewModel.setReadTimerActive(false)
+            }
+          )
+        }
+
         TimerLabel(
           text = timerText,
           modifier = Modifier.constrainAs(timerLabel) {
@@ -847,7 +872,8 @@ class RecordingActivity : FragmentActivity() {
           modifier = Modifier.constrainAs(recordButtons) {
             bottom.linkTo(parent.bottom)
             end.linkTo(parent.end)
-          }
+          },
+          enabled = !isReadTimerActive,
         )
         BackButton(
           onClick = {
@@ -880,6 +906,8 @@ class RecordingActivity : FragmentActivity() {
             end.linkTo(parent.end)
           }
         )
+
+
 
         LaunchedEffect(pagerState.currentPage) {
           val newPage = pagerState.currentPage
@@ -1002,6 +1030,8 @@ class RecordingActivity : FragmentActivity() {
     startCamera {
       viewModel.onTick(it)
     }
+
+    activateReadCountdownCircle(5000)
   }
 
   /**
@@ -1130,14 +1160,14 @@ class RecordingActivity : FragmentActivity() {
     restartButtonVisible: Boolean,
     onRecordClick: () -> Unit,
     onRestartClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
   ) {
     val hapticFeedback = LocalHapticFeedback.current
     val view = LocalView.current
 
     Box(
       modifier = modifier
-        .fillMaxSize()
         .padding(bottom = 60.dp, end = 120.dp),
       contentAlignment = Alignment.BottomEnd
     ) {
@@ -1149,6 +1179,7 @@ class RecordingActivity : FragmentActivity() {
               hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
             },
             text = stringResource(R.string.record),
+            enabled = enabled,
           )
         }
         if (restartButtonVisible) {
@@ -1158,6 +1189,7 @@ class RecordingActivity : FragmentActivity() {
               hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
             },
             text = stringResource(R.string.restart),
+            enabled = enabled,
           )
         }
       }

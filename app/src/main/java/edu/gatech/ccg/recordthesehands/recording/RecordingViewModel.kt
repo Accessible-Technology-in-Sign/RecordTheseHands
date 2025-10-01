@@ -20,6 +20,12 @@ class RecordingViewModel : ViewModel() {
   private val _goTextVisible = MutableStateFlow(false)
   val goTextVisible: StateFlow<Boolean> = _goTextVisible
 
+  private val _isReadTimerActive = MutableStateFlow(false)
+  val isReadTimerActive: StateFlow<Boolean> = _isReadTimerActive
+
+  private val _readCountdownDuration = MutableStateFlow(0)
+  val readCountdownDuration: StateFlow<Int> = _readCountdownDuration
+
   fun onTick(newTime: String) {
     _timerText.value = newTime
   }
@@ -39,5 +45,13 @@ class RecordingViewModel : ViewModel() {
   fun setButtonState(recordVisible: Boolean, restartVisible: Boolean) {
     _recordButtonVisible.value = recordVisible
     _restartButtonVisible.value = restartVisible
+  }
+
+  fun setReadTimerActive(isActive: Boolean) {
+    _isReadTimerActive.value = isActive
+  }
+
+  fun setReadCountdownDuration(durationMs: Int) {
+    _readCountdownDuration.value = durationMs
   }
 }
