@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.recording
 import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -718,6 +719,7 @@ class RecordingActivity : FragmentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
     setContent {
       val timerText by viewModel.timerText.collectAsState()
       val recordButtonVisible by viewModel.recordButtonVisible.collectAsState()
