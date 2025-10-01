@@ -1180,6 +1180,7 @@ class RecordingActivity : FragmentActivity() {
             },
             text = stringResource(R.string.record),
             enabled = enabled,
+            grayOnDisabled = true,
           )
         }
         if (restartButtonVisible) {

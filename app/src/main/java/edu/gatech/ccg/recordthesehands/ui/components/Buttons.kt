@@ -21,7 +21,8 @@ fun PrimaryButton(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
-  text: String
+  text: String,
+  grayOnDisabled: Boolean = false
 ) {
   Button(
     onClick = onClick,
@@ -30,7 +31,11 @@ fun PrimaryButton(
     shape = RoundedCornerShape(4.dp),
     colors = ButtonDefaults.buttonColors(
       backgroundColor = ButtonGreen,
-      disabledBackgroundColor = AlertRed,
+      disabledBackgroundColor = if (grayOnDisabled) {
+        MediumGray
+      } else {
+        AlertRed
+      },
       contentColor = Color.White
     ),
     contentPadding = PaddingValues(12.dp)
