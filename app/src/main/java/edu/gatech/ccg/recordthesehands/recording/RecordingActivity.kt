@@ -79,6 +79,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -749,8 +750,10 @@ class RecordingActivity : FragmentActivity() {
         FrameLayout(context)
       }
 
-      var guidelinePosition by remember { mutableStateOf(0.dp) }
+      var guidelineTargetPosition by remember { mutableStateOf(0f) }
+      val guidelinePosition = remember { Animatable(0f) }
       val density = LocalDensity.current
+      val coroutineScope = rememberCoroutineScope()
 
       LaunchedEffect(Unit) {
         // This effect uses a snapshotFlow to safely observe the preview state.
@@ -768,7 +771,7 @@ class RecordingActivity : FragmentActivity() {
           .background(Color.Black)
       ) {
         val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton) = createRefs()
-        val guideline = createGuidelineFromTop(guidelinePosition)
+        val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
         CameraPreview(
           previewView,
@@ -811,11 +814,24 @@ class RecordingActivity : FragmentActivity() {
                 height = Dimension.wrapContent
               }
               .onGloballyPositioned { layoutCoordinates ->
-                val yPositionInPixels =
-                  layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
-                val newPosition = (yPositionInPixels / density.density).dp
-                if (guidelinePosition != newPosition) {
-                  guidelinePosition = newPosition
+                if (page == pagerState.currentPage) {
+                  val yPositionInPixels =
+                    layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
+                  val newPosition = (yPositionInPixels / density.density)
+                  if (guidelineTargetPosition != newPosition) {
+                    val oldPosition = guidelineTargetPosition
+                    guidelineTargetPosition = newPosition
+                    coroutineScope.launch {
+                      Log.d(
+                        TAG,
+                        "animating guideline position change from $oldPosition to $newPosition."
+                      )
+                      guidelinePosition.animateTo(
+                        newPosition,
+                        animationSpec = tween(200, easing = EaseOutCirc)
+                      )
+                    }
+                  }
                 }
               }
 
