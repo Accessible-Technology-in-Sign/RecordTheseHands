@@ -29,11 +29,8 @@ import android.content.Context
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
-import android.util.TypedValue
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -104,7 +101,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -536,7 +532,7 @@ class RecordingActivity : FragmentActivity() {
           endSessionOnClipEnd = true
         } else {
           // TODO test this.
-          goToSummaryPage()
+          concludeRecordingSession(RESULT_OK, "RESULT_OK")
         }
       }
     } // CountDownTimer
@@ -638,25 +634,6 @@ class RecordingActivity : FragmentActivity() {
       }
     }
   }
-
-  fun goToSummaryPage() {
-    isSigning = false
-    concludeRecordingSession(RESULT_OK, "RESULT_OK")
-  }
-
-
-  fun setButtonState(button: View, visible: Boolean) {
-    if (visible) {
-      button.visibility = View.VISIBLE
-      // button.isClickable = true
-      // button.isFocusable = true
-    } else {
-      button.visibility = View.GONE
-      // button.isClickable = false
-      // button.isFocusable = false
-    }
-  }
-
 
   /**
    * Handler code for when the activity restarts. Right now, we return to the splash screen if the
@@ -842,7 +819,7 @@ class RecordingActivity : FragmentActivity() {
               )
             } else if (page == sessionLimit - sessionStartIndex) {
               ConfirmPage(
-                onFinish = { goToSummaryPage() },
+                onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK") },
                 modifier = commonModifier
               )
             } else {
@@ -926,7 +903,7 @@ class RecordingActivity : FragmentActivity() {
           currentPage = newPage
           if (endSessionOnClipEnd) {
             currentPromptIndex += 1
-            goToSummaryPage()
+            concludeRecordingSession(RESULT_OK, "RESULT_OK")
             return@LaunchedEffect
           }
           val promptIndex = sessionStartIndex + currentPage
@@ -962,13 +939,7 @@ class RecordingActivity : FragmentActivity() {
     Log.i(TAG, "Computed screen size: $diagonal inches")
 
     isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
-    // binding = ActivityRecordBinding.inflate(this.layoutInflater)
 
-    // origAspectRatioLayout = ConstraintSet().apply {
-    //   clone(binding.aspectRatioConstraint)
-    // }
-
-    // setContentView(binding.root)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
     // Fetch word data, user id, etc. from the splash screen activity which
@@ -1034,37 +1005,6 @@ class RecordingActivity : FragmentActivity() {
   }
 
   /**
-   * Function to scale down the overly large record button on non-tablet devices.
-   */
-  private fun scaleRecordButton(button: Button) {
-    // TODO Have a less hacky way of choosing between tablet and phone layouts.
-    button.apply {
-      scaleX = 1.25f
-      scaleY = 1.25f
-
-      val buttonParams = layoutParams as? LayoutParams
-      buttonParams?.let {
-        it.marginEnd = TypedValue.applyDimension(
-          TypedValue.COMPLEX_UNIT_DIP,
-          30f,
-          resources.displayMetrics
-        ).toInt()
-
-        it.bottomMargin = TypedValue.applyDimension(
-          TypedValue.COMPLEX_UNIT_DIP,
-          15f,
-          resources.displayMetrics
-        ).toInt()
-
-        this.layoutParams = it
-      }
-
-      setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-    }
-  }
-
-
-  /**
    * Handle activity resumption (typically from multitasking)
    */
   override fun onResume() {
@@ -1098,16 +1038,6 @@ class RecordingActivity : FragmentActivity() {
 
     finish()
   }
-
-  /**
-   * Returns whether the current activity is running in tablet mode. Used by the video previews
-   * on the summary screen to determine whether the video preview needs to be swapped to 4:3
-   * (instead of 3:4).
-   */
-  fun isTablet(): Boolean {
-    return isTablet
-  }
-
 
   /**
    * Handles the creation and sending of a confirmation email, allowing us to track
