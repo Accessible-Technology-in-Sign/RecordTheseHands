@@ -312,7 +312,7 @@ suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
 }
 
 /**
- * This class handles the recording of ASL into videos.
+ * This class handles the recording of data collection videos.
  */
 class RecordingActivity : FragmentActivity() {
   companion object {
