@@ -43,7 +43,7 @@ fun WordPrompt(prompt: Prompt, modifier: Modifier = Modifier) {
     modifier = modifier
       .fillMaxWidth()
       .padding(12.dp)
-      .border(1.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+      .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
       .background(Color.White, shape = RoundedCornerShape(8.dp))
       .padding(12.dp)
   ) {

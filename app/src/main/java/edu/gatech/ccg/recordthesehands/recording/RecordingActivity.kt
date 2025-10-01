@@ -56,10 +56,15 @@ import androidx.compose.animation.core.EaseInCirc
 import androidx.compose.animation.core.EaseOutCirc
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -92,9 +97,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -844,36 +851,37 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             height = Dimension.fillToConstraints
           }
         ) { page ->
-          if (page < sessionLimit - sessionStartIndex && sessionStartIndex + page < prompts.array.size) {
-            ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-              val (wordPrompt) = createRefs()
+          ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+            val (content) = createRefs()
+            val commonModifier = Modifier
+              .constrainAs(content) {
+                top.linkTo(parent.top)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.matchParent
+                height = Dimension.wrapContent
+              }
+              .onGloballyPositioned { layoutCoordinates ->
+                val yPositionInPixels =
+                  layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
+                val newPosition = (yPositionInPixels / density.density).dp
+                if (guidelinePosition != newPosition) {
+                  guidelinePosition = newPosition
+                }
+              }
+
+            if (page < sessionLimit - sessionStartIndex) {
               WordPrompt(
                 prompt = prompts.array[sessionStartIndex + page],
-                modifier = Modifier
-                  .constrainAs(wordPrompt) {
-                    top.linkTo(parent.top)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                    width = Dimension.matchParent
-                    height = Dimension.wrapContent
-                  }
-                  .onGloballyPositioned { layoutCoordinates ->
-                    val yPositionInPixels =
-                      layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
-                    val newPosition = (yPositionInPixels / density.density).dp
-                    if (guidelinePosition != newPosition) {
-                      guidelinePosition = newPosition
-                    }
-                  }
+                modifier = commonModifier
               )
-            }
-          } else if (page == sessionLimit - sessionStartIndex) {
-            // TODO Replace this with the same functionality as end_of_recording_page.xml
-
-            // TODO Swiping right should be disabled for this page.  Swiping left (back)
-            // should still be allowed.
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-              Text("Swipe right to finish", color = Color.White, fontSize = 24.sp)
+            } else if (page == sessionLimit - sessionStartIndex) {
+              EndOfRecordingPage(
+                onFinish = { goToSummaryPage() },
+                modifier = commonModifier
+              )
+            } else {
+              throw IllegalStateException("Unreachable page in HorizontalPager")
             }
           }
         }
@@ -1448,6 +1456,51 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
       },
       modifier = modifier
     )
+  }
+}
+
+@Composable
+fun EndOfRecordingPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
+  Column(
+    modifier = modifier,
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(12.dp)
+        .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+        .background(Color.White, shape = RoundedCornerShape(8.dp))
+        .padding(horizontal=0.dp, vertical = 40.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+        Text(
+          text = "End of Prompts",
+          fontSize = 28.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color.Black
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+          onClick = onFinish,
+          colors = ButtonDefaults.buttonColors(
+            backgroundColor = colorResource(id = R.color.button_green),
+            contentColor = Color.White,
+            disabledBackgroundColor = colorResource(id = R.color.alert_red)
+          ),
+          shape = RoundedCornerShape(4.dp)
+        ) {
+          Text(
+            text = stringResource(id = R.string.finish),
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+          )
+        }
+      }
+    }
   }
 }
 
