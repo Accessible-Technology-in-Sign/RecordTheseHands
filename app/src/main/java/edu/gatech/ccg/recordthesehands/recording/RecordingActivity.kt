@@ -69,8 +69,6 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,6 +90,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -920,12 +919,26 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             end.linkTo(parent.end)
           }
         )
+        BackButton(
+          onClick = {
+            dataManager.logToServer("User pressed back button to end recording.")
+            concludeRecordingSession(RESULT_OK, "RESULT_OK")
+          },
+          modifier = Modifier
+            .constrainAs(backButton) {
+              top.linkTo(guideline)
+              start.linkTo(parent.start)
+            }
+            .padding(top = 0.dp, start = 16.dp)
+        )
         RecordingLight(
           isRecording = isRecording,
-          modifier = Modifier.constrainAs(recordingLight) {
-            top.linkTo(parent.top)
-            end.linkTo(parent.end)
-          }
+          modifier = Modifier
+            .constrainAs(recordingLight) {
+              top.linkTo(guideline)
+              end.linkTo(parent.end)
+            }
+            .padding(top = 0.dp, end = 16.dp)
         )
         GoText(
           visible = goTextVisible,
@@ -935,16 +948,6 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
             bottom.linkTo(parent.bottom)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
-          }
-        )
-        BackButton(
-          onClick = {
-            dataManager.logToServer("User pressed back button to end recording.")
-            concludeRecordingSession(RESULT_OK, "RESULT_OK")
-          },
-          modifier = Modifier.constrainAs(backButton) {
-            top.linkTo(parent.top)
-            start.linkTo(parent.start)
           }
         )
 
@@ -1287,9 +1290,7 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   fun RecordingLight(isRecording: Boolean, modifier: Modifier = Modifier) {
     if (isRecording) {
       Box(
-        modifier = modifier
-          .fillMaxSize()
-          .padding(top = 200.dp, end = 30.dp),
+        modifier = modifier,
         contentAlignment = Alignment.TopEnd
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1443,14 +1444,12 @@ class RecordingActivity : FragmentActivity(), RecordingActivityInfoListener {
   @Composable
   fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-      modifier = modifier
-        .fillMaxSize()
-        .padding(16.dp),
+      modifier = modifier,
       contentAlignment = Alignment.TopStart
     ) {
       IconButton(onClick = onClick) {
         Icon(
-          imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+          painter = painterResource(id = R.drawable.back_arrow),
           contentDescription = stringResource(R.string.back_button),
           tint = Color.White
         )
