@@ -4,10 +4,14 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -16,6 +20,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
@@ -30,6 +35,7 @@ fun CountdownCircle(
   onFinished: () -> Unit
 ) {
   val animatable = remember { Animatable(0f) }
+  var clickCount by remember { mutableStateOf(0) }
 
   LaunchedEffect(key) {
     animatable.snapTo(0f)
@@ -42,7 +48,20 @@ fun CountdownCircle(
 
   val animatedProgress = animatable.value
 
-  Canvas(modifier = modifier.size(componentSize)) {
+  Canvas(
+    modifier = modifier
+      .size(componentSize)
+      .pointerInput(Unit) {
+        detectTapGestures(
+          onTap = {
+            clickCount++
+            if (clickCount >= 5) {
+              onFinished()
+            }
+          }
+        )
+      }
+  ) {
     val strokeWidth = size.minDimension * strokeWidthProportion
     val diameter = size.minDimension - strokeWidth
     val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
