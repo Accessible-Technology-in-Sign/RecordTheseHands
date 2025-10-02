@@ -19,8 +19,8 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 
 @Composable
@@ -28,7 +28,7 @@ fun CountdownCircle(
   modifier: Modifier = Modifier,
   durationMs: Int = 20000,
   componentSize: Dp = 100.dp,
-  strokeWidth: Float = 20f,
+  strokeWidthProportion: Float = 0.2f,
   onFinished: () -> Unit
 ) {
   var isRunning by remember { mutableStateOf(false) }
@@ -45,6 +45,7 @@ fun CountdownCircle(
   }
 
   Canvas(modifier = modifier.size(componentSize)) {
+    val strokeWidth = size.minDimension * strokeWidthProportion
     val diameter = size.minDimension - strokeWidth
     val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
     val arcSize = Size(diameter, diameter)

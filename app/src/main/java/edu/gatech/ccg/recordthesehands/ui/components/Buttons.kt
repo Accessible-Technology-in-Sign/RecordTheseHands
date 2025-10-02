@@ -36,7 +36,8 @@ fun PrimaryButton(
       } else {
         AlertRed
       },
-      contentColor = Color.White
+      contentColor = Color.White,
+      disabledContentColor = Color.White
     ),
     contentPadding = PaddingValues(12.dp)
   ) {
@@ -62,7 +63,8 @@ fun SecondaryButton(
     colors = ButtonDefaults.buttonColors(
       backgroundColor = LightBlue,
       disabledBackgroundColor = LightGray,
-      contentColor = Color.White
+      contentColor = Color.White,
+      disabledContentColor = Color.White
     ),
     contentPadding = PaddingValues(12.dp)
   ) {
@@ -88,7 +90,8 @@ fun AlertButton(
     colors = ButtonDefaults.buttonColors(
       backgroundColor = AlertRed,
       disabledBackgroundColor = MediumGray,
-      contentColor = Color.White
+      contentColor = Color.White,
+      disabledContentColor = Color.White
     ),
     contentPadding = PaddingValues(12.dp)
   ) {

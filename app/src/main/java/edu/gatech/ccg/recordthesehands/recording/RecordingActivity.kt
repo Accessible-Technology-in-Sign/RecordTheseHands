@@ -842,16 +842,40 @@ class RecordingActivity : FragmentActivity() {
         }
 
         if (isReadTimerActive) {
-          CountdownCircle(
-            modifier = Modifier.constrainAs(readTimer) {
-              bottom.linkTo(recordButtons.top, margin = 16.dp)
-              end.linkTo(parent.end, margin = 16.dp)
-            },
-            durationMs = readCountdownDuration,
-            onFinished = {
-              viewModel.setReadTimerActive(false)
+          Box(
+            modifier = Modifier
+              .constrainAs(readTimer) {
+                bottom.linkTo(parent.bottom)
+                top.linkTo(guideline)
+                end.linkTo(parent.end)
+                start.linkTo(parent.start)
+              }
+              .clip(RoundedCornerShape(20.dp))
+              .background(Color.Black.copy(alpha = 0.65f))
+              .padding(30.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(
+              verticalArrangement = Arrangement.Center,
+              horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+              Text(
+                text = "Read and Prepare",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(top = 10.dp, bottom = 30.dp)
+              )
+              CountdownCircle(
+                durationMs = readCountdownDuration,
+                componentSize = 200.dp,
+                strokeWidthProportion = 0.2f,
+                onFinished = {
+                  viewModel.setReadTimerActive(false)
+                }
+              )
             }
-          )
+          }
         }
 
         if (isRecordingTimerActive) {
