@@ -24,6 +24,7 @@
 import datetime
 import json
 import os
+import pathlib
 import sys
 
 from google.cloud import firestore
@@ -168,10 +169,23 @@ def main():
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'updateApk':
     create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'setPrompts':
+  elif sys.argv[2] == 'setPrompts' or sys.argv[2] == 'setPromptsNoUpload':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    path = pathlib.Path(sys.argv[3])
+    uploaded_relative_path = str(pathlib.Path('prompts', path.name))
+    if sys.argv[2] == 'setPrompts':
+      if not path.exists():
+        raise ValueError(f'Prompt file not found: {path}')
+      print(
+          f'Upload the prompt file using\n'
+          f'  gsutil cp {path} gs://{BUCKET_NAME}/prompts/'
+      )
+      input('Press enter when file is uploaded> ')
+    if sys.argv[2] == 'setPromptsNoUpload':
+      if uploaded_relative_path != sys.argv[3]:
+        print('Ignoring directory and setting path to {uploaded_relative_path}')
     prompts_data = {
-        'path': sys.argv[3],
+        'path': uploaded_relative_path,
         'creationTimestamp': timestamp,
     }
     db = firestore.Client()
@@ -181,7 +195,7 @@ def main():
         f'collector/users/{username}/data/prompts/all/all/{timestamp}'
     )
     doc_ref.set(prompts_data)
-    create_directive(sys.argv[1], sys.argv[2], '{}')
+    create_directive(sys.argv[1], 'reloadPrompts', '{}')
   elif sys.argv[2] == 'reloadPrompts':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':
@@ -201,8 +215,10 @@ def main():
   elif sys.argv[2] == 'deleteUser':
     delete_user(sys.argv[1])
   else:
-    raise AssertionError(f'Unknown Operation {sys.argv[2]}. Full command line: ' +
-                         ' '.join(sys.argv))
+    raise AssertionError(
+        f'Unknown Operation {sys.argv[2]}. Full command line: '
+        + ' '.join(sys.argv)
+    )
 
 
 if __name__ == '__main__':
