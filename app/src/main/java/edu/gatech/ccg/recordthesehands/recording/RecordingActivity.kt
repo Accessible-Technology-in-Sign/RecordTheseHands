@@ -726,6 +726,7 @@ class RecordingActivity : FragmentActivity() {
       val readCountdownDuration by viewModel.readCountdownDuration.collectAsState()
       val isRecordingTimerActive by viewModel.isRecordingTimerActive.collectAsState()
       val recordingCountdownDuration by viewModel.recordingCountdownDuration.collectAsState()
+      val viewedPrompts by viewModel.viewedPrompts.collectAsState()
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -946,7 +947,7 @@ class RecordingActivity : FragmentActivity() {
           currentPage = newPage
           if (endSessionOnClipEnd) {
             currentPromptIndex += 1
-            concludeRecordingSession(RESULT_OK, "RESULT_OK")
+            concludeRecordingSession(RESULT_OK, "ENDED_SESSION_ON_CLIP_END")
             return@LaunchedEffect
           }
           val promptIndex = sessionStartIndex + currentPage
@@ -956,6 +957,14 @@ class RecordingActivity : FragmentActivity() {
             currentPromptIndex = promptIndex
             title = "${currentPromptIndex + 1} of ${prompts.array.size}"
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
+
+            if (promptIndex !in viewedPrompts) {
+              viewModel.markPromptAsViewed(promptIndex)
+              val prompt = prompts.array[promptIndex]
+              prompt.readMinMs?.let {
+                activateReadCountdownCircle(it.toLong())
+              }
+            }
           } else if (promptIndex == sessionLimit) {
             dataManager.logToServer("selected confirm page (promptIndex ${promptIndex})")
             currentPromptIndex = promptIndex
@@ -1045,8 +1054,6 @@ class RecordingActivity : FragmentActivity() {
     startCamera {
       viewModel.onTick(it)
     }
-
-    activateReadCountdownCircle(2000)
   }
 
   /**
