@@ -64,6 +64,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -86,12 +87,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -146,6 +147,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
+import kotlin.math.max
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -1227,34 +1229,67 @@ class RecordingActivity : FragmentActivity() {
     enabled: Boolean,
   ) {
     val hapticFeedback = LocalHapticFeedback.current
-    val view = LocalView.current
+    val density = LocalDensity.current
 
-    Box(
-      modifier = modifier,
-      contentAlignment = Alignment.BottomEnd
-    ) {
-      Column {
-        if (recordButtonVisible) {
-          PrimaryButton(
-            onClick = {
-              onRecordClick()
-              hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-            },
-            text = stringResource(R.string.record),
-            enabled = enabled,
-            grayOnDisabled = true,
-          )
+    SubcomposeLayout(modifier = modifier) { constraints ->
+      // --- Measurement Phase ---
+      // We subcompose both buttons to find out their dimensions.
+      // The content is not placed, just measured.
+      val recordMeasurables = subcompose("record") {
+        PrimaryButton(onClick = {}, text = stringResource(R.string.record))
+      }
+      val restartMeasurables = subcompose("restart") {
+        AlertButton(onClick = {}, text = stringResource(R.string.restart))
+      }
+
+      // Measure them to get their widths in pixels.
+      val recordWidth =
+        recordMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
+      val restartWidth =
+        restartMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
+      val maxWidth = max(recordWidth, restartWidth)
+      val maxWidthDp = with(density) { maxWidth.toDp() }
+
+      // --- Layout Phase ---
+      // Now we subcompose the actual content that will be displayed.
+      val contentPlaceable = subcompose("content") {
+        // The original Box and Column structure is preserved here.
+        Box(
+          contentAlignment = Alignment.BottomEnd
+        ) {
+          Column {
+            val buttonModifier = Modifier.width(maxWidthDp)
+            if (recordButtonVisible) {
+              PrimaryButton(
+                onClick = {
+                  onRecordClick()
+                  hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                },
+                text = stringResource(R.string.record),
+                enabled = enabled,
+                grayOnDisabled = true,
+                modifier = buttonModifier
+              )
+            }
+            if (restartButtonVisible) {
+              AlertButton(
+                onClick = {
+                  onRestartClick()
+                  hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                },
+                text = stringResource(R.string.restart),
+                enabled = enabled,
+                modifier = buttonModifier
+              )
+            }
+          }
         }
-        if (restartButtonVisible) {
-          AlertButton(
-            onClick = {
-              onRestartClick()
-              hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-            },
-            text = stringResource(R.string.restart),
-            enabled = enabled,
-          )
-        }
+      }[0].measure(constraints)
+
+      // The size of the SubcomposeLayout will be the size of its content.
+      layout(contentPlaceable.width, contentPlaceable.height) {
+        // Place the content at (0, 0) within the SubcomposeLayout.
+        contentPlaceable.placeRelative(0, 0)
       }
     }
   }
