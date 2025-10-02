@@ -882,7 +882,7 @@ class RecordingActivity : FragmentActivity() {
               CountdownCircle(
                 durationMs = readCountdownDuration,
                 componentSize = 200.dp,
-                strokeWidthProportion = 0.2f,
+                strokeWidthProportion = 0.3f,
                 onFinished = {
                   viewModel.setReadTimerActive(false)
                 }
@@ -894,9 +894,13 @@ class RecordingActivity : FragmentActivity() {
         if (isRecordingTimerActive) {
           CountdownCircle(
             modifier = Modifier.constrainAs(readTimer) {
-              bottom.linkTo(recordButtons.top, margin = 16.dp)
-              end.linkTo(parent.end, margin = 16.dp)
+              top.linkTo(recordButtons.top)
+              bottom.linkTo(recordButtons.bottom)
+              start.linkTo(recordButtons.end)
+              end.linkTo(parent.end)
             },
+            componentSize = 50.dp,
+            strokeWidthProportion = 0.1f,
             durationMs = recordingCountdownDuration,
             key = recordingTimerKey,
             onFinished = {
@@ -921,10 +925,11 @@ class RecordingActivity : FragmentActivity() {
           onRestartClick = {
             restartButtonOnClickListener()
           },
-          modifier = Modifier.constrainAs(recordButtons) {
-            bottom.linkTo(parent.bottom)
-            end.linkTo(parent.end)
-          },
+          modifier = Modifier
+            .constrainAs(recordButtons) {
+              bottom.linkTo(parent.bottom, margin = 60.dp)
+              end.linkTo(parent.end, margin = 120.dp)
+            },
           enabled = !isReadTimerActive,
         )
         BackButton(
@@ -1225,8 +1230,7 @@ class RecordingActivity : FragmentActivity() {
     val view = LocalView.current
 
     Box(
-      modifier = modifier
-        .padding(bottom = 60.dp, end = 120.dp),
+      modifier = modifier,
       contentAlignment = Alignment.BottomEnd
     ) {
       Column {
