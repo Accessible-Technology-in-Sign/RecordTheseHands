@@ -850,8 +850,6 @@ class RecordingActivity : FragmentActivity() {
             durationMs = readCountdownDuration,
             onFinished = {
               viewModel.setReadTimerActive(false)
-              viewModel.setRecordingCountdownDuration(15000)
-              viewModel.setRecordingTimerActive(true)
             }
           )
         }

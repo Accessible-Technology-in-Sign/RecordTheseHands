@@ -20,12 +20,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import kotlin.math.ceil
 
 @Composable
 fun CountdownCircle(
   modifier: Modifier = Modifier,
   durationMs: Int = 20000,
+  componentSize: Dp = 100.dp,
+  strokeWidth: Float = 20f,
   onFinished: () -> Unit
 ) {
   var isRunning by remember { mutableStateOf(false) }
@@ -41,11 +44,10 @@ fun CountdownCircle(
     isRunning = true
   }
 
-  Canvas(modifier = modifier.size(100.dp)) {
-    val strokeWidth = 20f
+  Canvas(modifier = modifier.size(componentSize)) {
     val diameter = size.minDimension - strokeWidth
     val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
-    val size = Size(diameter, diameter)
+    val arcSize = Size(diameter, diameter)
 
     // Draw the red background circle
     drawArc(
@@ -54,7 +56,7 @@ fun CountdownCircle(
       sweepAngle = 360f,
       useCenter = false,
       topLeft = topLeft,
-      size = size,
+      size = arcSize,
       style = Stroke(width = strokeWidth)
     )
 
@@ -65,7 +67,7 @@ fun CountdownCircle(
       sweepAngle = 360 * animatedProgress,
       useCenter = false,
       topLeft = topLeft,
-      size = size,
+      size = arcSize,
       style = Stroke(width = strokeWidth)
     )
 

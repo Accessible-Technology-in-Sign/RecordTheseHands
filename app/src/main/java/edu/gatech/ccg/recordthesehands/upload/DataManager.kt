@@ -1156,7 +1156,6 @@ class DataManager(val context: Context) {
     json.put("prompts", getPromptsCollectionUnderLock()?.toJson())
     json.put("currentSectionName", getCurrentSectionNameUnderLock())
     json.put("promptProgress", JSONObject(getPromptProgressUnderLock()))
-
     val url = URL(getServer() + "/save_state")
     val (code, _) =
       serverFormPostRequest(
