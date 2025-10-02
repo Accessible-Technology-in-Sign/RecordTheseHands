@@ -46,6 +46,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
@@ -564,6 +565,16 @@ class HomeScreenActivity : AppCompatActivity() {
   override fun onStop() {
     super.onStop()
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    if (isFinishing && isTaskRoot) {
+      UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_ACTIVITY_FINISHED)
+      runBlocking {
+        dataManager.logToServerAndPersist("App is being closed.")
+      }
+    }
   }
 }
 
