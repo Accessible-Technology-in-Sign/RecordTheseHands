@@ -594,16 +594,22 @@ class RecordingActivity : FragmentActivity() {
     val now = Instant.now()
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
     dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
+    val prompt = prompts.array[sessionStartIndex + currentPage]
     currentClipDetails =
       ClipDetails(
         newClipId(), sessionInfo.sessionId, filename,
-        prompts.array[sessionStartIndex + currentPage], sessionStartTime
+        prompt, sessionStartTime
       )
     currentClipDetails!!.startButtonDownTimestamp = now
     currentClipDetails!!.lastModifiedTimestamp = now
     clipData.add(currentClipDetails!!)
     CoroutineScope(Dispatchers.IO).launch {
       dataManager.saveClipData(currentClipDetails!!)
+    }
+
+    prompt.recordMinMs?.let {
+      viewModel.setRecordingCountdownDuration(it)
+      viewModel.restartRecordingCountdown()
     }
 
     isSigning = true
@@ -624,15 +630,21 @@ class RecordingActivity : FragmentActivity() {
       lastClipDetails.valid = false
       dataManager.saveClipData(lastClipDetails)
 
+      val prompt = prompts.array[sessionStartIndex + currentPage]
       currentClipDetails =
         ClipDetails(
           newClipId(), sessionInfo.sessionId,
-          filename, prompts.array[sessionStartIndex + currentPage], sessionStartTime
+          filename, prompt, sessionStartTime
         )
       currentClipDetails!!.startButtonDownTimestamp = now
       currentClipDetails!!.lastModifiedTimestamp = now
       clipData.add(currentClipDetails!!)
       dataManager.saveClipData(currentClipDetails!!)
+
+      prompt.recordMinMs?.let {
+        viewModel.setRecordingCountdownDuration(it)
+        viewModel.restartRecordingCountdown()
+      }
 
       isSigning = true
       runOnUiThread {
@@ -726,6 +738,7 @@ class RecordingActivity : FragmentActivity() {
       val readCountdownDuration by viewModel.readCountdownDuration.collectAsState()
       val isRecordingTimerActive by viewModel.isRecordingTimerActive.collectAsState()
       val recordingCountdownDuration by viewModel.recordingCountdownDuration.collectAsState()
+      val recordingTimerKey by viewModel.recordingTimerKey.collectAsState()
       val viewedPrompts by viewModel.viewedPrompts.collectAsState()
 
       val lifecycleOwner = LocalLifecycleOwner.current
@@ -885,6 +898,7 @@ class RecordingActivity : FragmentActivity() {
               end.linkTo(parent.end, margin = 16.dp)
             },
             durationMs = recordingCountdownDuration,
+            key = recordingTimerKey,
             onFinished = {
               viewModel.setRecordingTimerActive(false)
             }

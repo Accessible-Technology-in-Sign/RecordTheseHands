@@ -1,16 +1,13 @@
 package edu.gatech.ccg.recordthesehands.recording
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -27,22 +24,23 @@ import kotlin.math.ceil
 fun CountdownCircle(
   modifier: Modifier = Modifier,
   durationMs: Int = 20000,
+  key: Any? = Unit,
   componentSize: Dp = 100.dp,
   strokeWidthProportion: Float = 0.2f,
   onFinished: () -> Unit
 ) {
-  var isRunning by remember { mutableStateOf(false) }
-  val animatedProgress by animateFloatAsState(
-    targetValue = if (isRunning) 1f else 0f,
-    animationSpec = tween(durationMillis = durationMs, easing = LinearEasing),
-    finishedListener = {
-      onFinished()
-    }
-  )
+  val animatable = remember { Animatable(0f) }
 
-  LaunchedEffect(Unit) {
-    isRunning = true
+  LaunchedEffect(key) {
+    animatable.snapTo(0f)
+    animatable.animateTo(
+      targetValue = 1f,
+      animationSpec = tween(durationMillis = durationMs, easing = LinearEasing)
+    )
+    onFinished()
   }
+
+  val animatedProgress = animatable.value
 
   Canvas(modifier = modifier.size(componentSize)) {
     val strokeWidth = size.minDimension * strokeWidthProportion

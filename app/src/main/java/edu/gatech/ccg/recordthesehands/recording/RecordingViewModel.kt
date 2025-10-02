@@ -32,11 +32,19 @@ class RecordingViewModel : ViewModel() {
   private val _recordingCountdownDuration = MutableStateFlow(0)
   val recordingCountdownDuration: StateFlow<Int> = _recordingCountdownDuration
 
+  private val _recordingTimerKey = MutableStateFlow(0)
+  val recordingTimerKey: StateFlow<Int> = _recordingTimerKey
+
   private val _viewedPrompts = MutableStateFlow<Set<Int>>(emptySet())
   val viewedPrompts: StateFlow<Set<Int>> = _viewedPrompts
 
   fun markPromptAsViewed(promptIndex: Int) {
     _viewedPrompts.value = _viewedPrompts.value + promptIndex
+  }
+
+  fun restartRecordingCountdown() {
+    _recordingTimerKey.value += 1
+    _isRecordingTimerActive.value = true
   }
 
   fun onTick(newTime: String) {
