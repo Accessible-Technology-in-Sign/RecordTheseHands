@@ -55,7 +55,6 @@ import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import edu.gatech.ccg.recordthesehands.upload.prefStore
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
@@ -183,7 +182,7 @@ class HomeScreenActivity : AppCompatActivity() {
       // exitTutorialMode button listener.
       binding.exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       binding.exitTutorialModeButton.setOnClickListener {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
           dataManager.setTutorialMode(false)
         }
       }

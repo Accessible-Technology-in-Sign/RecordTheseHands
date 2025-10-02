@@ -37,7 +37,6 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.databinding.ActivityLoadDataBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -96,7 +95,7 @@ class LoadDataActivity : AppCompatActivity() {
     binding.setDeviceIdButton.setOnClickListener {
       val newDeviceId = binding.setDeviceIdText.text.toString().trim()
       clearTextFocus()
-      CoroutineScope(Dispatchers.IO).launch {
+      lifecycleScope.launch(Dispatchers.IO) {
         dataManager.setDeviceId(newDeviceId)
       }
     }

@@ -52,6 +52,7 @@ import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
 import edu.gatech.ccg.recordthesehands.toHex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -214,6 +215,8 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
   val LOGIN_TOKEN_FULL_PATH =
     context.filesDir.absolutePath + File.separator + LOGIN_TOKEN_RELATIVE_PATH
 
@@ -238,7 +241,9 @@ class DataManager private constructor(val context: Context) {
    */
   private fun initializeData() {
     if (dataManagerData.initializationStarted.compareAndSet(false, true)) {
-      CoroutineScope(Dispatchers.IO).launch {
+      // Both dataManagerData and this are singletons, so there is no risk of either being
+      // destroyed while the coroutine runs.
+      scope.launch {
         dataManagerData.lock.withLock {
           reinitializeDataUnderLock()
         }
@@ -1749,7 +1754,7 @@ class DataManager private constructor(val context: Context) {
    * @param message The log message to save.
    */
   fun logToServerAtTimestamp(timestamp: String, message: String) {
-    CoroutineScope(Dispatchers.IO).launch {
+    scope.launch {
       addKeyValue("log-$timestamp", message, "log")
     }
   }
@@ -2132,7 +2137,7 @@ class DataManager private constructor(val context: Context) {
     sessionInfo: RecordingSessionInfo,
     currentPromptIndex: Int
   ) {
-    CoroutineScope(Dispatchers.IO).launch {
+    scope.launch {
       dataManagerData.lock.withLock {
         saveRecordingDataUnderLock(
           filename,
@@ -2184,7 +2189,7 @@ class DataManager private constructor(val context: Context) {
    * asynchronously in the background.
    */
   fun checkServerConnection() {
-    CoroutineScope(Dispatchers.IO).launch {
+    scope.launch {
       pingServer()
     }
   }
