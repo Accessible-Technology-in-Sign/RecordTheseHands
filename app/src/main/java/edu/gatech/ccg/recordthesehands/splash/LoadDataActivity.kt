@@ -83,7 +83,7 @@ class LoadDataActivity : AppCompatActivity() {
 
 
 
-    dataManager = DataManager(applicationContext)
+    dataManager = DataManager.getInstance(applicationContext)
     dataManager.promptState.observe(this) { state ->
       val deviceId = state?.deviceId ?: "Unknown Device Id"
       val username = state?.username ?: getString(R.string.unknown_username)

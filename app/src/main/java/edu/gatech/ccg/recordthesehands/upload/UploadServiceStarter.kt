@@ -42,7 +42,7 @@ class UploadServiceStarter : BroadcastReceiver() {
       Log.d(TAG, "System Boot Completed, starting upload service.")
     } else if (Intent.ACTION_MY_PACKAGE_REPLACED == action) {
       Log.d(TAG, "Package Replaced, starting upload service.")
-      val dataManager = DataManager(context)
+      val dataManager = DataManager.getInstance(context)
       runBlocking {
         dataManager.updateApkTimestamp()
       }

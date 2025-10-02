@@ -23,6 +23,7 @@
  */
 package edu.gatech.ccg.recordthesehands.upload
 
+import android.content.Context
 import android.util.Base64
 import android.util.Log
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
@@ -38,9 +39,10 @@ import java.security.MessageDigest
 import javax.net.ssl.HttpsURLConnection
 
 class UploadSession(
-  private val dataManager: DataManager,
+  context: Context,
   private val registeredFile: RegisteredFile
 ) {
+  private val dataManager = DataManager.getInstance(context)
   private val relativePath: String
     get() {
       return registeredFile.relativePath

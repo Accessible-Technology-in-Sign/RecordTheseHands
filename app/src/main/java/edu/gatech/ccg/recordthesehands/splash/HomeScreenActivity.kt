@@ -317,7 +317,7 @@ class HomeScreenActivity : AppCompatActivity() {
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
 
-    dataManager = DataManager(applicationContext)
+    dataManager = DataManager.getInstance(applicationContext)
     lifecycleScope.launch {
       dataManager.logToServerAndPersist("HomeScreenActivity.onCreate")
     }

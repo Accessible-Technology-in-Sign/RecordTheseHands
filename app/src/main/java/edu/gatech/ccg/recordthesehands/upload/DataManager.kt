@@ -196,13 +196,22 @@ class DataManagerReceiver : BroadcastReceiver() {
  *
  * @param context The application context, used for accessing resources and local storage.
  */
-class DataManager(val context: Context) {
+class DataManager private constructor(val context: Context) {
 
   companion object {
+    @Volatile
+    private var INSTANCE: DataManager? = null
     private val TAG = DataManager::class.simpleName
     private val LOGIN_TOKEN_RELATIVE_PATH = "config" + File.separator + "loginToken.txt"
 
     private const val TUTORIAL_MODE_DEFAULT = true
+    fun getInstance(context: Context): DataManager {
+      return INSTANCE ?: synchronized(this) {
+        INSTANCE ?: DataManager(context.applicationContext).also {
+          INSTANCE = it
+        }
+      }
+    }
   }
 
   val LOGIN_TOKEN_FULL_PATH =
@@ -1375,7 +1384,7 @@ class DataManager(val context: Context) {
 
         Log.i(TAG, "Creating UploadSession for ${registeredFile.relativePath}")
 
-        val uploadSession = UploadSession(this, registeredFile)
+        val uploadSession = UploadSession(context, registeredFile)
         if (!uploadSession.tryUploadFile()) {
           return false
         }
@@ -2161,7 +2170,7 @@ class DataManager(val context: Context) {
       Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
     )
     persistDataUnderLock()
-    Log.i(TAG, "saveRecordingDataUnderLock: finished")
+    Log.i(TAG, "Saved all session data to disk.")
   }
 
   /**
@@ -2175,8 +2184,6 @@ class DataManager(val context: Context) {
    * asynchronously in the background.
    */
   fun checkServerConnection() {
-    // TODO(mgeorg) This is wasteful and likely unnecessary in conjunction with
-    // other server calls (which could just set this directly).
     CoroutineScope(Dispatchers.IO).launch {
       pingServer()
     }

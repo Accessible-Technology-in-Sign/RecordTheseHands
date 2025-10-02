@@ -87,7 +87,7 @@ class UploadService : LifecycleService() {
     notificationManager!!.createNotificationChannel(channel)
 
     lifecycleScope.launch(Dispatchers.IO) {
-      val dataManager = DataManager(applicationContext)
+      val dataManager = DataManager.getInstance(applicationContext)
       try {
         dataManager.dataManagerData.lock.withLock {
           dataManager.runDirectives()

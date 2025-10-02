@@ -76,9 +76,9 @@ class RegisteredFile(
       val file = File(context.filesDir, relativePath)
       if (file.exists()) {
         if (file.delete()) {
-          Log.i(TAG, "Deleted physical file: $relativePath")
+          Log.i(TAG, "Deleted file: $relativePath")
         } else {
-          Log.e(TAG, "Failed to delete physical file: $relativePath")
+          Log.e(TAG, "Failed to delete file: $relativePath")
         }
       }
 
@@ -99,7 +99,7 @@ class RegisteredFile(
   var tutorialMode: Boolean = false
 
   fun loadState(registerStoreValue: String) {
-    Log.i(TAG, "Loading current session state $registerStoreValue")
+    Log.i(TAG, "Loading RegisteredFile state: $registerStoreValue")
     fileSize = null
     md5sum = null
     uploadLink = null
@@ -159,10 +159,11 @@ class RegisteredFile(
   }
 
   suspend fun saveState() {
-    Log.i(TAG, "Saving current session state")
+    val registerStoreValue = toJson().toString()
+    Log.i(TAG, "Saving RegisteredFile state: $registerStoreValue")
     val keyObject = stringPreferencesKey(relativePath)
     context.registerFileStore.edit { preferences ->
-      preferences[keyObject] = toJson().toString()
+      preferences[keyObject] = registerStoreValue
     }
   }
 

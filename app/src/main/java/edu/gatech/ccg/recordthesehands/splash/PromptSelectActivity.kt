@@ -62,7 +62,7 @@ class PromptSelectActivity : AppCompatActivity() {
 
     binding = ActivityPromptSelectBinding.inflate(layoutInflater)
     setContentView(binding.root)
-    dataManager = DataManager(applicationContext)
+    dataManager = DataManager.getInstance(applicationContext)
 
     binding.backButton.setOnClickListener {
       finish()

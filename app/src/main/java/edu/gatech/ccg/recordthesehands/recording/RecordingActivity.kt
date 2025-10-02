@@ -985,7 +985,7 @@ class RecordingActivity : FragmentActivity() {
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
 
-    dataManager = DataManager(applicationContext)
+    dataManager = DataManager.getInstance(applicationContext)
 
     // Calculate the display size to determine whether to use mobile or tablet layout.
     val displayMetrics = resources.displayMetrics
