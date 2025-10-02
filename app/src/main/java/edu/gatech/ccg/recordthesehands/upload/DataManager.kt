@@ -1032,9 +1032,14 @@ class DataManager private constructor(val context: Context) {
       preferences.remove(stringPreferencesKey("currentSectionName"))
       preferences.remove(stringPreferencesKey("promptProgress"))
     }
-    // TODO make ensureResources a part of this workflow rather than calling it every time the
-    // prompts are loaded fom disk.
+    val resourceDir = File(context.filesDir, "resource")
+    resourceDir.deleteRecursively()
+
     val retVal = downloadPrompts()
+    val promptsCollection = getPromptsCollectionFromDisk()
+    if (promptsCollection == null || !ensureResources(promptsCollection)) {
+      return false
+    }
     // Re-initialize the state from scratch after download (or failure).
     reinitializeDataUnderLock()
     return retVal
@@ -1060,9 +1065,9 @@ class DataManager private constructor(val context: Context) {
    * @param adminPassword The admin password required to authorize account creation on the server.
    * @return `true` if the account was created successfully, `false` otherwise.
    */
-  suspend fun createAccount(username: String, adminPassword: String): Boolean {
+  suspend fun attachToAccount(username: String, adminPassword: String): Boolean {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
-      logToServer("createAccount username \"$username\" is invalid")
+      logToServer("attachToAccount: username \"$username\" is invalid")
       Log.e(
         TAG,
         "username must be at least 3 lowercase alphanumeric or underscore " +
@@ -1071,7 +1076,7 @@ class DataManager private constructor(val context: Context) {
       return false
     }
     dataManagerData.lock.withLock {
-      logToServerUnderLock("createAccount for username \"$username\"")
+      logToServerUnderLock("attachToAccount for username \"$username\"")
       val password = toHex(SecureRandom().generateSeed(32))
       val newLoginToken = makeToken(username, password)
       val adminToken = makeToken("admin", adminPassword)
@@ -1198,7 +1203,7 @@ class DataManager private constructor(val context: Context) {
       throw InterruptedUploadException("tryUploadKeyValues interrupted.")
     }
     for (i in 0..entries.length() - 1) {
-      Log.i(TAG, "Uploading key: \"${entries.getJSONObject(i).getString("key")}\"")
+      Log.i(TAG, "Uploading: \"${entries.getJSONObject(i)}\"")
     }
     val url = URL(getServer() + "/save")
     val (code, _) =
@@ -1548,13 +1553,19 @@ class DataManager private constructor(val context: Context) {
       val json = JSONObject(value)
       val relativePath = json.getString("filepath")
       RegisteredFile.deleteFile(context, relativePath)
-      logToServerUnderLock("As directed: Deleted and unregistered file $relativePath")
+      logToServerUnderLock("As directed: Deleted and unregistering file $relativePath")
       if (!directiveCompleted(id)) {
         return false
       }
-    } else if (op == "deleteResources") {
-      val resourceDir = File(context.filesDir, "resource")
-      resourceDir.deleteRecursively()
+    } else if (op == "unregisterLostFiles") {
+      val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
+      for (registeredFile in registeredFiles) {
+        val file = File(context.filesDir, registeredFile.relativePath)
+        if (!file.exists()) {
+          logToServerUnderLock("As directed: Unregistering lost file ${registeredFile.relativePath}")
+          RegisteredFile.deleteFile(context, registeredFile.relativePath)
+        }
+      }
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1947,9 +1958,6 @@ class DataManager private constructor(val context: Context) {
   private suspend fun getPromptsCollectionFromDisk(): PromptsCollection? {
     val newPromptsCollection = PromptsCollection(context)
     if (!newPromptsCollection.initialize()) {
-      return null
-    }
-    if (!ensureResources(newPromptsCollection)) {
       return null
     }
     return newPromptsCollection

@@ -87,7 +87,7 @@
             app:layout_constraintTop_toBottomOf="@+id/setDeviceIdContainer" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/createAccountContainer"
+            android:id="@+id/attachToAccountContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="0dp"
@@ -156,13 +156,13 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/createAccountButton"
+            android:id="@+id/attachToAccountButton"
             style="@style/PrimaryButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Create Account"
+            android:text="Set Username"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/createAccountContainer" />
+            app:layout_constraintTop_toBottomOf="@+id/attachToAccountContainer" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -100,16 +100,16 @@ class LoadDataActivity : AppCompatActivity() {
       }
     }
 
-    binding.createAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    binding.createAccountButton.setOnClickListener {
+    binding.attachToAccountButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
+    binding.attachToAccountButton.setOnClickListener {
       clearTextFocus()
       val username = binding.usernameTextField.text.toString()
-      binding.createAccountButton.isEnabled = false
-      binding.createAccountButton.isClickable = false
-      binding.createAccountButton.text = "Creating account..."
+      binding.attachToAccountButton.isEnabled = false
+      binding.attachToAccountButton.isClickable = false
+      binding.attachToAccountButton.text = "Attaching to account..."
       val adminPassword = binding.adminPasswordTextField.text.toString()
       lifecycleScope.launch(Dispatchers.IO) {
-        val result = dataManager.createAccount(username, adminPassword)
+        val result = dataManager.attachToAccount(username, adminPassword)
         if (result) {
           finish()
         }
@@ -118,15 +118,15 @@ class LoadDataActivity : AppCompatActivity() {
             if (result) {
               setTitle("Success")
               setMessage("Created account for \"$username\" and stored credentials.")
-              binding.createAccountButton.isEnabled = true
-              binding.createAccountButton.isClickable = true
-              binding.createAccountButton.text = "Create account"
+              binding.attachToAccountButton.isEnabled = true
+              binding.attachToAccountButton.isClickable = true
+              binding.attachToAccountButton.text = "Create account"
             } else {
               setTitle("Failed")
               setMessage("Failed to Create account for \"$username\".")
-              binding.createAccountButton.isEnabled = true
-              binding.createAccountButton.isClickable = true
-              binding.createAccountButton.text = "Create account failed, try again"
+              binding.attachToAccountButton.isEnabled = true
+              binding.attachToAccountButton.isClickable = true
+              binding.attachToAccountButton.text = "Create account failed, try again"
             }
             setPositiveButton("OK") { _, _ -> }
             create()
