@@ -23,7 +23,6 @@
  */
 package edu.gatech.ccg.recordthesehands.recording
 
-import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -35,7 +34,6 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
@@ -103,7 +101,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -170,14 +167,12 @@ class ClipDetails(
     private val TAG = ClipDetails::class.java.simpleName
   }
 
-  var startButtonDownTimestamp: Instant? = null
-  var startButtonUpTimestamp: Instant? = null
-  var restartButtonDownTimestamp: Instant? = null
-  var swipeBackTimestamp: Instant? = null
-  var swipeForwardTimestamp: Instant? = null
+  var startTimestamp: Instant? = null
+  var endTimestamp: Instant? = null
+  var endAction: String = "unknown"
 
   var lastModifiedTimestamp: Instant? = null
-  var valid = true
+  var valid = false
 
   fun toJson(): JSONObject {
     val json = JSONObject()
@@ -185,44 +180,25 @@ class ClipDetails(
     json.put("sessionId", sessionId)
     json.put("filename", filename)
     json.put("promptData", prompt.toJson())
+    json.put("endAction", endAction)
     json.put("videoStart", DateTimeFormatter.ISO_INSTANT.format(videoStart))
-    if (startButtonDownTimestamp != null) {
+    json.put("valid", valid)
+    if (startTimestamp != null) {
       json.put(
-        "startButtonDownTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(startButtonDownTimestamp)
+        "startTimestamp",
+        DateTimeFormatter.ISO_INSTANT.format(startTimestamp)
       )
     }
-    if (startButtonUpTimestamp != null) {
+    if (endTimestamp != null) {
       json.put(
-        "startButtonUpTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(startButtonUpTimestamp)
+        "endTimestamp",
+        DateTimeFormatter.ISO_INSTANT.format(endTimestamp)
       )
-    }
-    if (restartButtonDownTimestamp != null) {
-      json.put(
-        "restartButtonDownTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(restartButtonDownTimestamp)
-      )
-    }
-    if (swipeBackTimestamp != null) {
-      json.put("swipeBackTimestamp", DateTimeFormatter.ISO_INSTANT.format(swipeBackTimestamp))
-    }
-    if (swipeForwardTimestamp != null) {
-      json.put("swipeForwardTimestamp", DateTimeFormatter.ISO_INSTANT.format(swipeForwardTimestamp))
     }
     if (lastModifiedTimestamp != null) {
       json.put("lastModifiedTimestamp", lastModifiedTimestamp)
     }
-    json.put("valid", valid)
     return json
-  }
-
-  fun signStart(): Instant? {
-    return startButtonDownTimestamp ?: startButtonUpTimestamp
-  }
-
-  fun signEnd(): Instant? {
-    return restartButtonDownTimestamp ?: swipeForwardTimestamp ?: swipeBackTimestamp
   }
 
   /**
@@ -430,38 +406,9 @@ class RecordingActivity : FragmentActivity() {
   private var recording: Recording? = null
 
   /**
-   * Changing camera preview dynamically relies on programmatically changing constraints. We keep a
-   * copy of the original constraint to ease resetting our constraint back to its original form.
-   */
-  private lateinit var origAspectRatioLayout: ConstraintSet
-
-  /**
    * Window insets controller for hiding and showing the toolbars.
    */
   var windowInsetsController: WindowInsetsControllerCompat? = null
-
-
-  // Permissions
-  /**
-   * Marks whether the user has enabled the necessary permissions to record successfully. If
-   * we don't check this, the app will crash instead of presenting an error.
-   */
-  private var permissions: Boolean = true
-
-  /**
-   * When the activity starts, this routine checks the CAMERA
-   * permissions. (We do not need the MICROPHONE permission as we are just recording silent
-   * videos.)
-   */
-  val permission =
-    registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
-      map.entries.forEach { entry ->
-        when (entry.key) {
-          Manifest.permission.CAMERA ->
-            permissions = permissions && entry.value
-        }
-      }
-    }
 
   private fun startCamera(onTick: (String) -> Unit) {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -579,11 +526,12 @@ class RecordingActivity : FragmentActivity() {
         ClipDetails(
           newClipId(), sessionInfo.sessionId, filename,
           prompt, sessionStartTime
-        )
-      currentClipDetails!!.startButtonDownTimestamp = now
-      currentClipDetails!!.lastModifiedTimestamp = now
-      clipData.add(currentClipDetails!!)
-      dataManager.saveClipData(currentClipDetails!!)
+        ).also {
+          it.startTimestamp = now
+          it.lastModifiedTimestamp = now
+          clipData.add(it)
+          dataManager.saveClipData(it)
+        }
 
       prompt.recordMinMs?.let {
         viewModel.setRecordingCountdownDuration(it)
@@ -602,23 +550,25 @@ class RecordingActivity : FragmentActivity() {
       val now = Instant.now()
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
       dataManager.logToServerAtTimestamp(timestamp, "restartButton clicked")
-      val lastClipDetails = currentClipDetails!!
-
-      lastClipDetails.restartButtonDownTimestamp = now
-      lastClipDetails.lastModifiedTimestamp = now
-      lastClipDetails.valid = false
-      dataManager.saveClipData(lastClipDetails)
+      currentClipDetails!!.let {
+        it.endTimestamp = now
+        it.endAction = "restart"
+        it.lastModifiedTimestamp = now
+        it.valid = false
+        dataManager.saveClipData(it)
+      }
 
       val prompt = prompts.array[sessionStartIndex + currentPage]
       currentClipDetails =
         ClipDetails(
           newClipId(), sessionInfo.sessionId,
           filename, prompt, sessionStartTime
-        )
-      currentClipDetails!!.startButtonDownTimestamp = now
-      currentClipDetails!!.lastModifiedTimestamp = now
-      clipData.add(currentClipDetails!!)
-      dataManager.saveClipData(currentClipDetails!!)
+        ).also {
+          it.startTimestamp = now
+          it.lastModifiedTimestamp = now
+          clipData.add(it)
+          dataManager.saveClipData(it)
+        }
 
       prompt.recordMinMs?.let {
         viewModel.setRecordingCountdownDuration(it)
@@ -926,25 +876,25 @@ class RecordingActivity : FragmentActivity() {
           }
         )
 
-
-
         LaunchedEffect(pagerState.currentPage) {
           val newPage = pagerState.currentPage
-          if (currentClipDetails != null) {
+          currentClipDetails?.let { clipDetails ->
             val now = Instant.now()
             DateTimeFormatter.ISO_INSTANT.format(now)
             if (currentPage < newPage) {
               // Swiped forward
-              currentClipDetails!!.swipeForwardTimestamp = now
+              clipDetails.endTimestamp = now
+              clipDetails.endAction = "swipe_forward"
             } else {
               // Swiped backwards
-              currentClipDetails!!.swipeBackTimestamp = now
+              clipDetails.endTimestamp = now
+              clipDetails.endAction = "swipe_back"
             }
-            currentClipDetails!!.lastModifiedTimestamp = now
-            val saveClipDetails = currentClipDetails!!
+            clipDetails.lastModifiedTimestamp = now
+            clipDetails.valid = true
             currentClipDetails = null
             val saveClipDataRoutine = CoroutineScope(Dispatchers.IO).launch {
-              dataManager.saveClipData(saveClipDetails)
+              dataManager.saveClipData(clipDetails)
             }
             if (endSessionOnClipEnd) {
               currentPromptIndex += 1
@@ -1076,6 +1026,18 @@ class RecordingActivity : FragmentActivity() {
     UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     setResult(result)
     sessionInfo.result = resultString
+    val now = Instant.now()
+    sessionInfo.endTimestamp = now
+    currentClipDetails?.let {
+      it.endTimestamp = now
+      it.endAction = "quit"
+      it.lastModifiedTimestamp = now
+      it.valid = false
+      runBlocking {
+        dataManager.saveClipData(it)
+      }
+      currentClipDetails = null
+    }
 
     stopRecording()
     countdownTimer.cancel()

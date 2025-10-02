@@ -73,12 +73,12 @@ class UploadService : LifecycleService() {
 
   private var notifiedOfCompletion = false
 
-
   /**
    * onCreate.
    */
   override fun onCreate() {
     super.onCreate()
+    Log.i(TAG, "UploadService.onCreate()")
     val channel = NotificationChannel(
       UPLOAD_NOTIFICATION_CHANNEL_ID, "Upload Service", NotificationManager.IMPORTANCE_LOW
     )
