@@ -329,12 +329,6 @@ class RecordingActivity : FragmentActivity() {
   private var isTablet = false
 
   /**
-   * Marks whether or not the user is currently signing a word. This is essentially only true
-   * for the duration that the user holds down the Record button.
-   */
-  private var isSigning = false
-
-  /**
    * In the event that the user is holding down the Record button when the timer runs out, this
    * value will be set to true. Once the user releases the button, the session will end
    * immediately.
@@ -530,7 +524,7 @@ class RecordingActivity : FragmentActivity() {
       // When the timer expires, move to the summary page (or have the app move there as soon
       // as the user finishes the recording they're currently working on).
       override fun onFinish() {
-        if (isSigning) {
+        if (currentClipDetails != null) {
           // TODO test this.
           endSessionOnClipEnd = true
         } else {
@@ -597,6 +591,7 @@ class RecordingActivity : FragmentActivity() {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
     dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
     val prompt = prompts.array[sessionStartIndex + currentPage]
+
     currentClipDetails =
       ClipDetails(
         newClipId(), sessionInfo.sessionId, filename,
@@ -614,7 +609,6 @@ class RecordingActivity : FragmentActivity() {
       viewModel.restartRecordingCountdown()
     }
 
-    isSigning = true
     runOnUiThread {
       viewModel.showGoText()
       viewModel.setButtonState(recordVisible = false, restartVisible = true)
@@ -627,6 +621,7 @@ class RecordingActivity : FragmentActivity() {
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
       dataManager.logToServerAtTimestamp(timestamp, "restartButton down")
       val lastClipDetails = currentClipDetails!!
+
       lastClipDetails.restartButtonDownTimestamp = now
       lastClipDetails.lastModifiedTimestamp = now
       lastClipDetails.valid = false
@@ -648,7 +643,6 @@ class RecordingActivity : FragmentActivity() {
         viewModel.restartRecordingCountdown()
       }
 
-      isSigning = true
       runOnUiThread {
         viewModel.showGoText()
       }
@@ -716,12 +710,11 @@ class RecordingActivity : FragmentActivity() {
       // Persist the data.  This will lock the dataManager for a few seconds, which is
       // only acceptable because we are not recording.
       dataManager.persistData()
+      Log.i(TAG, "saveRecordingData: finished")
     }
-    Log.d(TAG, "Email confirmations enabled? = $emailConfirmationEnabled")
     if (emailConfirmationEnabled) {
       sendConfirmationEmail()
     }
-    Log.i(TAG, "saveRecordingData: finished")
   }
 
   /**
@@ -1129,8 +1122,6 @@ class RecordingActivity : FragmentActivity() {
       "Recording Session Concluded", "Upload will occur automatically."
     )
     notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
-
-
     finish()
   }
 
@@ -1139,7 +1130,7 @@ class RecordingActivity : FragmentActivity() {
    * the user's progress.
    */
   private fun sendConfirmationEmail() {
-    // TODO test this code.
+    Log.d(TAG, "Sending Email confirmation")
     val output = JSONObject()
     val clips = JSONArray()
     for (i in 0..clipData.size - 1) {
@@ -1189,6 +1180,7 @@ class RecordingActivity : FragmentActivity() {
         val recipients = ArrayList(listOf(*resources.getStringArray(recipientArrayId)))
 
         sendEmail(sender, recipients, subject, body, password)
+        Log.d(TAG, "Email confirmation sent.")
       } catch (e: android.content.res.Resources.NotFoundException) {
         Log.w(TAG, "Email credentials not found, skipping email confirmation.")
       }
