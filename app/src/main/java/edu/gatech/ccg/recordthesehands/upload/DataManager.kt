@@ -47,6 +47,8 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
+import edu.gatech.ccg.recordthesehands.recording.ClipDetails
+import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
 import edu.gatech.ccg.recordthesehands.toHex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1743,6 +1745,13 @@ class DataManager(val context: Context) {
     }
   }
 
+  suspend fun logToServerAndPersist(message: String) {
+    dataManagerData.lock.withLock {
+      logToServerUnderLock(message)
+      persistDataUnderLock(false)
+    }
+  }
+
   private suspend fun logToServerUnderLock(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     logToServerAtTimestampUnderLock(timestamp, message)
@@ -1855,20 +1864,28 @@ class DataManager(val context: Context) {
    * [registerFile]) will block until this function completes. It performs file I/O and may
    * block for a significant amount of time.
    */
-  suspend fun persistData() {
+  suspend fun persistData(verbose: Boolean = true) {
     dataManagerData.lock.withLock {
-      val tutorialMode = getTutorialModeUnderLock()
+      persistDataUnderLock(verbose = verbose)
+    }
+  }
+
+  private suspend fun persistDataUnderLock(verbose: Boolean = true) {
+    val tutorialMode = getTutorialModeUnderLock()
+    if (verbose) {
       Log.i(TAG, "Starting to persist data")
-      context.dataStore.edit { preferences ->
-        dataManagerData.keyValues.forEach {
-          val keyObject = stringPreferencesKey(it.key)
-          if (tutorialMode) {
-            it.value.put("tutorialMode", tutorialMode)
-          }
-          preferences[keyObject] = it.value.toString()
+    }
+    context.dataStore.edit { preferences ->
+      dataManagerData.keyValues.forEach {
+        val keyObject = stringPreferencesKey(it.key)
+        if (tutorialMode) {
+          it.value.put("tutorialMode", tutorialMode)
         }
+        preferences[keyObject] = it.value.toString()
       }
-      dataManagerData.keyValues.clear()
+    }
+    dataManagerData.keyValues.clear()
+    if (verbose) {
       Log.i(TAG, "Finished persisting data.")
     }
   }
@@ -2058,6 +2075,13 @@ class DataManager(val context: Context) {
     return true
   }
 
+  suspend fun saveClipData(clipDetails: ClipDetails) {
+    val json = clipDetails.toJson()
+    // Use a consistent key based on the clipId so that any changes to the clip
+    // will be updated on the server.
+    addKeyValue("clipData-${clipDetails.clipId}", json, "clip")
+  }
+
   /**
    * Updates the lifetime recording statistics for the user.
    *
@@ -2078,6 +2102,66 @@ class DataManager(val context: Context) {
       preferences[recordingMsKeyObject] =
         (preferences[recordingMsKeyObject] ?: 0) + sessionLength.toMillis()
     }
+  }
+
+  suspend fun saveSessionInfo(sessionInfo: RecordingSessionInfo) {
+    val json = sessionInfo.toJson()
+    // Use a consistent key so that any changes will be updated on the server.
+    addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session")
+  }
+
+  private suspend fun saveSessionInfoUnderLock(sessionInfo: RecordingSessionInfo) {
+    val json = sessionInfo.toJson()
+    // Use a consistent key so that any changes will be updated on the server.
+    addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session", holdingLock = true)
+  }
+
+  fun launchSaveRecordingData(
+    filename: String,
+    outputFile: File,
+    tutorialMode: Boolean,
+    sessionInfo: RecordingSessionInfo,
+    currentPromptIndex: Int
+  ) {
+    CoroutineScope(Dispatchers.IO).launch {
+      dataManagerData.lock.withLock {
+        saveRecordingDataUnderLock(
+          filename,
+          outputFile,
+          tutorialMode,
+          sessionInfo,
+          currentPromptIndex
+        )
+      }
+    }
+  }
+
+  private suspend fun saveRecordingDataUnderLock(
+    filename: String,
+    outputFile: File,
+    tutorialMode: Boolean,
+    sessionInfo: RecordingSessionInfo,
+    currentPromptIndex: Int
+  ) {
+    val now = Instant.now()
+    val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+    val json = JSONObject()
+    json.put("filename", filename)
+    json.put("endTimestamp", timestamp)
+    addKeyValue("recording_stopped-${timestamp}", json, "recording", holdingLock = true)
+    registerFile(
+      outputFile.relativeTo(context.filesDir).path,
+      tutorialMode
+    )
+    sessionInfo.endTimestamp = now
+    sessionInfo.finalPromptIndex = currentPromptIndex
+    saveCurrentPromptIndexUnderLock(currentPromptIndex)
+    saveSessionInfoUnderLock(sessionInfo)
+    updateLifetimeStatistics(
+      Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
+    )
+    persistDataUnderLock()
+    Log.i(TAG, "saveRecordingDataUnderLock: finished")
   }
 
   /**

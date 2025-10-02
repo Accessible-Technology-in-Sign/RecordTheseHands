@@ -63,7 +63,7 @@
     <string name="yes">Yes</string>
     <!-- Upload Button Messages -->
     <string name="upload_button">Upload Now</string>
-    <string name="upload_failed">Upload Failed, Click to try again</string>
+    <string name="upload_failed">Upload Failed, Try Again</string>
     <string name="upload_successful">Uploading…</string>
 
     <!-- HomeScreenActivity -->

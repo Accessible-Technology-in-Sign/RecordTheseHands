@@ -116,7 +116,6 @@ import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
-import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
@@ -143,7 +142,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.lang.Integer.min
-import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
@@ -236,13 +234,6 @@ class ClipDetails(
   }
 }
 
-suspend fun DataManager.saveClipData(clipDetails: ClipDetails) {
-  val json = clipDetails.toJson()
-  // Use a consistent key based on the clipId so that any changes to the clip
-  // will be updated on the server.
-  addKeyValue("clipData-${clipDetails.clipId}", json, "clip")
-}
-
 fun Random.Default.nextHexId(numBytes: Int): String {
   val bytes = ByteArray(numBytes)
   nextBytes(bytes)
@@ -303,12 +294,6 @@ class RecordingSessionInfo(
     val json = toJson()
     return json.toString(2)
   }
-}
-
-suspend fun DataManager.saveSessionInfo(sessionInfo: RecordingSessionInfo) {
-  val json = sessionInfo.toJson()
-  // Use a consistent key so that any changes will be updated on the server.
-  addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session")
 }
 
 /**
@@ -504,9 +489,6 @@ class RecordingActivity : FragmentActivity() {
       }
     }, ContextCompat.getMainExecutor(this))
 
-    // TODO analyze where the pause Upload Timeout is being set.
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-
     // TODO should the countdownTimer setup code be moved somewhere else?  It doesn't have anything
     // directly to do with the camera.
 
@@ -529,7 +511,7 @@ class RecordingActivity : FragmentActivity() {
           endSessionOnClipEnd = true
         } else {
           // TODO test this.
-          concludeRecordingSession(RESULT_OK, "RESULT_OK")
+          concludeRecordingSession(RESULT_OK, "RESULT_OK_SESSION_REACHED_TIMER_LIMIT")
         }
       }
     } // CountDownTimer
@@ -587,31 +569,31 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun recordButtonOnClickListener() {
-    val now = Instant.now()
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-    dataManager.logToServerAtTimestamp(timestamp, "recordButton down")
-    val prompt = prompts.array[sessionStartIndex + currentPage]
+    lifecycleScope.launch(Dispatchers.IO) {
+      val now = Instant.now()
+      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+      dataManager.logToServerAtTimestamp(timestamp, "recordButton clicked")
+      val prompt = prompts.array[sessionStartIndex + currentPage]
 
-    currentClipDetails =
-      ClipDetails(
-        newClipId(), sessionInfo.sessionId, filename,
-        prompt, sessionStartTime
-      )
-    currentClipDetails!!.startButtonDownTimestamp = now
-    currentClipDetails!!.lastModifiedTimestamp = now
-    clipData.add(currentClipDetails!!)
-    CoroutineScope(Dispatchers.IO).launch {
+      currentClipDetails =
+        ClipDetails(
+          newClipId(), sessionInfo.sessionId, filename,
+          prompt, sessionStartTime
+        )
+      currentClipDetails!!.startButtonDownTimestamp = now
+      currentClipDetails!!.lastModifiedTimestamp = now
+      clipData.add(currentClipDetails!!)
       dataManager.saveClipData(currentClipDetails!!)
-    }
 
-    prompt.recordMinMs?.let {
-      viewModel.setRecordingCountdownDuration(it)
-      viewModel.restartRecordingCountdown()
-    }
+      prompt.recordMinMs?.let {
+        viewModel.setRecordingCountdownDuration(it)
+        viewModel.restartRecordingCountdown()
+      }
 
-    runOnUiThread {
-      viewModel.showGoText()
-      viewModel.setButtonState(recordVisible = false, restartVisible = true)
+      runOnUiThread {
+        viewModel.showGoText()
+        viewModel.setButtonState(recordVisible = false, restartVisible = true)
+      }
     }
   }
 
@@ -619,7 +601,7 @@ class RecordingActivity : FragmentActivity() {
     lifecycleScope.launch(Dispatchers.IO) {
       val now = Instant.now()
       val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-      dataManager.logToServerAtTimestamp(timestamp, "restartButton down")
+      dataManager.logToServerAtTimestamp(timestamp, "restartButton clicked")
       val lastClipDetails = currentClipDetails!!
 
       lastClipDetails.restartButtonDownTimestamp = now
@@ -659,7 +641,7 @@ class RecordingActivity : FragmentActivity() {
     super.onRestart()
     stopRecording()
     dataManager.logToServer("onRestart called.")
-    concludeRecordingSession(RESULT_ACTIVITY_UNREACHABLE, "ON_RESTART")
+    concludeRecordingSession(RESULT_ACTIVITY_UNREACHABLE, "RESULT_UNREACHABLE_ON_RESTART")
   }
 
   /**
@@ -673,7 +655,7 @@ class RecordingActivity : FragmentActivity() {
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
     dataManager.logToServer("onStop called.")
-    concludeRecordingSession(RESULT_ACTIVITY_STOPPED, "RESULT_ACTIVITY_STOPPED")
+    concludeRecordingSession(RESULT_OK, "RESULT_OK_ON_STOP")
   }
 
   /**
@@ -688,30 +670,13 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun saveRecordingData() {
-    CoroutineScope(Dispatchers.IO).launch {
-      UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
-      val now = Instant.now()
-      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
-      val json = JSONObject()
-      json.put("filename", filename)
-      json.put("endTimestamp", timestamp)
-      dataManager.addKeyValue("recording_stopped-${timestamp}", json, "recording")
-      dataManager.registerFile(
-        outputFile.relativeTo(applicationContext.filesDir).path,
-        tutorialMode
-      )
-      sessionInfo.endTimestamp = now
-      sessionInfo.finalPromptIndex = currentPromptIndex
-      dataManager.saveCurrentPromptIndex(currentPromptIndex)
-      dataManager.saveSessionInfo(sessionInfo)
-      dataManager.updateLifetimeStatistics(
-        Duration.between(sessionInfo.startTimestamp, sessionInfo.endTimestamp)
-      )
-      // Persist the data.  This will lock the dataManager for a few seconds, which is
-      // only acceptable because we are not recording.
-      dataManager.persistData()
-      Log.i(TAG, "saveRecordingData: finished")
-    }
+    dataManager.launchSaveRecordingData(
+      filename,
+      outputFile,
+      tutorialMode,
+      sessionInfo,
+      currentPromptIndex
+    )
     if (emailConfirmationEnabled) {
       sendConfirmationEmail()
     }
@@ -723,6 +688,8 @@ class RecordingActivity : FragmentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+
     setContent {
       val timerText by viewModel.timerText.collectAsState()
       val recordButtonVisible by viewModel.recordButtonVisible.collectAsState()
@@ -840,7 +807,7 @@ class RecordingActivity : FragmentActivity() {
               )
             } else if (page == sessionLimit - sessionStartIndex) {
               ConfirmPage(
-                onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK") },
+                onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK_CONFIRM_PAGE") },
                 modifier = commonModifier
               )
             } else {
@@ -930,7 +897,7 @@ class RecordingActivity : FragmentActivity() {
         BackButton(
           onClick = {
             dataManager.logToServer("User pressed back button to end recording.")
-            concludeRecordingSession(RESULT_OK, "RESULT_OK")
+            concludeRecordingSession(RESULT_OK, "RESULT_OK_BACK_BUTTON")
           },
           modifier = Modifier
             .constrainAs(backButton) {
@@ -976,16 +943,17 @@ class RecordingActivity : FragmentActivity() {
             currentClipDetails!!.lastModifiedTimestamp = now
             val saveClipDetails = currentClipDetails!!
             currentClipDetails = null
-            CoroutineScope(Dispatchers.IO).launch {
+            val saveClipDataRoutine = CoroutineScope(Dispatchers.IO).launch {
               dataManager.saveClipData(saveClipDetails)
+            }
+            if (endSessionOnClipEnd) {
+              currentPromptIndex += 1
+              saveClipDataRoutine.join()  // the clip must be saved before ending the session.
+              concludeRecordingSession(RESULT_OK, "RESULT_OK_ENDED_SESSION_ON_CLIP_END")
+              return@LaunchedEffect
             }
           }
           currentPage = newPage
-          if (endSessionOnClipEnd) {
-            currentPromptIndex += 1
-            concludeRecordingSession(RESULT_OK, "ENDED_SESSION_ON_CLIP_END")
-            return@LaunchedEffect
-          }
           val promptIndex = sessionStartIndex + currentPage
 
           if (promptIndex < sessionLimit) {
@@ -1012,7 +980,7 @@ class RecordingActivity : FragmentActivity() {
     }
 
     windowInsetsController =
-      WindowCompat.getInsetsController(window, window.decorView)?.also {
+      WindowCompat.getInsetsController(window, window.decorView).also {
         it.systemBarsBehavior =
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
@@ -1103,15 +1071,11 @@ class RecordingActivity : FragmentActivity() {
 
   /**
    * Finish the recording session and close the activity.
-   * Set sessionInfo.result and setResult() before calling this function.
    */
-  fun concludeRecordingSession(result: Int? = null, resultString: String? = null) {
-    if (result != null) {
-      setResult(result)
-    }
-    if (resultString != null) {
-      sessionInfo.result = resultString
-    }
+  fun concludeRecordingSession(result: Int, resultString: String) {
+    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    setResult(result)
+    sessionInfo.result = resultString
 
     stopRecording()
     countdownTimer.cancel()

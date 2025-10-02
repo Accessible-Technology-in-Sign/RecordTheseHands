@@ -224,7 +224,9 @@ class HomeScreenActivity : AppCompatActivity() {
             }
             UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
-            dataManager.waitForDataLock()
+            // This has the side effect of ensuring the lock is available
+            // (hence any upload is paused).
+            dataManager.logToServerAndPersist("Launching RecordingActivity.")
             Log.d(TAG, "Data lock was available.")
 
             handleRecordingResult.launch(intent)
@@ -278,7 +280,8 @@ class HomeScreenActivity : AppCompatActivity() {
               }
             }
           } catch (e: InterruptedUploadException) {
-            Log.w(TAG, "Upload Data was interrupted.", e)
+            Log.w("Data upload was interrupted.", e)
+            dataManager.logToServerAndPersist("Data upload was interrupted.")
             runOnUiThread {
               val textFinish = "Upload interrupted"
               val toastFinish =
@@ -315,6 +318,9 @@ class HomeScreenActivity : AppCompatActivity() {
       }
 
     dataManager = DataManager(applicationContext)
+    lifecycleScope.launch {
+      dataManager.logToServerAndPersist("HomeScreenActivity.onCreate")
+    }
 
     // Start the UploadService (which should already be running anyway).
     runBlocking {
