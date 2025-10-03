@@ -424,6 +424,7 @@ class RecordingActivity : FragmentActivity() {
   private var backgroundThread: android.os.HandlerThread? = null
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
+  private lateinit var videoSize: Size
   private var mediaRecorder: MediaRecorder? = null
 
   /**
@@ -472,6 +473,10 @@ class RecordingActivity : FragmentActivity() {
         manager.getCameraCharacteristics(it)
           .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
       }
+      val characteristics = manager.getCameraCharacteristics(cameraId)
+      val map = characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+      videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
+
       // For simplicity, we are not handling permissions here, assuming they are granted.
       // A production app should handle permissions properly.
       manager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
@@ -492,8 +497,7 @@ class RecordingActivity : FragmentActivity() {
   private fun createCameraPreviewSession() {
     try {
       val texture = textureView.surfaceTexture!!
-      // We configure the size of default buffer to be the size of camera preview we want.
-      // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+      texture.setDefaultBufferSize(videoSize.width, videoSize.height)
       val surface = Surface(texture)
 
       previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
@@ -594,7 +598,7 @@ class RecordingActivity : FragmentActivity() {
       closeCameraPreviewSession()
       setUpMediaRecorder()
       val texture = textureView.surfaceTexture!!
-      // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+      texture.setDefaultBufferSize(videoSize.width, videoSize.height)
       val previewSurface = Surface(texture)
       val recorderSurface = mediaRecorder!!.surface
       previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
@@ -1181,6 +1185,19 @@ class RecordingActivity : FragmentActivity() {
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
+  private fun chooseVideoSize(choices: Array<Size>): Size {
+    for (size in choices) {
+      if (size.width == 640 && size.height == 480) {
+        return size
+      }
+    }
+    Log.w(TAG, "Couldn't find a 640x480 resolution, choosing the first available")
+    if (choices.isNotEmpty()) {
+      return choices[0]
+    }
+    throw IllegalStateException("No supported video resolutions found")
+  }
+
   private fun setUpMediaRecorder() {
     mediaRecorder = MediaRecorder()
     mediaRecorder?.apply {
@@ -1189,6 +1206,7 @@ class RecordingActivity : FragmentActivity() {
       setOutputFile(outputFile.absolutePath)
       setVideoEncodingBitRate(10000000)
       setVideoFrameRate(30)
+      setVideoSize(videoSize.width, videoSize.height)
       setVideoEncoder(MediaRecorder.VideoEncoder.H264)
       prepare()
     }
