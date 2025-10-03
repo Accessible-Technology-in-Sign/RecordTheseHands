@@ -741,6 +741,8 @@ class RecordingActivity : FragmentActivity() {
           width: Int,
           height: Int
         ) {
+          // TODO does this function need to be called here?  It's called a lot on each
+          // swipe animation.
           configureTransform(width, height)
         }
 
