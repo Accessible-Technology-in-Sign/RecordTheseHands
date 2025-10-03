@@ -66,18 +66,19 @@ object Constants {
    * than high enough.
    */
   const val RECORDER_VIDEO_BITRATE: Int = 30_000_000
+  const val MAXIMUM_RESOLUTION = 9_000_000
 
   /**
-   * Camera resolution and framerate parameters.
+   * Camera framerate.
    */
   const val RECORDING_FRAMERATE = 30
-  const val MAXIMUM_RESOLUTION = 9_000_000
 
   /**
    * The length of the countdown (in milliseconds), after which the recording will end
    * automatically. Currently configured to be 15 minutes.
    */
   const val COUNTDOWN_DURATION = 15 * 60 * 1000L
+  const val RECORDING_HARD_STOP_DURATION = COUNTDOWN_DURATION + 3 * 60 * 1000L
 
   /**
    * The number of prompts to use in each recording session.

@@ -116,7 +116,9 @@ import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
+import edu.gatech.ccg.recordthesehands.Constants.RECORDING_HARD_STOP_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
+import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
@@ -135,6 +137,7 @@ import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -175,8 +178,8 @@ class ClipDetails(
   var endTimestamp: Instant? = null
   var endAction: String = "unknown"
 
-  var lastModifiedTimestamp: Instant? = null
   var valid = false
+  var lastModifiedTimestamp: Instant? = null
 
   fun toJson(): JSONObject {
     val json = JSONObject()
@@ -286,8 +289,9 @@ class RecordingActivity : FragmentActivity() {
 
   private val viewModel: RecordingViewModel by viewModels()
 
+  private val isConcluding = java.util.concurrent.atomic.AtomicBoolean(false)
+  private val concludeLatch = java.util.concurrent.CountDownLatch(1)
 
-  // UI state variables
   /**
    * Marks whether the user is using a tablet (diagonal screen size > 7.0 inches (~17.78 cm)).
    */
@@ -321,7 +325,6 @@ class RecordingActivity : FragmentActivity() {
    */
   private lateinit var countdownTimer: CountDownTimer
 
-  // Prompt data
   /**
    * The prompts data.
    */
@@ -332,7 +335,6 @@ class RecordingActivity : FragmentActivity() {
    */
   lateinit var promptsMetadata: PromptsSectionMetadata
 
-  // Recording and session data
   /**
    * The filename for the current video recording.
    */
@@ -414,7 +416,7 @@ class RecordingActivity : FragmentActivity() {
    */
   var windowInsetsController: WindowInsetsControllerCompat? = null
 
-  private fun startCamera(onTick: (String) -> Unit) {
+  private fun startCamera() {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
     cameraProviderFuture.addListener({
       val cameraProvider = cameraProviderFuture.get()
@@ -455,8 +457,10 @@ class RecordingActivity : FragmentActivity() {
     // TODO should the countdownTimer setup code be moved somewhere else?  It doesn't have anything
     // directly to do with the camera.
 
+  }
+
+  private fun setupCountdownTimer(onTick: (String) -> Unit) {
     // Set up the countdown timer.
-    // binding.timerLabel.text = "00:00"
     countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
       // Update the timer text every second.
       override fun onTick(p0: Long) {
@@ -466,14 +470,12 @@ class RecordingActivity : FragmentActivity() {
         onTick("$minutes:$seconds")
       }
 
-      // When the timer expires, move to the summary page (or have the app move there as soon
-      // as the user finishes the recording they're currently working on).
+      // When the timer expires, wait for the current prompt to be done and then finish.
+      // Or, if no prompt is being done, just finish immediately.
       override fun onFinish() {
         if (currentClipDetails != null) {
-          // TODO test this.
           endSessionOnClipEnd = true
         } else {
-          // TODO test this.
           concludeRecordingSession(RESULT_OK, "RESULT_OK_SESSION_REACHED_TIMER_LIMIT")
         }
       }
@@ -544,6 +546,7 @@ class RecordingActivity : FragmentActivity() {
           prompt, sessionStartTime
         ).also {
           it.startTimestamp = now
+          it.valid = false
           it.lastModifiedTimestamp = now
           clipData.add(it)
           dataManager.saveClipData(it)
@@ -569,8 +572,8 @@ class RecordingActivity : FragmentActivity() {
       currentClipDetails!!.let {
         it.endTimestamp = now
         it.endAction = "restart"
-        it.lastModifiedTimestamp = now
         it.valid = false
+        it.lastModifiedTimestamp = now
         dataManager.saveClipData(it)
       }
 
@@ -581,6 +584,7 @@ class RecordingActivity : FragmentActivity() {
           filename, prompt, sessionStartTime
         ).also {
           it.startTimestamp = now
+          it.valid = false
           it.lastModifiedTimestamp = now
           clipData.add(it)
           dataManager.saveClipData(it)
@@ -906,8 +910,8 @@ class RecordingActivity : FragmentActivity() {
               clipDetails.endTimestamp = now
               clipDetails.endAction = "swipe_back"
             }
-            clipDetails.lastModifiedTimestamp = now
             clipDetails.valid = true
+            clipDetails.lastModifiedTimestamp = now
             currentClipDetails = null
             val saveClipDataRoutine = CoroutineScope(Dispatchers.IO).launch {
               dataManager.saveClipData(clipDetails)
@@ -1020,9 +1024,16 @@ class RecordingActivity : FragmentActivity() {
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-    startCamera {
+    startCamera()
+    setupCountdownTimer {
       viewModel.onTick(it)
     }
+    lifecycleScope.launch {
+      delay(RECORDING_HARD_STOP_DURATION)
+      dataManager.logToServer("Hard stop reached.")
+      concludeRecordingSession(RESULT_ACTIVITY_STOPPED, "RESULT_ACTIVITY_STOPPED_HARD_STOP")
+    }
+
   }
 
   /**
@@ -1038,6 +1049,10 @@ class RecordingActivity : FragmentActivity() {
    * Finish the recording session and close the activity.
    */
   fun concludeRecordingSession(result: Int, resultString: String) {
+    if (!isConcluding.compareAndSet(false, true)) {
+      concludeLatch.await()
+      return
+    }
     UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     setResult(result)
     sessionInfo.result = resultString
@@ -1047,8 +1062,8 @@ class RecordingActivity : FragmentActivity() {
     currentClipDetails?.let {
       it.endTimestamp = now
       it.endAction = "quit"
-      it.lastModifiedTimestamp = now
       it.valid = false
+      it.lastModifiedTimestamp = now
       runBlocking {
         dataManager.saveClipData(it)
       }
@@ -1064,6 +1079,7 @@ class RecordingActivity : FragmentActivity() {
       "Recording Session Concluded", "Upload will occur automatically."
     )
     notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
+    concludeLatch.countDown()
     finish()
   }
 
