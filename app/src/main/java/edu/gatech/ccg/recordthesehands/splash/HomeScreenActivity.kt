@@ -29,6 +29,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -547,10 +548,12 @@ class HomeScreenActivity : AppCompatActivity() {
 
   private fun checkAndRequestPermissions() {
     val permissionsToRequest = mutableListOf<String>()
-    if (ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS) !=
-      PackageManager.PERMISSION_GRANTED
-    ) {
-      permissionsToRequest.add(POST_NOTIFICATIONS)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      if (ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS) !=
+        PackageManager.PERMISSION_GRANTED
+      ) {
+        permissionsToRequest.add(POST_NOTIFICATIONS)
+      }
     }
     if (ContextCompat.checkSelfPermission(this, CAMERA) !=
       PackageManager.PERMISSION_GRANTED
