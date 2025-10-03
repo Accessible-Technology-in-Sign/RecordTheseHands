@@ -29,6 +29,7 @@ import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
+import android.util.Size
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -37,6 +38,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
@@ -414,7 +417,17 @@ class RecordingActivity : FragmentActivity() {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
     cameraProviderFuture.addListener({
       val cameraProvider = cameraProviderFuture.get()
-      preview = Preview.Builder().build()
+      val resolutionSelector = ResolutionSelector.Builder()
+        .setResolutionStrategy(
+          ResolutionStrategy(
+            Size(640, 480),
+            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+          )
+        )
+        .build()
+      preview = Preview.Builder()
+        .setResolutionSelector(resolutionSelector)
+        .build()
 
       val recorder = Recorder.Builder()
         .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
