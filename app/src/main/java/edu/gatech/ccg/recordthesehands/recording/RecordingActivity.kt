@@ -33,6 +33,8 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.OutputConfiguration
+import android.hardware.camera2.params.SessionConfiguration
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -139,6 +141,7 @@ import org.json.JSONObject
 import java.io.File
 import java.lang.Integer.min
 import java.time.Instant
+import java.util.concurrent.Executor
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
@@ -523,8 +526,13 @@ class RecordingActivity : FragmentActivity() {
       previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
       previewRequestBuilder.addTarget(previewSurface)
       previewRequestBuilder.addTarget(recorderSurface)
-      cameraDevice!!.createCaptureSession(
-        listOf(previewSurface, recorderSurface),
+
+      val outputConfigs = listOf(previewSurface, recorderSurface).map { OutputConfiguration(it) }
+      val executor = Executor { command -> backgroundHandler?.post(command) }
+      val sessionConfig = SessionConfiguration(
+        SessionConfiguration.SESSION_REGULAR,
+        outputConfigs,
+        executor,
         object : CameraCaptureSession.StateCallback() {
           override fun onConfigured(session: CameraCaptureSession) {
             cameraCaptureSession = session
@@ -540,9 +548,13 @@ class RecordingActivity : FragmentActivity() {
             }
           }
 
-          override fun onConfigureFailed(session: CameraCaptureSession) {}
-        }, backgroundHandler
+          override fun onConfigureFailed(session: CameraCaptureSession) {
+            val exc = RuntimeException("Camera ${cameraDevice?.id} session configuration failed")
+            Log.e(TAG, exc.message, exc)
+          }
+        }
       )
+      cameraDevice!!.createCaptureSession(sessionConfig)
     } catch (e: Exception) {
       Log.e(TAG, "Failed to start recording", e)
     }
