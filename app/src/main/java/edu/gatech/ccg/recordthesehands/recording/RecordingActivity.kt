@@ -51,6 +51,7 @@ import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInCirc
+import android.view.Surface
 import androidx.compose.animation.core.EaseOutCirc
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -135,6 +136,7 @@ import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CaptureRequest
@@ -425,20 +427,62 @@ class RecordingActivity : FragmentActivity() {
    */
   var windowInsetsController: WindowInsetsControllerCompat? = null
 
+  private val cameraStateCallback = object : CameraDevice.StateCallback() {
+    override fun onOpened(camera: CameraDevice) {
+      cameraDevice = camera
+      createCameraPreviewSession()
+    }
+
+    override fun onDisconnected(camera: CameraDevice) {
+      camera.close()
+      cameraDevice = null
+    }
+
+    override fun onError(camera: CameraDevice, error: Int) {
+      camera.close()
+      cameraDevice = null
+      Log.e(TAG, "Camera error: $error")
+    }
+  }
+
   private fun startBackgroundThread() {
-    // TODO: Implementation for Stage 2
+    backgroundThread = HandlerThread("CameraBackground").also { it.start() }
+    backgroundHandler = Handler(backgroundThread!!.looper)
   }
 
   private fun stopBackgroundThread() {
-    // TODO: Implementation for Stage 2
+    backgroundThread?.quitSafely()
+    try {
+      backgroundThread?.join()
+      backgroundThread = null
+      backgroundHandler = null
+    } catch (e: InterruptedException) {
+      Log.e(TAG, "Error stopping background thread", e)
+    }
   }
 
   private fun openCamera() {
-    // TODO: Implementation for Stage 2
+    val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    try {
+      val cameraId = manager.cameraIdList.first {
+        manager.getCameraCharacteristics(it)
+          .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+      }
+      // For simplicity, we are not handling permissions here, assuming they are granted.
+      // A production app should handle permissions properly.
+      manager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
+    } catch (e: SecurityException) {
+      Log.e(TAG, "Camera permission not granted", e)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error opening camera", e)
+    }
   }
 
   private fun closeCamera() {
-    // TODO: Implementation for Stage 2
+    cameraCaptureSession?.close()
+    cameraCaptureSession = null
+    cameraDevice?.close()
+    cameraDevice = null
   }
 
   private fun createCameraPreviewSession() {
@@ -659,6 +703,7 @@ class RecordingActivity : FragmentActivity() {
     // does not record while the activity is in the background.
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
+    stopBackgroundThread()
     closeCamera()
     dataManager.logToServer("onStop called.")
     concludeRecordingSession(RESULT_OK, "RESULT_OK_ON_STOP")
@@ -1074,6 +1119,7 @@ class RecordingActivity : FragmentActivity() {
   override fun onResume() {
     // It should only be possible for this function to be called once.
     super.onResume()
+    startBackgroundThread()
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
