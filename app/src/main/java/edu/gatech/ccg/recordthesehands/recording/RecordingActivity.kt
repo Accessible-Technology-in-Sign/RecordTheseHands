@@ -27,34 +27,26 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.graphics.SurfaceTexture
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
+import android.view.Surface
+import android.view.TextureView
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.view.TextureView
-import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.FileOutputOptions
-import androidx.camera.video.Quality
-import androidx.camera.video.QualitySelector
-import androidx.camera.video.Recorder
-import androidx.camera.video.Recording
-import androidx.camera.video.VideoCapture
-import androidx.camera.video.VideoRecordEvent
-import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInCirc
-import android.view.Surface
 import androidx.compose.animation.core.EaseOutCirc
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -85,7 +77,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,18 +99,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
-import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
 import edu.gatech.ccg.recordthesehands.Constants.RECORDING_HARD_STOP_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
@@ -139,19 +127,9 @@ import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CaptureRequest
-import android.os.Handler
-import android.os.HandlerThread
-import android.view.TextureView
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -474,7 +452,8 @@ class RecordingActivity : FragmentActivity() {
           .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
       }
       val characteristics = manager.getCameraCharacteristics(cameraId)
-      val map = characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+      val map =
+        characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
       videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
 
       // For simplicity, we are not handling permissions here, assuming they are granted.
@@ -508,7 +487,10 @@ class RecordingActivity : FragmentActivity() {
         object : CameraCaptureSession.StateCallback() {
           override fun onConfigured(session: CameraCaptureSession) {
             cameraCaptureSession = session
-            previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            previewRequestBuilder.set(
+              CaptureRequest.CONTROL_AF_MODE,
+              CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+            )
             captureRequest = previewRequestBuilder.build()
             cameraCaptureSession?.setRepeatingRequest(captureRequest, null, backgroundHandler)
           }
@@ -609,7 +591,10 @@ class RecordingActivity : FragmentActivity() {
         object : CameraCaptureSession.StateCallback() {
           override fun onConfigured(session: CameraCaptureSession) {
             cameraCaptureSession = session
-            previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            previewRequestBuilder.set(
+              CaptureRequest.CONTROL_AF_MODE,
+              CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+            )
             captureRequest = previewRequestBuilder.build()
             cameraCaptureSession?.setRepeatingRequest(captureRequest, null, backgroundHandler)
             runOnUiThread {
@@ -807,7 +792,12 @@ class RecordingActivity : FragmentActivity() {
           openCamera()
         }
 
-        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+        override fun onSurfaceTextureSizeChanged(
+          surface: SurfaceTexture,
+          width: Int,
+          height: Int
+        ) {
+        }
 
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
           return true
