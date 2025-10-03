@@ -114,20 +114,6 @@ fun clipText(text: String, len: Int = 20): String {
   }
 }
 
-fun toHex(data: ByteArray): String {
-  return data.joinToString(separator = "") { x -> "%02x".format(x) }
-}
-
-fun fromHex(hex: String): ByteArray {
-  check(hex.length % 2 == 0) { "Must have an even length" }
-
-  val byteIterator = hex.chunkedSequence(2)
-    .map { it.toInt(16).toByte() }
-    .iterator()
-
-  return ByteArray(hex.length / 2) { byteIterator.next() }
-}
-
 fun msToHMS(ms: Long, compact: Boolean = false): String {
   var seconds = ms / 1000L
   var minutes = seconds / 60L

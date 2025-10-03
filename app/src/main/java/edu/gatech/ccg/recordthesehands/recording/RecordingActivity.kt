@@ -127,7 +127,6 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
-import edu.gatech.ccg.recordthesehands.toHex
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -152,7 +151,6 @@ import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 /**
  * Contains the data for a clip within the greater recording.
@@ -216,12 +214,6 @@ class ClipDetails(
     val json = toJson()
     return json.toString(2)
   }
-}
-
-fun Random.Default.nextHexId(numBytes: Int): String {
-  val bytes = ByteArray(numBytes)
-  nextBytes(bytes)
-  return toHex(bytes)
 }
 
 fun Context.filenameToFilepath(filename: String): File {

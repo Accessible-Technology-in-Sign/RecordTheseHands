@@ -27,8 +27,6 @@ import android.content.Context
 import android.util.Base64
 import android.util.Log
 import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
-import edu.gatech.ccg.recordthesehands.fromHex
-import edu.gatech.ccg.recordthesehands.toHex
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
@@ -79,7 +77,7 @@ class UploadSession(
       Log.e(TAG, "File not found when computing md5sum: $filepath")
       return false
     }
-    registeredFile.md5sum = toHex(digest.digest())
+    registeredFile.md5sum = digest.digest().toHexString()
     Log.i(TAG, "Computed md5sum for \"$filepath\" as ${registeredFile.md5sum}")
     registeredFile.saveState()
     return true
@@ -129,7 +127,8 @@ class UploadSession(
     Log.i(TAG, "Getting Upload link: \"${relativePath}\"")
     val url = URL(registeredFile.uploadLink)
     val md5Base64 =
-      Base64.encode(fromHex(registeredFile.md5sum!!), Base64.NO_WRAP).toString(Charsets.UTF_8)
+      Base64.encode(registeredFile.md5sum!!.hexToByteArray(), Base64.NO_WRAP)
+        .toString(Charsets.UTF_8)
     val (code, _, outputFromHeader) =
       dataManager.serverRequest(
         url,

@@ -44,7 +44,6 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
-import edu.gatech.ccg.recordthesehands.toHex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -89,7 +88,7 @@ fun makeToken(username: String, password: String): String {
   val digest = MessageDigest.getInstance("SHA-256")
   var token = "$username:$password"
   for (i in 0..999) {
-    token = "$username:" + toHex(digest.digest(token.toByteArray(Charsets.UTF_8)))
+    token = "$username:" + digest.digest(token.toByteArray(Charsets.UTF_8)).toHexString()
   }
   return token
 }
@@ -227,7 +226,7 @@ class DataManager private constructor(val context: Context) {
     val deviceIdKey = stringPreferencesKey("deviceId")
     var deviceId = context.prefStore.data.map { it[deviceIdKey] }.firstOrNull()
     if (deviceId == null) {
-      deviceId = toHex(SecureRandom().generateSeed(4))
+      deviceId = SecureRandom().generateSeed(4).toHexString()
       context.prefStore.edit { preferences ->
         preferences[deviceIdKey] = deviceId
       }
@@ -1044,7 +1043,7 @@ class DataManager private constructor(val context: Context) {
     }
     dataManagerData.lock.withLock {
       logToServerUnderLock("attachToAccount for username \"$username\"")
-      val password = toHex(SecureRandom().generateSeed(32))
+      val password = SecureRandom().generateSeed(32).toHexString()
       val newLoginToken = makeToken(username, password)
       val adminToken = makeToken("admin", adminPassword)
       val loginTokenPath = File(LOGIN_TOKEN_FULL_PATH)
