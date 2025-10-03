@@ -27,6 +27,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.graphics.SurfaceTexture
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -423,6 +424,7 @@ class RecordingActivity : FragmentActivity() {
   private var backgroundThread: android.os.HandlerThread? = null
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
+  private var mediaRecorder: MediaRecorder? = null
 
   /**
    * Window insets controller for hiding and showing the toolbars.
@@ -588,43 +590,56 @@ class RecordingActivity : FragmentActivity() {
       dataManager.logToServer("startRecording called when isRecording is true.")
       return
     }
-    // val videoCapture = this.videoCapture ?: return
-    //
-    // val fileOutputOptions = FileOutputOptions.Builder(outputFile).build()
-    //
-    // recording = videoCapture.output
-    //   .prepareRecording(this, fileOutputOptions)
-    //   .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
-    //     when (recordEvent) {
-    //       is VideoRecordEvent.Start -> {
-    //         // Handle recording start
-    //       }
-    //
-    //       is VideoRecordEvent.Finalize -> {
-    //         if (!recordEvent.hasError()) {
-    //           val msg = "Video capture succeeded: ${recordEvent.outputResults.outputUri}"
-    //           Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-    //           Log.d(TAG, msg)
-    //         } else {
-    //           recording?.close()
-    //           recording = null
-    //           Log.e(TAG, "Video capture ends with error: ${recordEvent.error}")
-    //         }
-    //       }
-    //     }
-    //   }
-    // TODO: Implementation for Stage 4
+    try {
+      closeCameraPreviewSession()
+      setUpMediaRecorder()
+      val texture = textureView.surfaceTexture!!
+      // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+      val previewSurface = Surface(texture)
+      val recorderSurface = mediaRecorder!!.surface
+      previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+      previewRequestBuilder.addTarget(previewSurface)
+      previewRequestBuilder.addTarget(recorderSurface)
+      cameraDevice!!.createCaptureSession(
+        listOf(previewSurface, recorderSurface),
+        object : CameraCaptureSession.StateCallback() {
+          override fun onConfigured(session: CameraCaptureSession) {
+            cameraCaptureSession = session
+            previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            captureRequest = previewRequestBuilder.build()
+            cameraCaptureSession?.setRepeatingRequest(captureRequest, null, backgroundHandler)
+            runOnUiThread {
+              mediaRecorder?.start()
+              viewModel.setRecordingState(true)
+            }
+          }
+
+          override fun onConfigureFailed(session: CameraCaptureSession) {}
+        }, backgroundHandler
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to start recording", e)
+    }
     viewModel.setRecordingState(true)
   }
 
   private fun stopRecording() {
-    // recording?.stop()
-    // recording = null
     if (!viewModel.isRecording.value) {
       return
     }
-    // TODO: Implementation for Stage 4
-    viewModel.setRecordingState(false)
+    try {
+      mediaRecorder?.stop()
+      mediaRecorder?.reset()
+      viewModel.setRecordingState(false)
+      createCameraPreviewSession()
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to stop recording", e)
+    }
+  }
+
+  private fun closeCameraPreviewSession() {
+    cameraCaptureSession?.close()
+    cameraCaptureSession = null
   }
 
   private fun activateReadCountdownCircle(durationMs: Long) {
@@ -1164,6 +1179,19 @@ class RecordingActivity : FragmentActivity() {
       startBackgroundThread()
     }
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+  }
+
+  private fun setUpMediaRecorder() {
+    mediaRecorder = MediaRecorder()
+    mediaRecorder?.apply {
+      setVideoSource(MediaRecorder.VideoSource.SURFACE)
+      setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+      setOutputFile(outputFile.absolutePath)
+      setVideoEncodingBitRate(10000000)
+      setVideoFrameRate(30)
+      setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+      prepare()
+    }
   }
 
   /**
