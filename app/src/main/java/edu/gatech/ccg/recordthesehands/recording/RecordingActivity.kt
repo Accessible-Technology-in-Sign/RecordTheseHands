@@ -127,6 +127,7 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
+import edu.gatech.ccg.recordthesehands.toConsistentString
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -146,7 +147,6 @@ import org.json.JSONObject
 import java.io.File
 import java.lang.Integer.min
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
@@ -187,18 +187,18 @@ class ClipDetails(
     json.put("filename", filename)
     json.put("promptData", prompt.toJson())
     json.put("endAction", endAction)
-    json.put("videoStart", DateTimeFormatter.ISO_INSTANT.format(videoStart))
+    json.put("videoStart", videoStart.toConsistentString())
     json.put("valid", valid)
-    if (startTimestamp != null) {
+    startTimestamp?.let {
       json.put(
         "startTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(startTimestamp)
+        it.toConsistentString()
       )
     }
-    if (endTimestamp != null) {
+    endTimestamp?.let {
       json.put(
         "endTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(endTimestamp)
+        it.toConsistentString()
       )
     }
     if (lastModifiedTimestamp != null) {
@@ -251,16 +251,16 @@ class RecordingSessionInfo(
     json.put("initialPromptIndex", initialPromptIndex)
     json.put("limitPromptIndex", limitPromptIndex)
     json.put("finalPromptIndex", finalPromptIndex)
-    if (startTimestamp != null) {
+    startTimestamp?.let {
       json.put(
         "startTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(startTimestamp)
+        it.toConsistentString()
       )
     }
-    if (endTimestamp != null) {
+    endTimestamp?.let {
       json.put(
         "endTimestamp",
-        DateTimeFormatter.ISO_INSTANT.format(endTimestamp)
+        it.toConsistentString()
       )
     }
     return json
@@ -528,7 +528,7 @@ class RecordingActivity : FragmentActivity() {
   private fun recordButtonOnClickListener() {
     lifecycleScope.launch(Dispatchers.IO) {
       val now = Instant.now()
-      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+      val timestamp = now.toConsistentString()
       dataManager.logToServerAtTimestamp(timestamp, "recordButton clicked")
       val prompt = prompts.array[sessionStartIndex + currentPage]
 
@@ -559,7 +559,7 @@ class RecordingActivity : FragmentActivity() {
   private fun restartButtonOnClickListener() {
     lifecycleScope.launch(Dispatchers.IO) {
       val now = Instant.now()
-      val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+      val timestamp = now.toConsistentString()
       dataManager.logToServerAtTimestamp(timestamp, "restartButton clicked")
       currentClipDetails!!.let {
         it.endTimestamp = now
@@ -892,7 +892,7 @@ class RecordingActivity : FragmentActivity() {
           val newPage = pagerState.currentPage
           currentClipDetails?.let { clipDetails ->
             val now = Instant.now()
-            DateTimeFormatter.ISO_INSTANT.format(now)
+            now.toConsistentString()
             if (currentPage < newPage) {
               // Swiped forward
               clipDetails.endTimestamp = now
@@ -965,7 +965,7 @@ class RecordingActivity : FragmentActivity() {
 
     emailConfirmationEnabled = bundle.getBoolean("SEND_CONFIRMATION_EMAIL")
 
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val timestamp = Instant.now().toConsistentString()
 
     val initialState = dataManager.promptState.value
     if (initialState == null) {

@@ -27,6 +27,9 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Properties
 import javax.mail.Authenticator
@@ -46,6 +49,12 @@ import javax.mail.internet.MimeMultipart
  */
 fun padZeroes(number: Int, digits: Int = 5): String {
   return "%0${digits}d".format(number)
+}
+
+fun Instant.toConsistentString(): String {
+  return DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
+    .withZone(ZoneOffset.UTC)
+    .format(this)
 }
 
 /**

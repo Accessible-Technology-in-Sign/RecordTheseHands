@@ -44,6 +44,7 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
+import edu.gatech.ccg.recordthesehands.toConsistentString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,7 +69,6 @@ import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
@@ -1101,7 +1101,7 @@ class DataManager private constructor(val context: Context) {
       throw InterruptedUploadException("tryUploadKeyValue interrupted.")
     }
     val json = JSONObject()
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val timestamp = Instant.now().toConsistentString()
     json.put("timestamp", timestamp)
     json.put("username", getUsernameUnderLock())
     json.put("deviceId", getDeviceIdUnderLock())
@@ -1364,7 +1364,7 @@ class DataManager private constructor(val context: Context) {
   private fun directiveCompleted(id: String): Boolean {
     Log.i(TAG, "Marking directive completed.")
     val url = URL(getServer() + "/directive_completed")
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val timestamp = Instant.now().toConsistentString()
     val (code, _) = serverFormPostRequest(
       url,
       mapOf(
@@ -1618,7 +1618,7 @@ class DataManager private constructor(val context: Context) {
    * @param message The log message to save.
    */
   fun logToServer(message: String) {
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val timestamp = Instant.now().toConsistentString()
     logToServerAtTimestamp(timestamp, message)
   }
 
@@ -1665,7 +1665,7 @@ class DataManager private constructor(val context: Context) {
    * @param message The log message to save.
    */
   private suspend fun logToServerUnderLock(message: String) {
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    val timestamp = Instant.now().toConsistentString()
     logToServerAtTimestampUnderLock(timestamp, message)
   }
 
@@ -2104,7 +2104,7 @@ class DataManager private constructor(val context: Context) {
     currentPromptIndex: Int
   ) {
     val now = Instant.now()
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(now)
+    val timestamp = now.toConsistentString()
     val json = JSONObject()
     json.put("filename", filename)
     json.put("endTimestamp", timestamp)
