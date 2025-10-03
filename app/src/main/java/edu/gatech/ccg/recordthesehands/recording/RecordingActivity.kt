@@ -1130,9 +1130,11 @@ class RecordingActivity : FragmentActivity() {
       Surface.ROTATION_270 -> 270
       else -> 0
     }
-    val displayRotation = (360 - rotationDegrees) % 360
+    // Why does this standard recomendation not work?
+    // val displayRotation = (sensorOrientation - rotationDegrees + 360) % 360
 
     // TODO why is sensorOrientation not needed here?  Verify on phone.
+    val displayRotation = (360 - rotationDegrees) % 360
     Log.d(
       TAG,
       "displayRotation $displayRotation sensorOrientation $sensorOrientation rotationDegrees $rotationDegrees"
