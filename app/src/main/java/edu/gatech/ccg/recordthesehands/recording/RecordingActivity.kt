@@ -1118,7 +1118,6 @@ class RecordingActivity : FragmentActivity() {
     val rotation = windowManager.defaultDisplay.rotation
     val matrix = Matrix()
     val viewRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
-    val bufferRect = RectF(0f, 0f, videoSize.width.toFloat(), videoSize.height.toFloat())
     val centerX = viewRect.centerX()
     val centerY = viewRect.centerY()
 
@@ -1129,7 +1128,13 @@ class RecordingActivity : FragmentActivity() {
       Surface.ROTATION_270 -> 270
       else -> 0
     }
-    val displayRotation = (sensorOrientation - rotationDegrees * -1 + 360) % 360
+    val displayRotation = (360 - rotationDegrees) % 360
+
+    // TODO why is sensorOrientation not needed here?  Verify on phone.
+    Log.d(
+      TAG,
+      "displayRotation $displayRotation sensorOrientation $sensorOrientation rotationDegrees $rotationDegrees"
+    )
 
     val swappedDimensions = displayRotation == 90 || displayRotation == 270
     val rotatedVideoWidth = if (swappedDimensions) videoSize.height else videoSize.width
@@ -1146,7 +1151,6 @@ class RecordingActivity : FragmentActivity() {
       centerY
     )
     matrix.postRotate(displayRotation.toFloat(), centerX, centerY)
-
     textureView.setTransform(matrix)
   }
 
