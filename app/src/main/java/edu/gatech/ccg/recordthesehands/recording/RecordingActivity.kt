@@ -26,6 +26,8 @@ package edu.gatech.ccg.recordthesehands.recording
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.graphics.Matrix
+import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
@@ -399,10 +401,11 @@ class RecordingActivity : FragmentActivity() {
   private var cameraCaptureSession: CameraCaptureSession? = null
   private lateinit var previewRequestBuilder: CaptureRequest.Builder
   private lateinit var captureRequest: CaptureRequest
-  private var backgroundThread: android.os.HandlerThread? = null
+  private var backgroundThread: HandlerThread? = null
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
   private lateinit var videoSize: Size
+  private var sensorOrientation: Int = 0
   private var mediaRecorder: MediaRecorder? = null
 
   /**
@@ -455,6 +458,8 @@ class RecordingActivity : FragmentActivity() {
           .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
       }
       val characteristics = manager.getCameraCharacteristics(cameraId)
+      sensorOrientation =
+        characteristics.get(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION)!!
       val map =
         characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
       videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
@@ -715,6 +720,7 @@ class RecordingActivity : FragmentActivity() {
       textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
           openCamera()
+          configureTransform(width, height)
         }
 
         override fun onSurfaceTextureSizeChanged(
@@ -722,6 +728,7 @@ class RecordingActivity : FragmentActivity() {
           width: Int,
           height: Int
         ) {
+          configureTransform(width, height)
         }
 
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
@@ -1094,6 +1101,42 @@ class RecordingActivity : FragmentActivity() {
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
+  private fun configureTransform(width: Int, height: Int) {
+    val rotation = windowManager.defaultDisplay.rotation
+    val matrix = Matrix()
+    val viewRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+    val bufferRect = RectF(0f, 0f, videoSize.width.toFloat(), videoSize.height.toFloat())
+    val centerX = viewRect.centerX()
+    val centerY = viewRect.centerY()
+
+    val rotationDegrees = when (rotation) {
+      Surface.ROTATION_0 -> 0
+      Surface.ROTATION_90 -> 90
+      Surface.ROTATION_180 -> 180
+      Surface.ROTATION_270 -> 270
+      else -> 0
+    }
+    val displayRotation = (sensorOrientation - rotationDegrees * -1 + 360) % 360
+
+    val swappedDimensions = displayRotation == 90 || displayRotation == 270
+    val rotatedVideoWidth = if (swappedDimensions) videoSize.height else videoSize.width
+    val rotatedVideoHeight = if (swappedDimensions) videoSize.width else videoSize.height
+
+    val scaleX = width.toFloat() / rotatedVideoWidth.toFloat()
+    val scaleY = height.toFloat() / rotatedVideoHeight.toFloat()
+
+    val scale = max(scaleX, scaleY)
+    matrix.postScale(
+      scale * rotatedVideoWidth.toFloat() / width.toFloat(),
+      scale * rotatedVideoHeight.toFloat() / height.toFloat(),
+      centerX,
+      centerY
+    )
+    matrix.postRotate(displayRotation.toFloat(), centerX, centerY)
+
+    textureView.setTransform(matrix)
+  }
+
   private fun chooseVideoSize(choices: Array<Size>): Size {
     for (size in choices) {
       if (size.width == 640 && size.height == 480) {
@@ -1117,7 +1160,36 @@ class RecordingActivity : FragmentActivity() {
       setVideoFrameRate(30)
       setVideoSize(videoSize.width, videoSize.height)
       setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+      setOrientationHint(determineCameraOrientation())
       prepare()
+    }
+  }
+
+  private fun determineCameraOrientation(): Int {
+    val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    val cameraId = manager.cameraIdList.first {
+      manager.getCameraCharacteristics(it)
+        .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+    }
+    val characteristics = manager.getCameraCharacteristics(cameraId)
+    val sensorOrientation =
+      characteristics.get(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION)!!
+
+    val deviceRotation = windowManager.defaultDisplay.rotation
+    val degrees = when (deviceRotation) {
+      Surface.ROTATION_0 -> 0
+      Surface.ROTATION_90 -> 90
+      Surface.ROTATION_180 -> 180
+      Surface.ROTATION_270 -> 270
+      else -> 0
+    }
+
+    if (characteristics.get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT) {
+      val finalRotation = (sensorOrientation + degrees) % 360
+      // Compensate for the mirroring effect of a front camera
+      return (360 - finalRotation) % 360
+    } else { // Back-facing camera
+      return (sensorOrientation - degrees + 360) % 360
     }
   }
 
