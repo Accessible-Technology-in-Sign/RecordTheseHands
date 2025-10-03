@@ -307,13 +307,13 @@ class UploadSession(
       Log.i(TAG, "uploadVerified: ${registeredFile.uploadVerified}")
       registeredFile.saveState()
       deleteLocalFile()
-    } else if (code == 503) {
+    } else if (code == 404) {
       if (data == null) {
         return false
       }
       val json = JSONObject(data)
       if (json.has("fileNotFound") && json.getBoolean("fileNotFound")) {
-        Log.w(TAG, "verify said file not found, getting state again.")
+        Log.w(TAG, "verify said file not found, starting over.")
         registeredFile.uploadCompleted = false
         registeredFile.uploadVerified = false
         registeredFile.saveState()
