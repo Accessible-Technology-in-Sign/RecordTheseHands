@@ -112,6 +112,7 @@ import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
+import edu.gatech.ccg.recordthesehands.Constants.MAXIMUM_RESOLUTION
 import edu.gatech.ccg.recordthesehands.Constants.RECORDING_HARD_STOP_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
@@ -1150,16 +1151,27 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun chooseVideoSize(choices: Array<Size>): Size {
-    for (size in choices) {
-      if (size.width == 640 && size.height == 480) {
-        return size
-      }
+    fun hasAspectRatio(widthRatio: Int, heightRatio: Int, dim: Size): Boolean {
+      val target = widthRatio.toFloat() / heightRatio.toFloat()
+      return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
     }
-    Log.w(TAG, "Couldn't find a 640x480 resolution, choosing the first available")
-    if (choices.isNotEmpty()) {
-      return choices[0]
+
+    val largestAvailableSize = choices.filter {
+      // Find a resolution smaller than the maximum pixel count (9 MP)
+      // with an aspect ratio of 4:3.
+      val output = it.width * it.height < MAXIMUM_RESOLUTION &&
+          (hasAspectRatio(4, 3, it))
+      Log.d(
+        TAG,
+        "match ${output} width ${it.width} height ${it.height} target width 4 target height 3 "
+      )
+      output
+    }?.maxByOrNull { it.width * it.height }
+
+    if (largestAvailableSize == null) {
+      throw IllegalStateException("Unable to pick acceptable camera resolution.")
     }
-    throw IllegalStateException("No supported video resolutions found")
+    return largestAvailableSize
   }
 
   private fun setUpMediaRecorder() {
