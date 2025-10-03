@@ -52,7 +52,7 @@
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/header" />
+        app:layout_constraintTop_toBottomOf="@id/header" />
 
     <androidx.constraintlayout.widget.Group
         android:id="@+id/mainGroup"
@@ -342,7 +342,7 @@
         android:orientation="horizontal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/uploadButton">
+        app:layout_constraintBottom_toTopOf="@id/uploadButton">
 
         <TextView
             android:id="@+id/uploadProgressBarText"
@@ -409,7 +409,7 @@
         android:orientation="horizontal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/uploadButton">
+        app:layout_constraintBottom_toTopOf="@id/uploadButton">
 
         <TextView
             android:id="@+id/tutorialModeText"

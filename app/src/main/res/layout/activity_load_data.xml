@@ -84,7 +84,7 @@
             android:layout_height="wrap_content"
             android:text="Set DeviceId"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/setDeviceIdContainer" />
+            app:layout_constraintTop_toBottomOf="@id/setDeviceIdContainer" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/attachToAccountContainer"
@@ -96,7 +96,7 @@
             android:layout_marginBottom="0dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/setDeviceIdButton">
+            app:layout_constraintTop_toBottomOf="@id/setDeviceIdButton">
 
             <LinearLayout
                 android:id="@+id/setUsernameContainer"
@@ -135,7 +135,7 @@
                 android:layout_marginEnd="32dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/setUsernameContainer">
+                app:layout_constraintTop_toBottomOf="@id/setUsernameContainer">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -162,7 +162,7 @@
             android:layout_height="wrap_content"
             android:text="Set Username"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/attachToAccountContainer" />
+            app:layout_constraintTop_toBottomOf="@id/attachToAccountContainer" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
