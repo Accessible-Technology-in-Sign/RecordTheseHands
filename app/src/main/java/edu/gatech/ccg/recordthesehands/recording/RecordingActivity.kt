@@ -149,6 +149,7 @@ import java.lang.Integer.min
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -453,10 +454,6 @@ class RecordingActivity : FragmentActivity() {
         Log.e(TAG, "Use case binding failed", exc)
       }
     }, ContextCompat.getMainExecutor(this))
-
-    // TODO should the countdownTimer setup code be moved somewhere else?  It doesn't have anything
-    // directly to do with the camera.
-
   }
 
   private fun setupCountdownTimer(onTick: (String) -> Unit) {
@@ -464,7 +461,7 @@ class RecordingActivity : FragmentActivity() {
     countdownTimer = object : CountDownTimer(COUNTDOWN_DURATION, 1000) {
       // Update the timer text every second.
       override fun onTick(p0: Long) {
-        val rawSeconds = (p0 / 1000).toInt() + 1
+        val rawSeconds = ceil(p0 / 1000f).toInt()
         val minutes = padZeroes(rawSeconds / 60, 2)
         val seconds = padZeroes(rawSeconds % 60, 2)
         onTick("$minutes:$seconds")
@@ -474,6 +471,9 @@ class RecordingActivity : FragmentActivity() {
       // Or, if no prompt is being done, just finish immediately.
       override fun onFinish() {
         if (currentClipDetails != null) {
+          val minutes = padZeroes(0, 2)
+          val seconds = padZeroes(0, 2)
+          onTick("$minutes:$seconds")
           endSessionOnClipEnd = true
         } else {
           concludeRecordingSession(RESULT_OK, "RESULT_OK_SESSION_REACHED_TIMER_LIMIT")

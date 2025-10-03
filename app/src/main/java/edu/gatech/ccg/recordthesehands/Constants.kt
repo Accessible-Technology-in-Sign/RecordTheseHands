@@ -24,7 +24,6 @@
 package edu.gatech.ccg.recordthesehands
 
 object Constants {
-
   /**
    * The app version (used in server communications).
    */
@@ -74,13 +73,6 @@ object Constants {
   const val RECORDING_FRAMERATE = 30
 
   /**
-   * The length of the countdown (in milliseconds), after which the recording will end
-   * automatically. Currently configured to be 15 minutes.
-   */
-  const val COUNTDOWN_DURATION = 15 * 60 * 1000L
-  const val RECORDING_HARD_STOP_DURATION = COUNTDOWN_DURATION + 3 * 60 * 1000L
-
-  /**
    * The number of prompts to use in each recording session.
    */
   const val DEFAULT_SESSION_LENGTH = 30
@@ -100,12 +92,61 @@ object Constants {
    */
   const val PROMPTS_FILENAME = "prompts.json"
 
-  private const val SHORT_TIMEOUTS = false  // TODO control this from credentials.xml
+  private val COUNTDOWN_DURATION_BASE = 15 * 60 * 1000L
+  private val RECORDING_HARD_STOP_DURATION_BASE = COUNTDOWN_DURATION_BASE + 3 * 60 * 1000L
 
-  val UPLOAD_RESUME_ON_START_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 1000L else 30L * 1000L
-  val UPLOAD_LOOP_TIMEOUT = if (SHORT_TIMEOUTS) 1L * 1000L else 60L * 1000L
-  val UPLOAD_RESUME_ON_IDLE_TIMEOUT = if (SHORT_TIMEOUTS) 5L * 60L * 1000L else 60L * 60L * 1000L
-  val UPLOAD_RESUME_ON_ACTIVITY_FINISHED = if (SHORT_TIMEOUTS) 1L * 1000L else 5L * 1000L
-  val UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT =
-    if (SHORT_TIMEOUTS) 5L * 1000L else 10L * 60L * 1000L
+  private val UPLOAD_RESUME_ON_START_TIMEOUT_BASE = 30L * 1000L
+  private val UPLOAD_LOOP_TIMEOUT_BASE = 60L * 1000L
+  private val UPLOAD_RESUME_ON_IDLE_TIMEOUT_BASE = 60L * 60L * 1000L
+  private val UPLOAD_RESUME_ON_ACTIVITY_FINISHED_BASE = 5L * 1000L
+  private val UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT_BASE = 10L * 60L * 1000L
+
+  private val TIMEOUT_FRACTION: Float by lazy {
+    val context = RecordTheseHands.applicationContext()
+    val resourceId =
+      context.resources.getIdentifier("timeout_fraction", "fraction", context.packageName)
+    if (resourceId != 0) {
+      context.resources.getFraction(resourceId, 1, 1)
+    } else {
+      1f
+    }
+  }
+
+  val COUNTDOWN_DURATION = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * COUNTDOWN_DURATION_BASE).toLong()
+  } else {
+    COUNTDOWN_DURATION_BASE
+  }
+  val RECORDING_HARD_STOP_DURATION = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * RECORDING_HARD_STOP_DURATION_BASE).toLong()
+  } else {
+    RECORDING_HARD_STOP_DURATION_BASE
+  }
+
+  val UPLOAD_RESUME_ON_START_TIMEOUT = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * UPLOAD_RESUME_ON_START_TIMEOUT_BASE).toLong()
+  } else {
+    UPLOAD_RESUME_ON_START_TIMEOUT_BASE
+  }
+  val UPLOAD_LOOP_TIMEOUT = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * UPLOAD_LOOP_TIMEOUT_BASE).toLong()
+  } else {
+    UPLOAD_LOOP_TIMEOUT_BASE
+  }
+  val UPLOAD_RESUME_ON_IDLE_TIMEOUT = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * UPLOAD_RESUME_ON_IDLE_TIMEOUT_BASE).toLong()
+  } else {
+    UPLOAD_RESUME_ON_IDLE_TIMEOUT_BASE
+  }
+  val UPLOAD_RESUME_ON_ACTIVITY_FINISHED = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * UPLOAD_RESUME_ON_ACTIVITY_FINISHED_BASE).toLong()
+  } else {
+    UPLOAD_RESUME_ON_ACTIVITY_FINISHED_BASE
+  }
+  val UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT = if (TIMEOUT_FRACTION < .99) {
+    (TIMEOUT_FRACTION * UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT_BASE).toLong()
+  } else {
+    UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT_BASE
+  }
+
 }

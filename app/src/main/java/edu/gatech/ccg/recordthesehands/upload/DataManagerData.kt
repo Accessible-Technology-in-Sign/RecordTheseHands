@@ -35,7 +35,6 @@ object DataManagerData {
   val lock = Mutex()
   var loginToken: String? = null
   var keyValues = mutableMapOf<String, JSONObject>()
-  var registeredFiles = mutableMapOf<String, JSONObject>()
 
   // All UI visible State.
   var promptStateContainer: PromptState? = null
