@@ -79,7 +79,8 @@
     <string name="prompts_completed_progress">%1$d / %2$d prompts completed</string>
 
     <!-- Time formatting -->
-    <string name="time_format_min_sec">%1$02dm %2$02ds</string>
+    <string name="time_format_min_sec">%1$dm %2$02ds</string>
+    <string name="time_format_hour_min_sec">%1$dh %2$02dm %3$02ds</string>
 
     <!-- Recording Session Page-->
     <string name="record">Start</string>

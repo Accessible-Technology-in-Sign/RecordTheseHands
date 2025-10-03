@@ -905,10 +905,10 @@ class RecordingActivity : FragmentActivity() {
           }
           currentPage = newPage
           val promptIndex = sessionStartIndex + currentPage
+          currentPromptIndex = promptIndex
 
           if (promptIndex < sessionLimit) {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-            currentPromptIndex = promptIndex
             title = "${currentPromptIndex + 1} of ${prompts.array.size}"
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
 
@@ -921,8 +921,7 @@ class RecordingActivity : FragmentActivity() {
             }
           } else if (promptIndex == sessionLimit) {
             dataManager.logToServer("selected confirm page (promptIndex ${promptIndex})")
-            currentPromptIndex = promptIndex
-            title = ""
+            title = "Confirm Recording Session Finished"
             viewModel.setButtonState(recordVisible = false, restartVisible = false)
           }
         }
@@ -1028,6 +1027,7 @@ class RecordingActivity : FragmentActivity() {
     sessionInfo.result = resultString
     val now = Instant.now()
     sessionInfo.endTimestamp = now
+    sessionInfo.finalPromptIndex = currentPromptIndex
     currentClipDetails?.let {
       it.endTimestamp = now
       it.endAction = "quit"

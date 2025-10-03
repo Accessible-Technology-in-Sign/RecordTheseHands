@@ -107,7 +107,7 @@ fun sendEmail(from: String, to: List<String>, subject: String, content: String, 
 }
 
 fun clipText(text: String, len: Int = 20): String {
-  return if (text.length > len - 3) {
+  return if (text.length > len) {
     text.substring(0, len - 3) + "..."
   } else {
     text
@@ -131,7 +131,7 @@ fun fromHex(hex: String): ByteArray {
 fun msToHMS(ms: Long, compact: Boolean = false): String {
   var seconds = ms / 1000L
   var minutes = seconds / 60L
-  var hours = minutes / 60L
+  val hours = minutes / 60L
   seconds = seconds % 60L
   minutes = minutes % 60L
   val msRemaining = ms % 1000L

@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
@@ -300,9 +301,13 @@ class HomeScreenActivity : AppCompatActivity() {
   }
 
   fun lifetimeMSTimeFormatter(milliseconds: Long): String {
-    val min = milliseconds / 60000
-    val sec = (milliseconds % 60000) / 1000
-    return getString(R.string.time_format_min_sec, min, sec)
+    return milliseconds.milliseconds.toComponents { hours, minutes, seconds, nanoseconds ->
+      if (hours == 0L) {
+        getString(R.string.time_format_min_sec, minutes, seconds)
+      } else {
+        getString(R.string.time_format_hour_min_sec, hours, minutes, seconds)
+      }
+    }
   }
 
   /**
