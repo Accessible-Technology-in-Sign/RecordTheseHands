@@ -413,7 +413,7 @@ class RecordingActivity : FragmentActivity() {
   private val cameraStateCallback = object : CameraDevice.StateCallback() {
     override fun onOpened(camera: CameraDevice) {
       cameraDevice = camera
-      createCameraPreviewSession()
+      startRecording()
     }
 
     override fun onDisconnected(camera: CameraDevice) {
@@ -440,11 +440,14 @@ class RecordingActivity : FragmentActivity() {
       backgroundThread = null
       backgroundHandler = null
     } catch (e: InterruptedException) {
+      // TODO if stopBackgroundThread can be called from anywhere but concludeRecordingSession then
+      // call concludeRecordingSession here instead of throwing an error.
       Log.e(TAG, "Error stopping background thread", e)
     }
   }
 
   private fun openCamera() {
+    startBackgroundThread()
     val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
     try {
       val cameraId = manager.cameraIdList.first {
@@ -471,76 +474,6 @@ class RecordingActivity : FragmentActivity() {
     cameraCaptureSession = null
     cameraDevice?.close()
     cameraDevice = null
-  }
-
-  private fun createCameraPreviewSession() {
-    try {
-      val texture = textureView.surfaceTexture!!
-      texture.setDefaultBufferSize(videoSize.width, videoSize.height)
-      val surface = Surface(texture)
-
-      previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-      previewRequestBuilder.addTarget(surface)
-
-      cameraDevice!!.createCaptureSession(
-        listOf(surface),
-        object : CameraCaptureSession.StateCallback() {
-          override fun onConfigured(session: CameraCaptureSession) {
-            cameraCaptureSession = session
-            previewRequestBuilder.set(
-              CaptureRequest.CONTROL_AF_MODE,
-              CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
-            )
-            captureRequest = previewRequestBuilder.build()
-            cameraCaptureSession?.setRepeatingRequest(captureRequest, null, backgroundHandler)
-          }
-
-          override fun onConfigureFailed(session: CameraCaptureSession) {}
-        }, null
-      )
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to create camera preview session", e)
-    }
-  }
-
-  private fun startCamera() {
-    // val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-    // cameraProviderFuture.addListener({
-    //   val cameraProvider = cameraProviderFuture.get()
-    //   val resolutionSelector = ResolutionSelector.Builder()
-    //     .setResolutionStrategy(
-    //       ResolutionStrategy(
-    //         Size(640, 480),
-    //         ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-    //       )
-    //     )
-    //     .build()
-    //   preview = Preview.Builder()
-    //     .setResolutionSelector(resolutionSelector)
-    //     .build()
-    //
-    //   val recorder = Recorder.Builder()
-    //     .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
-    //     .build()
-    //
-    //   videoCapture = VideoCapture.Builder(recorder)
-    //     .setTargetFrameRate(android.util.Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE))
-    //     .build()
-    //
-    //   cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-    //
-    //   try {
-    //     cameraProvider.unbindAll()
-    //     cameraProvider.bindToLifecycle(
-    //       this, cameraSelector, preview, videoCapture
-    //     )
-    //     startRecording()
-    //     viewModel.setRecordingState(true)
-    //   } catch (exc: Exception) {
-    //     Log.e(TAG, "Use case binding failed", exc)
-    //   }
-    // }, ContextCompat.getMainExecutor(this))
-    openCamera()
   }
 
   private fun setupCountdownTimer(onTick: (String) -> Unit) {
@@ -577,7 +510,6 @@ class RecordingActivity : FragmentActivity() {
       return
     }
     try {
-      closeCameraPreviewSession()
       setUpMediaRecorder()
       val texture = textureView.surfaceTexture!!
       texture.setDefaultBufferSize(videoSize.width, videoSize.height)
@@ -620,15 +552,11 @@ class RecordingActivity : FragmentActivity() {
       mediaRecorder?.stop()
       mediaRecorder?.reset()
       viewModel.setRecordingState(false)
-      createCameraPreviewSession()
+      stopBackgroundThread()
+      closeCamera()
     } catch (e: Exception) {
       Log.e(TAG, "Failed to stop recording", e)
     }
-  }
-
-  private fun closeCameraPreviewSession() {
-    cameraCaptureSession?.close()
-    cameraCaptureSession = null
   }
 
   private fun activateReadCountdownCircle(durationMs: Long) {
@@ -718,7 +646,6 @@ class RecordingActivity : FragmentActivity() {
   override fun onRestart() {
     // This should be completely unreachable.
     super.onRestart()
-    stopRecording()
     dataManager.logToServer("onRestart called.")
     concludeRecordingSession(RESULT_ACTIVITY_UNREACHABLE, "RESULT_UNREACHABLE_ON_RESTART")
   }
@@ -733,8 +660,6 @@ class RecordingActivity : FragmentActivity() {
     // does not record while the activity is in the background.
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
-    stopBackgroundThread()
-    closeCamera()
     dataManager.logToServer("onStop called.")
     concludeRecordingSession(RESULT_OK, "RESULT_OK_ON_STOP")
   }
@@ -1149,7 +1074,6 @@ class RecordingActivity : FragmentActivity() {
     // Set title bar text
     title = "${currentPromptIndex + 1} of ${prompts.array.size}"
 
-    startCamera()
     setupCountdownTimer {
       viewModel.onTick(it)
     }
@@ -1167,11 +1091,6 @@ class RecordingActivity : FragmentActivity() {
   override fun onResume() {
     // It should only be possible for this function to be called once.
     super.onResume()
-    if (textureView.isAvailable) {
-      openCamera()
-    } else {
-      startBackgroundThread()
-    }
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
@@ -1212,6 +1131,10 @@ class RecordingActivity : FragmentActivity() {
     }
     UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
     setResult(result)
+
+    stopRecording()
+    countdownTimer.cancel()
+
     sessionInfo.result = resultString
     val now = Instant.now()
     sessionInfo.endTimestamp = now
@@ -1227,8 +1150,6 @@ class RecordingActivity : FragmentActivity() {
       currentClipDetails = null
     }
 
-    stopRecording()
-    countdownTimer.cancel()
     saveRecordingData()
 
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
