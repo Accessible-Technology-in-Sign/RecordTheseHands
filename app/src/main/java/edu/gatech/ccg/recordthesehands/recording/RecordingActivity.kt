@@ -1155,6 +1155,9 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun chooseVideoSize(choices: Array<Size>): Size {
+    for (option in choices) {
+      Log.d(TAG, "available resolution: ${option.width}x${option.height}")
+    }
     fun hasAspectRatio(widthRatio: Int, heightRatio: Int, dim: Size): Boolean {
       val target = widthRatio.toFloat() / heightRatio.toFloat()
       return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
@@ -1175,6 +1178,7 @@ class RecordingActivity : FragmentActivity() {
     if (largestAvailableSize == null) {
       throw IllegalStateException("Unable to pick acceptable camera resolution.")
     }
+    Log.d(TAG, "picked resolution: ${largestAvailableSize.width}x${largestAvailableSize.height}")
     return largestAvailableSize
   }
 
