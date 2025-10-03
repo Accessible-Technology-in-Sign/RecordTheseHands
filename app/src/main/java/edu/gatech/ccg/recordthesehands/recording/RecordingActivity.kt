@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.recording
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.graphics.SurfaceTexture
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -33,6 +34,7 @@ import android.util.Size
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.view.TextureView
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -418,7 +420,7 @@ class RecordingActivity : FragmentActivity() {
   private var cameraCaptureSession: CameraCaptureSession? = null
   private lateinit var previewRequestBuilder: CaptureRequest.Builder
   private lateinit var captureRequest: CaptureRequest
-  private var backgroundThread: HandlerThread? = null
+  private var backgroundThread: android.os.HandlerThread? = null
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
 
@@ -486,7 +488,31 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun createCameraPreviewSession() {
-    // TODO: Implementation for Stage 3
+    try {
+      val texture = textureView.surfaceTexture!!
+      // We configure the size of default buffer to be the size of camera preview we want.
+      // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+      val surface = Surface(texture)
+
+      previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+      previewRequestBuilder.addTarget(surface)
+
+      cameraDevice!!.createCaptureSession(
+        listOf(surface),
+        object : CameraCaptureSession.StateCallback() {
+          override fun onConfigured(session: CameraCaptureSession) {
+            cameraCaptureSession = session
+            previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            captureRequest = previewRequestBuilder.build()
+            cameraCaptureSession?.setRepeatingRequest(captureRequest, null, backgroundHandler)
+          }
+
+          override fun onConfigureFailed(session: CameraCaptureSession) {}
+        }, null
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to create camera preview session", e)
+    }
   }
 
   private fun startCamera() {
@@ -756,7 +782,20 @@ class RecordingActivity : FragmentActivity() {
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
-      val textureView = remember { TextureView(context) }
+      textureView = remember { TextureView(context) }
+      textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+          openCamera()
+        }
+
+        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+
+        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+          return true
+        }
+
+        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+      }
       val previewViewHolder = remember {
         FrameLayout(context)
       }
@@ -1119,7 +1158,11 @@ class RecordingActivity : FragmentActivity() {
   override fun onResume() {
     // It should only be possible for this function to be called once.
     super.onResume()
-    startBackgroundThread()
+    if (textureView.isAvailable) {
+      openCamera()
+    } else {
+      startBackgroundThread()
+    }
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
