@@ -46,6 +46,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
+import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
@@ -336,6 +337,7 @@ class HomeScreenActivity : AppCompatActivity() {
     // Load UI from XML
     binding = ActivitySplashBinding.inflate(layoutInflater)
     setContentView(binding.root)
+    binding.versionText.text = getString(R.string.version_text, APP_VERSION)
 
     // `resources.getIdentifier` is used intentionally to check for the existence of optional
     // credentials defined in a `credentials.xml` file, which may not be present at compile time.

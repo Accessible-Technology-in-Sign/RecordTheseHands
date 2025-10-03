@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RecordTheseHands</string>
-    <string name="version">v1.0</string>
 
     <!-- Log In Interface -->
     <string name="admin_title">लॉग इन</string>
