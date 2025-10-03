@@ -111,7 +111,7 @@ fun makeToken(username: String, password: String): String {
  *     <li><b>State Management:</b> Maintains the application's state, particularly the `PromptState`,
  *     which is exposed to the UI via `LiveData`.</li>
  *     <li><b>File Management:</b> Handles the registration and upload of video files, as well as
- *     downloading and managing resources like APK updates and prompt assets.</li>
+ *     downloading and managing resources like prompt images.</li>
  * </ul>
  *
  * <h3>Interaction with `DataManagerData` and `PromptState`</h3>
@@ -963,6 +963,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Reloads the prompts from the server and re-initializes the local state.
+   *
+   * This function clears the existing prompt state, downloads the latest prompts from the server,
+   * and then re-initializes the application state from scratch.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return `true` if the prompts were reloaded successfully, `false` otherwise.
+   */
   private suspend fun reloadPromptsFromServerUnderLock(): Boolean {
     val currentState = dataManagerData.promptStateContainer
     if (currentState != null) {
@@ -1066,6 +1076,17 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Uploads a snapshot of the current application state to the server.
+   *
+   * This function gathers various pieces of information, including user and device IDs,
+   * recording statistics, staged key-value pairs, registered files, and prompt progress,
+   * and sends them to the server as a single JSON object.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @return `true` if the state was uploaded successfully, `false` otherwise.
+   */
   private suspend fun uploadState(): Boolean {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValue interrupted.")
@@ -1145,6 +1166,18 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Attempts to upload a batch of key-value pairs to the server.
+   *
+   * This function sends a JSON array of key-value pairs to the server. If the upload is
+   * successful, it removes the uploaded keys from the local `dataStore`.
+   *
+   * This function does not acquire the data lock, but it performs a network request and
+   * may block.
+   *
+   * @param entries A `JSONArray` of key-value pairs to upload.
+   * @return `true` if the upload was successful, `false` otherwise.
+   */
   private suspend fun tryUploadKeyValues(entries: JSONArray): Boolean {
     if (UploadService.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValues interrupted.")
@@ -1307,6 +1340,18 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.unlock()
   }
 
+  /**
+   * Notifies the server that a directive has been completed.
+   *
+   * This function sends a request to the server to mark a specific directive as completed,
+   * so that it is not sent again.
+   *
+   * This function does not acquire the data lock, but it performs a network request and
+   * may block.
+   *
+   * @param id The ID of the directive to mark as completed.
+   * @return `true` if the server acknowledged the completion, `false` otherwise.
+   */
   private fun directiveCompleted(id: String): Boolean {
     Log.i(TAG, "Marking directive completed.")
     val url = URL(getServer() + "/directive_completed")
@@ -1345,6 +1390,21 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Executes a single server directive.
+   *
+   * This function interprets and executes a directive received from the server. Directives
+   * can perform various actions, such as changing the user, resetting statistics, or
+   * deleting files.
+   *
+   * This function does not acquire the data lock itself, but the operations it performs
+   * may acquire the lock.
+   *
+   * @param id The ID of the directive.
+   * @param op The operation to perform.
+   * @param value A string containing any parameters for the operation.
+   * @return `true` if the directive was executed successfully, `false` otherwise.
+   */
   private suspend fun executeDirective(
     id: String, op: String, value: String
   ): Boolean {
@@ -1420,6 +1480,17 @@ class DataManager private constructor(val context: Context) {
     return true
   }
 
+  /**
+   * Downloads the prompts file from the server.
+   *
+   * This function fetches the `prompts.json` file from the server and saves it to the
+   * application's local file storage, overwriting any existing version.
+   *
+   * This function does not acquire the data lock, but it performs a network request and
+   * file I/O, and will block.
+   *
+   * @return `true` if the prompts were downloaded successfully, `false` otherwise.
+   */
   private suspend fun downloadPrompts(): Boolean {
     val url = URL(getServer() + "/prompts")
     Log.i(TAG, "downloading prompt data at $url.")
@@ -1560,6 +1631,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Logs a message to the server and immediately persists it to local storage.
+   *
+   * This function is a convenience method that combines [logToServerUnderLock] and
+   * [persistDataUnderLock] into a single atomic operation.
+   *
+   * This function acquires the data lock and may block.
+   *
+   * @param message The log message to save.
+   */
   suspend fun logToServerAndPersist(message: String) {
     dataManagerData.lock.withLock {
       logToServerUnderLock(message)
@@ -1567,11 +1648,26 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Logs a message to the server.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @param message The log message to save.
+   */
   private suspend fun logToServerUnderLock(message: String) {
     val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     logToServerAtTimestampUnderLock(timestamp, message)
   }
 
+  /**
+   * Logs a message to the server with a specific timestamp.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @param timestamp The ISO 8601 timestamp for the log entry.
+   * @param message The log message to save.
+   */
   private suspend fun logToServerAtTimestampUnderLock(timestamp: String, message: String) {
     addKeyValue("log-$timestamp", message, "log", holdingLock = true)
   }
@@ -1685,6 +1781,14 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Persists all staged key-value pairs to local storage.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @param verbose If `true`, log messages will be printed to indicate the start and end
+   * of the persistence process.
+   */
   private suspend fun persistDataUnderLock(verbose: Boolean = true) {
     val tutorialMode = getTutorialModeUnderLock()
     if (verbose) {
@@ -1922,12 +2026,34 @@ class DataManager private constructor(val context: Context) {
     addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session")
   }
 
+  /**
+   * Saves the session information to the staging area.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @param sessionInfo The `RecordingSessionInfo` to save.
+   */
   private suspend fun saveSessionInfoUnderLock(sessionInfo: RecordingSessionInfo) {
     val json = sessionInfo.toJson()
     // Use a consistent key so that any changes will be updated on the server.
     addKeyValue("sessionData-${sessionInfo.sessionId}", json, "session", holdingLock = true)
   }
 
+  /**
+   * Launches a coroutine to save all data associated with a recording.
+   *
+   * This is a convenience function that wraps [saveRecordingDataUnderLock] in a coroutine
+   * on the IO dispatcher, allowing the caller to save recording data without blocking the
+   * main thread.
+   *
+   * This function returns immediately.
+   *
+   * @param filename The filename of the recording.
+   * @param outputFile The `File` object representing the recording.
+   * @param tutorialMode `true` if the recording was made in tutorial mode.
+   * @param sessionInfo The `RecordingSessionInfo` for the session.
+   * @param currentPromptIndex The index of the last prompt that was recorded.
+   */
   fun launchSaveRecordingData(
     filename: String,
     outputFile: File,
@@ -1948,6 +2074,24 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Saves all data associated with a recording session.
+   *
+   * This function performs several actions to finalize a recording session:
+   * 1.  Logs the end of the recording.
+   * 2.  Registers the recording file for upload.
+   * 3.  Updates and saves the session information.
+   * 4.  Updates the user's lifetime recording statistics.
+   * 5.  Persists all staged data to local storage.
+   *
+   * This function **must** be called while holding the data lock.
+   *
+   * @param filename The filename of the recording.
+   * @param outputFile The `File` object representing the recording.
+   * @param tutorialMode `true` if the recording was made in tutorial mode.
+   * @param sessionInfo The `RecordingSessionInfo` for the session.
+   * @param currentPromptIndex The index of the last prompt that was recorded.
+   */
   private suspend fun saveRecordingDataUnderLock(
     filename: String,
     outputFile: File,
