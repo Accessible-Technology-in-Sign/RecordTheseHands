@@ -28,7 +28,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import kotlinx.coroutines.runBlocking
 
 class UploadServiceStarter : BroadcastReceiver() {
 
@@ -40,14 +39,8 @@ class UploadServiceStarter : BroadcastReceiver() {
     val action = intent.action
     if (Intent.ACTION_BOOT_COMPLETED == action) {
       Log.d(TAG, "System Boot Completed, starting upload service.")
-    } else if (Intent.ACTION_MY_PACKAGE_REPLACED == action) {
-      Log.d(TAG, "Package Replaced, starting upload service.")
-      val dataManager = DataManager.getInstance(context)
-      runBlocking {
-        dataManager.updateApkTimestamp()
-      }
     } else {
-      Log.e(TAG, "Unknown Intent triggered, starting upload service anyway.")
+      Log.e(TAG, "Unknown Intent triggered (action = $action), starting upload service anyway.")
     }
     val intent = Intent(context, UploadService::class.java)
     context.startForegroundService(intent)

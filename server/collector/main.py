@@ -390,25 +390,6 @@ def prompts_page():
   return flask.redirect(download_link, code=303)
 
 
-@app.route('/apk', methods=['GET'])
-def apk_page():
-  """Download the latest apk."""
-  db = firestore.Client()
-  doc_ref = db.document(f'collector/apk')
-  doc_data = doc_ref.get()
-  if not doc_data.exists:
-    return 'apk version info not found.', 404
-  apk_data = doc_data.to_dict()
-  apk_filename = apk_data.get('filename')
-  assert apk_filename
-
-  logging.info(f'/apk')
-
-  download_link = get_download_link(f'apk/{apk_filename}')
-
-  return flask.redirect(download_link, code=303)
-
-
 @app.route('/upload', methods=['POST'])
 def upload():
   """Upload an item."""
@@ -926,13 +907,6 @@ def directives_page():
 
   db = firestore.Client()
 
-  doc_ref = db.document(f'collector/apk')
-  doc_data = doc_ref.get()
-  if doc_data.exists:
-    apk_data = doc_data.to_dict()
-  else:
-    apk_data = dict()
-
   c_ref = db.collection(f'collector/users/{username}/data/directive')
   directives = list()
   for doc in c_ref.stream():
@@ -973,7 +947,7 @@ def directives_page():
       }
   )
 
-  return flask.jsonify({'directives': directives, 'apk': apk_data}), 200
+  return flask.jsonify({'directives': directives}), 200
 
 
 @app.route('/directive_completed', methods=['POST'])

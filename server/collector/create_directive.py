@@ -141,7 +141,6 @@ def main():
         '    noop',
         '    printDirectives',
         '    changeUser NEW_USERNAME NEW_PASSWORD',
-        '    updateApk',
         '    setPrompts PROMPT_FILE_PATH',
         '    deleteFile FILE_PATH',
         '    uploadState',
@@ -167,8 +166,6 @@ def main():
     db = firestore.Client()
     doc_ref = db.document(f'collector/users/{new_username}/login_hash')
     doc_ref.set({'login_hash': login_hash})
-  elif sys.argv[2] == 'updateApk':
-    create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'setPrompts' or sys.argv[2] == 'setPromptsNoUpload':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     path = pathlib.Path(sys.argv[3])

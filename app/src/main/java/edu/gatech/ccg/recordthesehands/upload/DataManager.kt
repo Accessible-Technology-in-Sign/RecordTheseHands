@@ -25,12 +25,7 @@ package edu.gatech.ccg.recordthesehands.upload
 
 import android.app.Notification
 import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageInstaller
-import android.content.pm.PackageInstaller.SessionParams
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -56,7 +51,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
@@ -67,7 +61,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
-import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -100,52 +93,6 @@ fun makeToken(username: String, password: String): String {
   }
   return token
 }
-
-class DataManagerReceiver : BroadcastReceiver() {
-
-  companion object {
-    private val TAG = DataManagerReceiver::class.simpleName
-  }
-
-  override fun onReceive(context: Context, intent: Intent) {
-    Log.i(TAG, "received intent")
-    check(intent.action == ".upload.SESSION_API_PACKAGE_INSTALLED")
-    val extras = intent.extras
-    if (extras != null) {
-      val status = extras.getInt(PackageInstaller.EXTRA_STATUS)
-      val message = extras.getString(PackageInstaller.EXTRA_STATUS_MESSAGE)
-      Log.i(TAG, "Got extras: status = $status message = $message")
-      if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-        Log.i(TAG, "Pending user action.")
-        val confirmIntent = extras.getParcelable(Intent.EXTRA_INTENT, Intent::class.java)
-        if (confirmIntent != null) {
-          confirmIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-          // TODO This might only work if the activity is in the foreground.
-          context.startActivity(confirmIntent)
-        }
-      }
-      if (status == PackageInstaller.STATUS_SUCCESS) {
-        val md5KeyObject = stringPreferencesKey("apkDownloadMd5")
-        val timestampKeyObject = stringPreferencesKey("apkTimestamp")
-        val downloadTimestampKeyObject = stringPreferencesKey("apkDownloadTimestamp")
-        val md5 = extras.getString("apkMd5")!!
-        val apkTimestamp = extras.getString("apkTimestamp")!!
-        val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-        runBlocking {
-          context.prefStore.edit { preferences ->
-            preferences[md5KeyObject] = md5
-            preferences[timestampKeyObject] = apkTimestamp
-            preferences[downloadTimestampKeyObject] = timestamp
-          }
-        }
-      }
-    } else {
-      Log.e(TAG, "No extras in intent.")
-    }
-
-  }
-}
-
 
 /**
  * Manages all data interactions with the backend server, local storage, and in-memory state.
@@ -1255,72 +1202,6 @@ class DataManager private constructor(val context: Context) {
   }
 
   /**
-   * Records the current timestamp as the APK installation time.
-   *
-   * This function is typically called after a successful app update. It saves the current
-   * timestamp to the `prefStore` `DataStore` and also logs the installation event to the
-   * server via [logToServer].
-   *
-   * This function does not acquire the data lock. It performs a write to `DataStore` and
-   * may block for a short time.
-   *
-   * @return `true` (the return value is not currently used meaningfully).
-   */
-  suspend fun updateApkTimestamp(): Boolean {
-    val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-    val keyObject = stringPreferencesKey("apkInstallTimestamp")
-    context.prefStore.edit { preferences ->
-      preferences[keyObject] = timestamp
-    }
-    logToServer("apk installed at timestamp $timestamp")
-    return true
-  }
-
-  /**
-   * Checks with the server for a new application update.
-   *
-   * This function sends a request to the server, providing the timestamp of the currently
-   * installed APK. The server can then determine if a newer version is available. The logic
-   * for actually downloading and installing the update is handled by a server directive.
-   *
-   * This function does not acquire the data lock, but it performs a network request and
-   * may block for a significant amount of time.
-   *
-   * @return `true` if the check was successful (even if no update is available), `false`
-   * if the server request fails.
-   */
-  suspend fun updateApp(): Boolean {
-    if (UploadService.isPaused()) {
-      throw InterruptedUploadException("updateApp was interrupted.")
-    }
-    Log.i(TAG, "Check for latest apk.")
-    val url = URL(getServer() + "/update_apk")
-    val keyObject = stringPreferencesKey("apkInstallTimestamp")
-    var timestamp = context.prefStore.data
-      .map {
-        it[keyObject]
-      }.firstOrNull()
-    if (timestamp == null) {
-      timestamp = "null"
-    }
-    val (code, _) = serverFormPostRequest(
-      url,
-      mapOf(
-        "app_version" to APP_VERSION,
-        "login_token" to dataManagerData.loginToken!!,
-        "timestamp" to timestamp!!
-      )
-    )
-    if (code >= 200 && code < 300) {
-      // Check JSON to see if we have the latest version.
-    } else {
-      Log.e(TAG, "unable download new apk.")
-      return false
-    }
-    return true
-  }
-
-  /**
    * Manages the entire data upload process.
    *
    * This function orchestrates the upload of all persisted data to the server. It performs
@@ -1465,8 +1346,7 @@ class DataManager private constructor(val context: Context) {
   }
 
   private suspend fun executeDirective(
-    id: String, op: String, value: String,
-    apkData: JSONObject
+    id: String, op: String, value: String
   ): Boolean {
     if (op == "noop") {
       Log.i(TAG, "executing noop directive.")
@@ -1497,48 +1377,6 @@ class DataManager private constructor(val context: Context) {
       val tutorialMode = json.getBoolean("tutorialMode")
       Log.i(TAG, "setTutorialMode to $tutorialMode")
       setTutorialModeUnderLock(tutorialMode)
-      if (!directiveCompleted(id)) {
-        return false
-      }
-    } else if (op == "updateApk") {
-      val url = URL(getServer() + "/apk")
-      Log.i(TAG, "updating apk to $url.")
-      val filename = apkData.getString("md5") + ".apk"
-      val relativePath = "apk" + File.separator + filename
-      val filepath = File(context.filesDir, relativePath)
-
-      filepath.parentFile?.let { parent ->
-        if (!parent.exists()) {
-          Log.i(TAG, "creating directory ${parent}.")
-          parent.mkdirs()
-        }
-      }
-      var downloadSucceeded = false
-      try {
-        FileOutputStream(filepath.absolutePath).use { fileOutputStream ->
-          Log.i(TAG, "downloading apk to $filepath")
-          downloadSucceeded = serverGetToFileRequest(url, emptyMap(), fileOutputStream)
-        }
-      } catch (e: IOException) {
-        Log.e(TAG, "Failed to download apk", e)
-      } finally {
-        if (!downloadSucceeded) {
-          Log.w(TAG, "Cleaning up failed download: $filepath")
-          filepath.delete()
-          return false
-        }
-      }
-      Log.i(TAG, "apk downloaded $filepath with size ${filepath.length()}")
-
-      Log.i(TAG, "installing apk")
-      // The apk used must be a signed one with the same signature as the installed app.
-      // Even so, a bunch of warnings are displayed to the user, some of which might be
-      // able to be suppressed with enough effort.
-      // Changing signing certificate requires a reinstall, which wipes all local data
-      // including any videos which haven't been uploaded.
-      installPackage(relativePath, apkData)
-      Log.i(TAG, "finished installing apk")
-
       if (!directiveCompleted(id)) {
         return false
       }
@@ -1626,52 +1464,6 @@ class DataManager private constructor(val context: Context) {
   }
 
   /**
-   * Initiates the installation of a downloaded APK file.
-   *
-   * This function uses the Android `PackageInstaller` API to create an installation session
-   * and write the APK data to it. It then creates a `PendingIntent` that will be broadcast
-   * when the installation is complete (or requires user action). Finally, it commits the
-   * session, which prompts the user to approve the installation.
-   *
-   * This function does not acquire the data lock. It performs file I/O and interacts with
-   * a system service, so it may block for a short time.
-   *
-   * @param relativePath The path to the APK file, relative to the app's files directory.
-   * @param apkData A `JSONObject` containing metadata about the APK, such as its MD5 hash
-   * and server timestamp. This data is passed through to the completion broadcast.
-   */
-  fun installPackage(relativePath: String, apkData: JSONObject) {
-    val packageInstaller = context.packageManager.packageInstaller
-    val sessionParams = SessionParams(SessionParams.MODE_FULL_INSTALL)
-    sessionParams.setRequireUserAction(SessionParams.USER_ACTION_NOT_REQUIRED)
-    val sessionId = packageInstaller.createSession(sessionParams)
-    val session = packageInstaller.openSession(sessionId)
-    var out: OutputStream? = null
-    val filepath = File(context.filesDir, relativePath)
-    out = session.openWrite("package", 0, filepath.length())
-    val inputStream = FileInputStream(filepath)
-    inputStream.copyTo(out)
-    session.fsync(out)
-    inputStream.close()
-    out.close()
-
-    val intent = Intent(context, DataManagerReceiver::class.java)
-    intent.action = ".upload.SESSION_API_PACKAGE_INSTALLED"
-    intent.putExtra("apkMd5", apkData.getString("md5"))
-    intent.putExtra("apkTimestamp", apkData.getString("timestamp"))
-    val pendingIntent = PendingIntent.getBroadcast(
-      context,
-      sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-    )
-    try {
-      session.commit(pendingIntent.intentSender)
-      session.close()
-    } catch (e: Exception) {
-      Log.i(TAG, "" + e.stackTrace)
-    }
-  }
-
-  /**
    * Fetches and executes a list of commands (directives) from the server.
    *
    * This function is a key part of the server-driven application management. It requests a
@@ -1714,14 +1506,12 @@ class DataManager private constructor(val context: Context) {
       }
       val json = JSONObject(data)
       val array = json.getJSONArray("directives")
-      val apkData = json.getJSONObject("apk")
       for (i in 0..array.length() - 1) {
         val directive = array.getJSONObject(i)
         if (!executeDirective(
             directive.getString("id"),
             directive.getString("op"),
-            directive.getString("value"),
-            apkData
+            directive.getString("value")
           )
         ) {
           return false
