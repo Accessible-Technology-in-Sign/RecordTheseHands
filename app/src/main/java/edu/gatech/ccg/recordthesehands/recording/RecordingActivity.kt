@@ -135,6 +135,13 @@ import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CaptureRequest
+import android.os.Handler
+import android.os.HandlerThread
+import android.view.TextureView
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -397,55 +404,85 @@ class RecordingActivity : FragmentActivity() {
    */
   private var emailConfirmationEnabled: Boolean = false
 
-  // CameraX variables
-  private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
-  private lateinit var cameraSelector: CameraSelector
-  private var preview by mutableStateOf<Preview?>(null)
-  private var videoCapture: VideoCapture<Recorder>? = null
-  private var recording: Recording? = null
+  // CameraX variables (commented out for Camera2 migration)
+  // private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
+  // private lateinit var cameraSelector: CameraSelector
+  // private var preview by mutableStateOf<Preview?>(null)
+  // private var videoCapture: VideoCapture<Recorder>? = null
+  // private var recording: Recording? = null
+
+  // Camera2 variables
+  private var cameraDevice: CameraDevice? = null
+  private var cameraCaptureSession: CameraCaptureSession? = null
+  private lateinit var previewRequestBuilder: CaptureRequest.Builder
+  private lateinit var captureRequest: CaptureRequest
+  private var backgroundThread: HandlerThread? = null
+  private var backgroundHandler: Handler? = null
+  private lateinit var textureView: TextureView
 
   /**
    * Window insets controller for hiding and showing the toolbars.
    */
   var windowInsetsController: WindowInsetsControllerCompat? = null
 
+  private fun startBackgroundThread() {
+    // TODO: Implementation for Stage 2
+  }
+
+  private fun stopBackgroundThread() {
+    // TODO: Implementation for Stage 2
+  }
+
+  private fun openCamera() {
+    // TODO: Implementation for Stage 2
+  }
+
+  private fun closeCamera() {
+    // TODO: Implementation for Stage 2
+  }
+
+  private fun createCameraPreviewSession() {
+    // TODO: Implementation for Stage 3
+  }
+
   private fun startCamera() {
-    val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-    cameraProviderFuture.addListener({
-      val cameraProvider = cameraProviderFuture.get()
-      val resolutionSelector = ResolutionSelector.Builder()
-        .setResolutionStrategy(
-          ResolutionStrategy(
-            Size(640, 480),
-            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-          )
-        )
-        .build()
-      preview = Preview.Builder()
-        .setResolutionSelector(resolutionSelector)
-        .build()
-
-      val recorder = Recorder.Builder()
-        .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
-        .build()
-
-      videoCapture = VideoCapture.Builder(recorder)
-        .setTargetFrameRate(android.util.Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE))
-        .build()
-
-      cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
-      try {
-        cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
-          this, cameraSelector, preview, videoCapture
-        )
-        startRecording()
-        viewModel.setRecordingState(true)
-      } catch (exc: Exception) {
-        Log.e(TAG, "Use case binding failed", exc)
-      }
-    }, ContextCompat.getMainExecutor(this))
+    // val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+    // cameraProviderFuture.addListener({
+    //   val cameraProvider = cameraProviderFuture.get()
+    //   val resolutionSelector = ResolutionSelector.Builder()
+    //     .setResolutionStrategy(
+    //       ResolutionStrategy(
+    //         Size(640, 480),
+    //         ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+    //       )
+    //     )
+    //     .build()
+    //   preview = Preview.Builder()
+    //     .setResolutionSelector(resolutionSelector)
+    //     .build()
+    //
+    //   val recorder = Recorder.Builder()
+    //     .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+    //     .build()
+    //
+    //   videoCapture = VideoCapture.Builder(recorder)
+    //     .setTargetFrameRate(android.util.Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE))
+    //     .build()
+    //
+    //   cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+    //
+    //   try {
+    //     cameraProvider.unbindAll()
+    //     cameraProvider.bindToLifecycle(
+    //       this, cameraSelector, preview, videoCapture
+    //     )
+    //     startRecording()
+    //     viewModel.setRecordingState(true)
+    //   } catch (exc: Exception) {
+    //     Log.e(TAG, "Use case binding failed", exc)
+    //   }
+    // }, ContextCompat.getMainExecutor(this))
+    openCamera()
   }
 
   private fun setupCountdownTimer(onTick: (String) -> Unit) {
@@ -481,36 +518,42 @@ class RecordingActivity : FragmentActivity() {
       dataManager.logToServer("startRecording called when isRecording is true.")
       return
     }
-    val videoCapture = this.videoCapture ?: return
-
-    val fileOutputOptions = FileOutputOptions.Builder(outputFile).build()
-
-    recording = videoCapture.output
-      .prepareRecording(this, fileOutputOptions)
-      .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
-        when (recordEvent) {
-          is VideoRecordEvent.Start -> {
-            // Handle recording start
-          }
-
-          is VideoRecordEvent.Finalize -> {
-            if (!recordEvent.hasError()) {
-              val msg = "Video capture succeeded: ${recordEvent.outputResults.outputUri}"
-              Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-              Log.d(TAG, msg)
-            } else {
-              recording?.close()
-              recording = null
-              Log.e(TAG, "Video capture ends with error: ${recordEvent.error}")
-            }
-          }
-        }
-      }
+    // val videoCapture = this.videoCapture ?: return
+    //
+    // val fileOutputOptions = FileOutputOptions.Builder(outputFile).build()
+    //
+    // recording = videoCapture.output
+    //   .prepareRecording(this, fileOutputOptions)
+    //   .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
+    //     when (recordEvent) {
+    //       is VideoRecordEvent.Start -> {
+    //         // Handle recording start
+    //       }
+    //
+    //       is VideoRecordEvent.Finalize -> {
+    //         if (!recordEvent.hasError()) {
+    //           val msg = "Video capture succeeded: ${recordEvent.outputResults.outputUri}"
+    //           Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+    //           Log.d(TAG, msg)
+    //         } else {
+    //           recording?.close()
+    //           recording = null
+    //           Log.e(TAG, "Video capture ends with error: ${recordEvent.error}")
+    //         }
+    //       }
+    //     }
+    //   }
+    // TODO: Implementation for Stage 4
+    viewModel.setRecordingState(true)
   }
 
   private fun stopRecording() {
-    recording?.stop()
-    recording = null
+    // recording?.stop()
+    // recording = null
+    if (!viewModel.isRecording.value) {
+      return
+    }
+    // TODO: Implementation for Stage 4
     viewModel.setRecordingState(false)
   }
 
@@ -616,6 +659,7 @@ class RecordingActivity : FragmentActivity() {
     // does not record while the activity is in the background.
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
     Log.d(TAG, "Recording Activity: onStop")
+    closeCamera()
     dataManager.logToServer("onStop called.")
     concludeRecordingSession(RESULT_OK, "RESULT_OK_ON_STOP")
   }
@@ -667,11 +711,7 @@ class RecordingActivity : FragmentActivity() {
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
-      val previewView = remember {
-        PreviewView(context).apply {
-          scaleType = PreviewView.ScaleType.FIT_CENTER
-        }
-      }
+      val textureView = remember { TextureView(context) }
       val previewViewHolder = remember {
         FrameLayout(context)
       }
@@ -681,15 +721,15 @@ class RecordingActivity : FragmentActivity() {
       val density = LocalDensity.current
       val coroutineScope = rememberCoroutineScope()
 
-      LaunchedEffect(Unit) {
-        // This effect uses a snapshotFlow to safely observe the preview state.
-        // It will suspend until the preview is non-null, then set the surface
-        // provider once. This is the robust way to handle the asynchronous
-        // initialization of the camera preview.
-        snapshotFlow { preview }
-          .filterNotNull()
-          .first().surfaceProvider = previewView.surfaceProvider
-      }
+      // LaunchedEffect(Unit) {
+      //   // This effect uses a snapshotFlow to safely observe the preview state.
+      //   // It will suspend until the preview is non-null, then set the surface
+      //   // provider once. This is the robust way to handle the asynchronous
+      //   // initialization of the camera preview.
+      //   snapshotFlow { preview }
+      //     .filterNotNull()
+      //     .first().surfaceProvider = previewView.surfaceProvider
+      // }
 
       ConstraintLayout(
         modifier = Modifier
@@ -700,7 +740,7 @@ class RecordingActivity : FragmentActivity() {
         val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
         CameraPreview(
-          previewView,
+          textureView,
           previewViewHolder,
           modifier = Modifier.constrainAs(cameraPreview) {
             top.linkTo(guideline)
@@ -1306,7 +1346,7 @@ class RecordingActivity : FragmentActivity() {
 
   @Composable
   fun CameraPreview(
-    previewView: PreviewView,
+    textureView: TextureView,
     holder: FrameLayout,
     modifier: Modifier = Modifier
   ) {
@@ -1317,7 +1357,7 @@ class RecordingActivity : FragmentActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
           )
-          addView(previewView)
+          addView(textureView)
         }
       },
       modifier = modifier
