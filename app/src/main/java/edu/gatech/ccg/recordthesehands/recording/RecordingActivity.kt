@@ -115,6 +115,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import edu.gatech.ccg.recordthesehands.Constants.COUNTDOWN_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_SESSION_LENGTH
 import edu.gatech.ccg.recordthesehands.Constants.DEFAULT_TUTORIAL_SESSION_LENGTH
+import edu.gatech.ccg.recordthesehands.Constants.RECORDING_FRAMERATE
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
 import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
@@ -432,8 +433,10 @@ class RecordingActivity : FragmentActivity() {
       val recorder = Recorder.Builder()
         .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
         .build()
-      videoCapture = VideoCapture.withOutput(recorder)
-      // TODO set the framerate.
+
+      videoCapture = VideoCapture.Builder(recorder)
+        .setTargetFrameRate(android.util.Range(RECORDING_FRAMERATE, RECORDING_FRAMERATE))
+        .build()
 
       cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
