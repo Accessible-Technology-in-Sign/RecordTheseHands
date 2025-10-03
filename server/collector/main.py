@@ -319,7 +319,7 @@ def home_page():
   )
 
 
-@app.route('/resource', methods=['GET', 'POST'])
+@app.route('/resource', methods=['POST'])
 @flask_login.login_required
 def resource_page():
   """Download a resource item."""

@@ -418,33 +418,42 @@ class DataManager private constructor(val context: Context) {
   }
 
   /**
-   * Performs a GET request to a server and streams the response body directly to a file.
+   * Performs a POST request to a server and streams the response body directly to a file.
    * This is useful for downloading large files without loading the entire content into memory.
    *
    * This function does not acquire the data lock, but it performs a network
    * request and file I/O, and may block for a significant amount of time.
    *
-   * @param url The URL to download from.
+   * @param url The URL to which the POST request will be sent.
    * @param headers A map of HTTP headers to include in the request.
+   * @param data A map of key-value pairs to be form-encoded and sent as the request body.
    * @param fileOutputStream The `FileOutputStream` to write the response body to. The stream
    * is not closed by this function.
-   * @return `true` if the download was successful (HTTP 2xx), `false` otherwise.
+   * @return `true` if the request was successful (HTTP 2xx), `false` otherwise.
    */
-  fun serverGetToFileRequest(
-    url: URL, headers: Map<String, String>,
+  fun serverPostToFileRequest(
+    url: URL,
+    headers: Map<String, String>,
+    data: Map<String, String>,
     fileOutputStream: FileOutputStream
   ): Boolean {
+    val formData = data.map { (k, v) ->
+      URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
+    }.joinToString("&").toByteArray(Charsets.UTF_8)
     val urlConnection = url.openConnection() as HttpsURLConnection
     setAppropriateTrust(urlConnection)
 
     var code: Int = -1
     var interrupted = false
     try {
-      urlConnection.setDoOutput(false)
-      urlConnection.requestMethod = "GET"
+      urlConnection.setDoOutput(true)
+      urlConnection.requestMethod = "POST"
+      urlConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+      urlConnection.setFixedLengthStreamingMode(formData.size)
       headers.forEach {
         urlConnection.setRequestProperty(it.key, it.value)
       }
+      urlConnection.outputStream.use { it.write(formData) }
 
       code = urlConnection.responseCode
       if (code >= 200 && code < 300) {
@@ -452,14 +461,14 @@ class DataManager private constructor(val context: Context) {
           inputStream.copyTo(fileOutputStream)
         }
       } else if (urlConnection.responseCode >= 400) {
-        Log.e(TAG, "Failed to get url.  Response code: $code ")
+        Log.e(TAG, "Failed to post url.  Response code: $code ")
         return false
       }
     } catch (e: InterruptedUploadException) {
       interrupted = true
       throw e
     } catch (e: IOException) {
-      Log.e(TAG, "Get request failed: $e")
+      Log.e(TAG, "Post request failed: $e")
       return false
     } finally {
       if (!interrupted) {
@@ -469,6 +478,7 @@ class DataManager private constructor(val context: Context) {
     }
     return true
   }
+
 
   /**
    * A generic function for making HTTP requests to the server.
@@ -1964,18 +1974,13 @@ class DataManager private constructor(val context: Context) {
       "login_token" to dataManagerData.loginToken!!,
       "path" to resourcePath,
     )
-    val formData = data.map { (k, v) ->
-      URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
-    }.joinToString("&")
-    // TODO make sure this doesn't get logged anywhere.
-    // I'd be more comfortable with this if we used the POST method.
-    val url = URL(getServer() + "/resource?" + formData)
+    val url = URL(getServer() + "/resource")
 
     var downloadSucceeded = false
     try {
       FileOutputStream(resource.absolutePath).use { fileOutputStream ->
         Log.i(TAG, "downloading resource (from url: $url) to $resource")
-        downloadSucceeded = serverGetToFileRequest(url, emptyMap(), fileOutputStream)
+        downloadSucceeded = serverPostToFileRequest(url, emptyMap(), data, fileOutputStream)
       }
     } catch (e: IOException) {
       Log.e(TAG, "Failed to download resource", e)
