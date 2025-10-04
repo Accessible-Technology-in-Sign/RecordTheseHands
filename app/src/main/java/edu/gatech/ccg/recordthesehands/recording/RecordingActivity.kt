@@ -410,7 +410,9 @@ class RecordingActivity : FragmentActivity() {
   private lateinit var textureView: TextureView
   private lateinit var videoSize: Size
   private var sensorOrientation: Int = 0
+  private var frontFacingCamera: Boolean = true
   private var mediaRecorder: MediaRecorder? = null
+  private var screenRotationDegrees: Int = 0
 
   /**
    * Window insets controller for hiding and showing the toolbars.
@@ -455,11 +457,17 @@ class RecordingActivity : FragmentActivity() {
 
   private fun openCamera() {
     startBackgroundThread()
-    val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    val manager = getSystemService(CAMERA_SERVICE) as CameraManager
     try {
+      frontFacingCamera = true
       val cameraId = manager.cameraIdList.first {
         manager.getCameraCharacteristics(it)
-          .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+          .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) ==
+            if (frontFacingCamera) {
+              android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+            } else {
+              android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK
+            }
       }
       val characteristics = manager.getCameraCharacteristics(cameraId)
       sensorOrientation =
@@ -467,9 +475,14 @@ class RecordingActivity : FragmentActivity() {
       val map =
         characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
       videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
-
-      // For simplicity, we are not handling permissions here, assuming they are granted.
-      // A production app should handle permissions properly.
+      screenRotationDegrees = when (display.rotation) {
+        Surface.ROTATION_0 -> 0
+        Surface.ROTATION_90 -> 90
+        Surface.ROTATION_180 -> 180
+        Surface.ROTATION_270 -> 270
+        else -> 0
+      }
+      // Permissions must be granted before launching the Activity.
       manager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
     } catch (e: SecurityException) {
       Log.e(TAG, "Camera permission not granted", e)
@@ -741,8 +754,6 @@ class RecordingActivity : FragmentActivity() {
           width: Int,
           height: Int
         ) {
-          // TODO does this function need to be called here?  It's called a lot on each
-          // swipe animation.
           configureTransform(width, height)
         }
 
@@ -753,7 +764,9 @@ class RecordingActivity : FragmentActivity() {
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
       }
       val previewViewHolder = remember {
-        FrameLayout(context)
+        FrameLayout(context).apply {
+          setBackgroundColor(android.graphics.Color.YELLOW)
+        }
       }
 
       var guidelineTargetPosition by remember { mutableStateOf(0f) }
@@ -1116,45 +1129,67 @@ class RecordingActivity : FragmentActivity() {
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
-  private fun configureTransform(width: Int, height: Int) {
-    val rotation = windowManager.defaultDisplay.rotation
+  private fun configureTransform(widgetWidth: Int, widgetHeight: Int) {
     val matrix = Matrix()
-    val viewRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+    val viewRect = RectF(0f, 0f, widgetWidth.toFloat(), widgetHeight.toFloat())
     val centerX = viewRect.centerX()
     val centerY = viewRect.centerY()
 
-    val rotationDegrees = when (rotation) {
-      Surface.ROTATION_0 -> 0
-      Surface.ROTATION_90 -> 90
-      Surface.ROTATION_180 -> 180
-      Surface.ROTATION_270 -> 270
-      else -> 0
-    }
-    // Why does this standard recomendation not work?
-    // val displayRotation = (sensorOrientation - rotationDegrees + 360) % 360
+    // Camera2 pre-rotates the view to be correct in the phone native orientation.
+    // But Camera2 does not adjust the videoSize width and height values to account for this
+    // rotation.  This makes calculating the rotations and scaling factors very confusing.
+    // All of these computations were determined experimentally and work for all orientations
+    // on a tablet and phone for front and back facing camera.
 
-    // TODO why is sensorOrientation not needed here?  Verify on phone.
-    val displayRotation = (360 - rotationDegrees) % 360
+    val sensorToDisplayRotation = (sensorOrientation - screenRotationDegrees + 360) % 360
+    val swappedDimensions = sensorToDisplayRotation == 90 || sensorToDisplayRotation == 270
+    val (rotatedVideoWidth, rotatedVideoHeight) = if (swappedDimensions) {
+      listOf(videoSize.height, videoSize.width)
+    } else {
+      listOf(videoSize.width, videoSize.height)
+    }
+
+    val scaleWidth = videoSize.height.toFloat() / widgetWidth.toFloat()
+    val scaleHeight = videoSize.width.toFloat() / widgetHeight.toFloat()
+
+    val widthConstrainedScale = widgetWidth.toFloat() / rotatedVideoWidth
+    val heightConstrainedScale = widgetHeight.toFloat() / rotatedVideoHeight
+    val constrainedScale =
+      if (widgetWidth.toFloat() / widgetHeight.toFloat() <
+        rotatedVideoWidth.toFloat() / rotatedVideoHeight.toFloat()
+      ) {
+        widthConstrainedScale
+      } else {
+        heightConstrainedScale
+      }
+
     Log.d(
-      TAG,
-      "displayRotation $displayRotation sensorOrientation $sensorOrientation rotationDegrees $rotationDegrees"
+      TAG, "configureTransform($widgetWidth, $widgetHeight)\n" +
+          "screenRotationDegrees ${screenRotationDegrees}\n" +
+          "sensorToDisplayRotation $sensorToDisplayRotation\n" +
+          "swappedDimensions $swappedDimensions\n" +
+          "videoSize.width ${videoSize.width}\n" +
+          "videoSize.height ${videoSize.height}\n" +
+          "scaleWidth ${scaleWidth}\n" +
+          "scaleHeight ${scaleHeight}\n" +
+          "widthConstrainedScale ${widthConstrainedScale}\n" +
+          "heightConstrainedScale ${heightConstrainedScale}\n"
     )
 
-    val swappedDimensions = displayRotation == 90 || displayRotation == 270
-    val rotatedVideoWidth = if (swappedDimensions) videoSize.height else videoSize.width
-    val rotatedVideoHeight = if (swappedDimensions) videoSize.width else videoSize.height
+    val finalRotation = -screenRotationDegrees
 
-    val scaleX = width.toFloat() / rotatedVideoWidth.toFloat()
-    val scaleY = height.toFloat() / rotatedVideoHeight.toFloat()
+    val finalScaleX = scaleWidth * constrainedScale
+    val finalScaleY = scaleHeight * constrainedScale
 
-    val scale = max(scaleX, scaleY)
+    // The texture starts out as the full widgetWidth by widgetHeight.
+    // After rotation this may swap the width and height dimensions.
     matrix.postScale(
-      scale * rotatedVideoWidth.toFloat() / width.toFloat(),
-      scale * rotatedVideoHeight.toFloat() / height.toFloat(),
+      finalScaleX * .995f,
+      finalScaleY * .995f,
       centerX,
       centerY
     )
-    matrix.postRotate(displayRotation.toFloat(), centerX, centerY)
+    matrix.postRotate(finalRotation.toFloat(), centerX, centerY)
     textureView.setTransform(matrix)
   }
 
@@ -1187,8 +1222,7 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun setUpMediaRecorder() {
-    mediaRecorder = MediaRecorder()
-    mediaRecorder?.apply {
+    mediaRecorder = MediaRecorder(applicationContext).apply {
       setVideoSource(MediaRecorder.VideoSource.SURFACE)
       setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
       setOutputFile(outputFile.absolutePath)
@@ -1202,31 +1236,16 @@ class RecordingActivity : FragmentActivity() {
   }
 
   private fun determineCameraOrientation(): Int {
-    val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-    val cameraId = manager.cameraIdList.first {
-      manager.getCameraCharacteristics(it)
-        .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
-    }
-    val characteristics = manager.getCameraCharacteristics(cameraId)
-    val sensorOrientation =
-      characteristics.get(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION)!!
-
-    val deviceRotation = windowManager.defaultDisplay.rotation
-    val degrees = when (deviceRotation) {
-      Surface.ROTATION_0 -> 0
-      Surface.ROTATION_90 -> 90
-      Surface.ROTATION_180 -> 180
-      Surface.ROTATION_270 -> 270
-      else -> 0
-    }
-
-    if (characteristics.get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT) {
-      val finalRotation = (sensorOrientation + degrees) % 360
-      // Compensate for the mirroring effect of a front camera
-      return (360 - finalRotation) % 360
+    // Note that when 270 is set as the hint on a video, ffmpeg reports 90 degrees.
+    // Which might be a difference in how ffmpeg and Android think about these rotations
+    // clockwise vs counter-clockwise and rotation of view or rotation of video.
+    if (frontFacingCamera) {
+      return (sensorOrientation + screenRotationDegrees) % 360
     } else { // Back-facing camera
-      return (sensorOrientation - degrees + 360) % 360
+      return (sensorOrientation - screenRotationDegrees + 360) % 360
     }
+    // To compensate for mirroring use the following.
+    // return (360 - finalRotation) % 360
   }
 
   /**
