@@ -64,6 +64,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -327,6 +328,16 @@ class HomeScreenActivity : AppCompatActivity() {
     dataManager = DataManager.getInstance(applicationContext)
     lifecycleScope.launch {
       dataManager.logToServerAndPersist("HomeScreenActivity.onCreate")
+    }
+
+    // Create the upload directory if it doesn't exist.
+    val uploadDir = File(filesDir, "upload")
+    if (!uploadDir.exists()) {
+      if (uploadDir.mkdirs()) {
+        Log.i(TAG, "Upload directory created.")
+      } else {
+        Log.e(TAG, "Failed to create upload directory.")
+      }
     }
 
     // Start the UploadService (which should already be running anyway).
