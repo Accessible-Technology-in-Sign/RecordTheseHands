@@ -144,6 +144,7 @@ def main():
         '    setPrompts PROMPT_FILE_PATH',
         '    deleteFile FILE_PATH',
         '    uploadState',
+        '    unregisterLostFiles',
         '    setTutorialMode [true|false]',
         '    cancel DIRECTIVE_ID',
         '    deleteUser',
