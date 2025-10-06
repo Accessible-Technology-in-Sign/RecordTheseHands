@@ -30,6 +30,7 @@ import android.graphics.Matrix
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
@@ -224,8 +225,16 @@ fun Context.filenameToFilepath(filename: String): File {
  * to the server.
  */
 class RecordingSessionInfo(
-  val sessionId: String, val filename: String, val deviceId: String, val username: String,
-  val sessionType: String, val initialPromptIndex: Int, val limitPromptIndex: Int
+  val sessionId: String,
+  val filename: String,
+  val deviceId: String,
+  val username: String,
+  val sessionType: String,
+  val sectionName: String,
+  val sensorOrientation: Int,
+  val displayOrientation: Int,
+  val initialPromptIndex: Int,
+  val limitPromptIndex: Int
 ) {
   companion object {
     private val TAG = RecordingSessionInfo::class.java.simpleName
@@ -244,6 +253,9 @@ class RecordingSessionInfo(
     json.put("deviceId", deviceId)
     json.put("username", username)
     json.put("sessionType", sessionType)
+    json.put("sectionName", sectionName)
+    json.put("sensorOrientation", sensorOrientation)
+    json.put("displayOrientation", displayOrientation)
     json.put("initialPromptIndex", initialPromptIndex)
     json.put("limitPromptIndex", limitPromptIndex)
     json.put("finalPromptIndex", finalPromptIndex)
@@ -401,6 +413,9 @@ class RecordingActivity : FragmentActivity() {
   // private var recording: Recording? = null
 
   // Camera2 variables
+  lateinit var cameraManager: CameraManager
+  lateinit var cameraId: String
+  lateinit var characteristics: CameraCharacteristics
   private var cameraDevice: CameraDevice? = null
   private var cameraCaptureSession: CameraCaptureSession? = null
   private lateinit var previewRequestBuilder: CaptureRequest.Builder
@@ -449,41 +464,17 @@ class RecordingActivity : FragmentActivity() {
       backgroundThread = null
       backgroundHandler = null
     } catch (e: InterruptedException) {
-      // TODO if stopBackgroundThread can be called from anywhere but concludeRecordingSession then
-      // call concludeRecordingSession here instead of throwing an error.
+      // This can only be called from within concludeRecordingSession, so just log an error and
+      // continue tearing down the activity.
       Log.e(TAG, "Error stopping background thread", e)
     }
   }
 
   private fun openCamera() {
     startBackgroundThread()
-    val manager = getSystemService(CAMERA_SERVICE) as CameraManager
     try {
-      frontFacingCamera = true
-      val cameraId = manager.cameraIdList.first {
-        manager.getCameraCharacteristics(it)
-          .get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) ==
-            if (frontFacingCamera) {
-              android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
-            } else {
-              android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK
-            }
-      }
-      val characteristics = manager.getCameraCharacteristics(cameraId)
-      sensorOrientation =
-        characteristics.get(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION)!!
-      val map =
-        characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-      videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
-      screenRotationDegrees = when (display.rotation) {
-        Surface.ROTATION_0 -> 0
-        Surface.ROTATION_90 -> 90
-        Surface.ROTATION_180 -> 180
-        Surface.ROTATION_270 -> 270
-        else -> 0
-      }
       // Permissions must be granted before launching the Activity.
-      manager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
+      cameraManager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
     } catch (e: SecurityException) {
       Log.e(TAG, "Camera permission not granted", e)
     } catch (e: Exception) {
@@ -727,6 +718,32 @@ class RecordingActivity : FragmentActivity() {
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
     UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
 
+    // Initialize camera variables.
+    frontFacingCamera = true
+    cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
+    cameraId = cameraManager.cameraIdList.first {
+      cameraManager.getCameraCharacteristics(it)
+        .get(CameraCharacteristics.LENS_FACING) ==
+          if (frontFacingCamera) {
+            CameraCharacteristics.LENS_FACING_FRONT
+          } else {
+            CameraCharacteristics.LENS_FACING_BACK
+          }
+    }
+    characteristics = cameraManager.getCameraCharacteristics(cameraId)
+    sensorOrientation =
+      characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
+    val map =
+      characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+    videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
+    screenRotationDegrees = when (display.rotation) {
+      Surface.ROTATION_0 -> 0
+      Surface.ROTATION_90 -> 90
+      Surface.ROTATION_180 -> 180
+      Surface.ROTATION_270 -> 270
+      else -> 0
+    }
+
     setContent {
       val timerText by viewModel.timerText.collectAsState()
       val recordButtonVisible by viewModel.recordButtonVisible.collectAsState()
@@ -773,16 +790,6 @@ class RecordingActivity : FragmentActivity() {
       val guidelinePosition = remember { Animatable(0f) }
       val density = LocalDensity.current
       val coroutineScope = rememberCoroutineScope()
-
-      // LaunchedEffect(Unit) {
-      //   // This effect uses a snapshotFlow to safely observe the preview state.
-      //   // It will suspend until the preview is non-null, then set the surface
-      //   // provider once. This is the robust way to handle the asynchronous
-      //   // initialization of the camera preview.
-      //   snapshotFlow { preview }
-      //     .filterNotNull()
-      //     .first().surfaceProvider = previewView.surfaceProvider
-      // }
 
       ConstraintLayout(
         modifier = Modifier
@@ -1064,19 +1071,25 @@ class RecordingActivity : FragmentActivity() {
     if (initialState == null) {
       throw IllegalStateException("Prompt state not available.")
     }
+    if (initialState.deviceId == null) {
+      throw IllegalStateException("Device Id not available.")
+    }
     val tmpCurrentPrompts = initialState.currentPrompts
     val tmpCurrentPromptIndex = initialState.currentPromptIndex
     if (tmpCurrentPrompts == null || tmpCurrentPromptIndex == null) {
       throw IllegalStateException("Prompt state not available.")
     }
-    this.prompts = tmpCurrentPrompts
+    prompts = tmpCurrentPrompts
     val tmpMetadata = initialState.currentPromptsMetadata
     if (tmpMetadata == null) {
       throw IllegalStateException("Prompts Metadata not available.")
     }
-    this.promptsMetadata = tmpMetadata
-    this.sessionStartIndex = tmpCurrentPromptIndex
-    this.currentPromptIndex = tmpCurrentPromptIndex
+    if (initialState.currentSectionName == null) {
+      throw IllegalStateException("Section Name not available.")
+    }
+    promptsMetadata = tmpMetadata
+    sessionStartIndex = tmpCurrentPromptIndex
+    currentPromptIndex = tmpCurrentPromptIndex
     username = initialState.username ?: throw IllegalStateException("username not available.")
     tutorialMode = initialState.tutorialMode
     val sessionType = if (tutorialMode) "tutorial" else "normal"
@@ -1091,8 +1104,16 @@ class RecordingActivity : FragmentActivity() {
       if (tutorialMode) DEFAULT_TUTORIAL_SESSION_LENGTH else DEFAULT_SESSION_LENGTH
     sessionLimit = min(prompts.array.size, sessionStartIndex + sessionLength)
     sessionInfo = RecordingSessionInfo(
-      sessionId, filename, runBlocking { dataManager.getDeviceId() }, username, sessionType,
-      sessionStartIndex, sessionLimit
+      sessionId,
+      filename,
+      initialState.deviceId,
+      username,
+      sessionType,
+      initialState.currentSectionName,
+      sensorOrientation,
+      screenRotationDegrees,
+      sessionStartIndex,
+      sessionLimit
     )
     sessionStartTime = Instant.now()
     sessionInfo.startTimestamp = sessionStartTime

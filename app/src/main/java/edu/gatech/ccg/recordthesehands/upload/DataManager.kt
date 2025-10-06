@@ -75,6 +75,7 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import kotlin.math.ceil
 
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "dataStore")
@@ -1295,7 +1296,7 @@ class DataManager private constructor(val context: Context) {
           progress = 0
         )
       )
-      val serverRoundTripPercentage = 20  // Amound of progress that is due to server round trips
+      val serverRoundTripPercentage = 20f  // Amount of progress that is due to server round trips
       var numBatches = 0
       var numTotalBatches = numBatches + registeredFiles.size
       if (entries == null) {
@@ -1303,7 +1304,7 @@ class DataManager private constructor(val context: Context) {
       } else if (entries.isNotEmpty()) {
         // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
         val keyValueBatchSize = 100
-        numBatches = entries.size / keyValueBatchSize
+        numBatches = ceil(entries.size.toFloat() / keyValueBatchSize.toFloat()).toInt()
         numTotalBatches = numBatches + registeredFiles.size
         notificationManager?.notify(
           UPLOAD_NOTIFICATION_ID,
@@ -1326,7 +1327,8 @@ class DataManager private constructor(val context: Context) {
 
             // Update progress
             val progress =
-              (completedBatches * serverRoundTripPercentage / numTotalBatches).coerceIn(0, 100)
+              ceil(completedBatches * serverRoundTripPercentage / numTotalBatches).toInt()
+                .coerceIn(0, 100)
             Log.d(TAG, "Progress after key value upload: $progress%")
             dataManagerData._uploadState.postValue(
               UploadState(
@@ -1336,29 +1338,46 @@ class DataManager private constructor(val context: Context) {
             )
           }
         }
-        if (!tryUploadKeyValues(batch)) {
-          return false
+        if (batch.length() > 0) {
+          if (!tryUploadKeyValues(batch)) {
+            return false
+          }
+          completedBatches += 1
+          // Update progress
+          val progress =
+            ceil(completedBatches * serverRoundTripPercentage / numTotalBatches).toInt()
+              .coerceIn(0, 100)
+          Log.d(TAG, "Progress after key value upload: $progress%")
+          dataManagerData._uploadState.postValue(
+            UploadState(
+              status = UploadStatus.UPLOADING,
+              progress = progress
+            )
+          )
         }
       }
       var completedItems = 0
-      var i = 0
       for (registeredFile in registeredFiles) {
         notificationManager?.notify(
           UPLOAD_NOTIFICATION_ID,
-          createNotification("Uploading file", "${i + 1} of ${registeredFiles.size}")
+          createNotification("Uploading file", "${completedItems + 1} of ${registeredFiles.size}")
         )
 
         Log.i(TAG, "Creating UploadSession for ${registeredFile.relativePath}")
 
         val uploadSession = UploadSession(context, registeredFile)
+        // TODO We could add a callback to update the progress bar as bytes are transferred.
         if (!uploadSession.tryUploadFile()) {
           return false
         }
         completedItems += 1
 
+        // TODO this progress should track bytes uploaded, not files uploaded.
         val progress =
-          (serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
-              (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()).toInt()
+          ceil(
+            serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
+                (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()
+          ).toInt()
             .coerceIn(0, 100)
         Log.d(TAG, "Progress after file upload: $progress%")
         dataManagerData._uploadState.postValue(
@@ -1367,8 +1386,6 @@ class DataManager private constructor(val context: Context) {
             progress = progress
           )
         )
-
-        i += 1
       }
 
       dataManagerData._uploadState.postValue(

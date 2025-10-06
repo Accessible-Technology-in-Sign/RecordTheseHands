@@ -522,7 +522,7 @@ class HomeScreenActivity : AppCompatActivity() {
       }
     }
     dataManager.uploadState.observe(this@HomeScreenActivity) { state ->
-      if (state.status == previousUploadStatus) {
+      if (state.status == previousUploadStatus && state.status != UploadStatus.UPLOADING) {
         return@observe
       }
       previousUploadStatus = state.status
