@@ -57,6 +57,7 @@ import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.UploadStatus
 import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -114,6 +115,8 @@ class HomeScreenActivity : AppCompatActivity() {
    */
   private var startRecordingShouldSwitchPrompts = false
 
+  private var previousUploadStatus: UploadStatus? = null
+
   /**
    * Handler for what happens when the recording activity finishes.
    */
@@ -127,7 +130,7 @@ class HomeScreenActivity : AppCompatActivity() {
         }
 
         else -> {
-          val text = "The recording session was ended due to an unexpected error."
+          val text = getString(R.string.recording_session_ended_unexpectedly)
           val toast = Toast.makeText(this, text, Toast.LENGTH_LONG)
           toast.show()
         }
@@ -142,9 +145,9 @@ class HomeScreenActivity : AppCompatActivity() {
         val permissionName = it.key
         val isGranted = it.value
         val text = if (isGranted) {
-          "$permissionName permission granted"
+          getString(R.string.permission_granted, permissionName)
         } else {
-          "$permissionName permission denied"
+          getString(R.string.permission_denied, permissionName)
         }
         val toast = Toast.makeText(this, text, Toast.LENGTH_SHORT)
         toast.show()
@@ -236,7 +239,7 @@ class HomeScreenActivity : AppCompatActivity() {
             handleRecordingResult.launch(intent)
           }
         } else {
-          val text = "Please enable camera access in Settings"
+          val text = getString(R.string.enable_camera_access)
           val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
           toast.show()
         }
@@ -257,46 +260,11 @@ class HomeScreenActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
           UploadService.pauseUploadUntil(null)
           try {
-            val uploadSucceeded = dataManager.uploadData { progress ->
-              runOnUiThread {
-                Log.d(TAG, "Updating ProgressBar to $progress%")
-                binding.uploadProgressBar.progress = progress
-              }
-            }
-
-            runOnUiThread {
-              binding.uploadButton.isEnabled = true
-              binding.uploadButton.isClickable = true
-              binding.uploadProgressBar.visibility = View.GONE
-              binding.uploadProgressBarText.visibility = View.GONE
-              if (uploadSucceeded) {
-                binding.uploadButton.text = getString(R.string.upload_button)
-                val textFinish = "Upload complete"
-                val toastFinish =
-                  Toast.makeText(applicationContext, textFinish, Toast.LENGTH_SHORT)
-                toastFinish.show()
-              } else {
-                binding.uploadButton.text = getString(R.string.upload_failed)
-                val textFinish = "Upload Failed"
-                val toastFinish =
-                  Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-                toastFinish.show()
-              }
-            }
+            dataManager.uploadData()
           } catch (e: InterruptedUploadException) {
-            Log.w("Data upload was interrupted.", e)
-            dataManager.logToServerAndPersist("Data upload was interrupted.")
-            runOnUiThread {
-              val textFinish = "Upload interrupted"
-              val toastFinish =
-                Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-              toastFinish.show()
-              binding.uploadButton.isEnabled = true
-              binding.uploadButton.isClickable = true
-              binding.uploadProgressBar.visibility = View.GONE
-              binding.uploadProgressBarText.visibility = View.GONE
-              binding.uploadButton.text = getString(R.string.upload_button)
-            }
+            dataManager.logToServerAndPersistNonBlocking(
+              "Data upload was interrupted in HomeScreenActivity."
+            )
           }
         }
       }
@@ -464,7 +432,7 @@ class HomeScreenActivity : AppCompatActivity() {
         binding.deviceIdBox.text = state.deviceId
       }
 
-      binding.sectionNameText.text = state.currentSectionName ?: "<Section Not Set>"
+      binding.sectionNameText.text = state.currentSectionName ?: getString(R.string.section_not_set)
 
       if (state.tutorialMode) {
         binding.tutorialProgressText.visibility = View.VISIBLE
@@ -550,6 +518,61 @@ class HomeScreenActivity : AppCompatActivity() {
               R.color.alert_red
             )
           )
+        }
+      }
+    }
+    dataManager.uploadState.observe(this@HomeScreenActivity) { state ->
+      if (state.status == previousUploadStatus) {
+        return@observe
+      }
+      previousUploadStatus = state.status
+      when (state.status) {
+        UploadStatus.IDLE -> {
+          binding.uploadButton.isEnabled = true
+          binding.uploadButton.isClickable = true
+          binding.uploadProgressBar.visibility = View.GONE
+          binding.uploadProgressBarText.visibility = View.GONE
+          binding.uploadButton.text = getString(R.string.upload_button)
+        }
+
+        UploadStatus.UPLOADING -> {
+          binding.uploadButton.isEnabled = false
+          binding.uploadButton.isClickable = false
+          binding.uploadProgressBar.visibility = View.VISIBLE
+          binding.uploadProgressBarText.visibility = View.VISIBLE
+          binding.uploadProgressBar.progress = state.progress
+          binding.uploadButton.text = getString(R.string.upload_in_progress)
+        }
+
+        UploadStatus.SUCCESS -> {
+          binding.uploadButton.isEnabled = true
+          binding.uploadButton.isClickable = true
+          binding.uploadProgressBar.visibility = View.GONE
+          binding.uploadProgressBarText.visibility = View.GONE
+          binding.uploadButton.text = getString(R.string.upload_button)
+          val textFinish = getString(R.string.upload_complete)
+          val toastFinish =
+            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_SHORT)
+          toastFinish.show()
+        }
+
+        UploadStatus.FAILED -> {
+          binding.uploadButton.isEnabled = true
+          binding.uploadButton.isClickable = true
+          binding.uploadProgressBar.visibility = View.GONE
+          binding.uploadProgressBarText.visibility = View.GONE
+          binding.uploadButton.text = getString(R.string.upload_failed)
+          val textFinish = getString(R.string.upload_failed_toast)
+          val toastFinish =
+            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+          toastFinish.show()
+        }
+
+        UploadStatus.INTERRUPTED -> {
+          val textFinish = getString(R.string.upload_interrupted)
+          val toastFinish =
+            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
+          toastFinish.show()
         }
       }
     }

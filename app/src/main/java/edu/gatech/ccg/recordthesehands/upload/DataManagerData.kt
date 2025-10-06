@@ -44,4 +44,7 @@ object DataManagerData {
 
   internal val _promptState = MutableLiveData<PromptState>()
   val promptState: LiveData<PromptState> get() = _promptState
+
+  internal val _uploadState = MutableLiveData<UploadState>()
+  val uploadState: LiveData<UploadState> get() = _uploadState
 }

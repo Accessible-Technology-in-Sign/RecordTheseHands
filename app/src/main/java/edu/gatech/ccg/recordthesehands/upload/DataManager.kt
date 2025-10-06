@@ -171,6 +171,7 @@ class DataManager private constructor(val context: Context) {
   // Public getters for LiveData now point to the singleton instance.
   val serverStatus: LiveData<Boolean> get() = dataManagerData.serverStatus
   val promptState: LiveData<PromptState> get() = dataManagerData.promptState
+  val uploadState: LiveData<UploadState> get() = dataManagerData.uploadState
 
   init {
     initializeData()
@@ -1260,10 +1261,7 @@ class DataManager private constructor(val context: Context) {
    * @param progressCallback A function that is called with the upload progress percentage (0-100).
    * @return `true` if the entire upload process completes successfully, `false` otherwise.
    */
-  suspend fun uploadData(
-    notificationManager: NotificationManager? = null,
-    progressCallback: (Int) -> Unit
-  ): Boolean {
+  suspend fun uploadData(notificationManager: NotificationManager? = null): Boolean {
     if (!hasServer()) {
       Log.i(TAG, "Backend Server not specified.")
       return false
@@ -1280,6 +1278,23 @@ class DataManager private constructor(val context: Context) {
         .map {
           it.asMap().entries
         }.firstOrNull()
+
+      if (registeredFiles.isEmpty() && (entries == null || entries.isEmpty())) {
+        dataManagerData._uploadState.postValue(
+          UploadState(
+            status = if (directivesReturnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
+            progress = 100
+          )
+        )
+        return directivesReturnValue
+      }
+
+      dataManagerData._uploadState.postValue(
+        UploadState(
+          status = UploadStatus.UPLOADING,
+          progress = 0
+        )
+      )
       val serverRoundTripPercentage = 20  // Amound of progress that is due to server round trips
       var numBatches = 0
       var numTotalBatches = numBatches + registeredFiles.size
@@ -1310,9 +1325,15 @@ class DataManager private constructor(val context: Context) {
             completedBatches += 1
 
             // Update progress
-            val progress = (completedBatches * serverRoundTripPercentage / numTotalBatches).coerceIn(0, 100)
+            val progress =
+              (completedBatches * serverRoundTripPercentage / numTotalBatches).coerceIn(0, 100)
             Log.d(TAG, "Progress after key value upload: $progress%")
-            progressCallback(progress)
+            dataManagerData._uploadState.postValue(
+              UploadState(
+                status = UploadStatus.UPLOADING,
+                progress = progress
+              )
+            )
           }
         }
         if (!tryUploadKeyValues(batch)) {
@@ -1335,14 +1356,27 @@ class DataManager private constructor(val context: Context) {
         }
         completedItems += 1
 
-        val progress = (serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
-            (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()).toInt().coerceIn(0, 100)
+        val progress =
+          (serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
+              (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()).toInt()
+            .coerceIn(0, 100)
         Log.d(TAG, "Progress after file upload: $progress%")
-        progressCallback(progress)
+        dataManagerData._uploadState.postValue(
+          UploadState(
+            status = UploadStatus.UPLOADING,
+            progress = progress
+          )
+        )
 
         i += 1
       }
 
+      dataManagerData._uploadState.postValue(
+        UploadState(
+          status = if (directivesReturnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
+          progress = 100
+        )
+      )
       return directivesReturnValue
     }
   }
@@ -1666,6 +1700,12 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.withLock {
       logToServerUnderLock(message)
       persistDataUnderLock(false)
+    }
+  }
+
+  fun logToServerAndPersistNonBlocking(message: String) {
+    scope.launch {
+      logToServerAndPersist(message)
     }
   }
 
