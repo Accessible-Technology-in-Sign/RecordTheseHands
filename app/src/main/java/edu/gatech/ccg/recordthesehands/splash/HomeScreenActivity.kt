@@ -602,7 +602,7 @@ class HomeScreenActivity : AppCompatActivity() {
 
   override fun onResume() {
     super.onResume()
-    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    UploadService.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 

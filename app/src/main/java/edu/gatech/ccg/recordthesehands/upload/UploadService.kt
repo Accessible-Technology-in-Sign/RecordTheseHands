@@ -36,12 +36,12 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_START_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.toConsistentString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
-import java.util.Calendar
-import java.util.Date
+import java.time.Instant
 
 /**
  * The upload service.
@@ -51,20 +51,35 @@ class UploadService : LifecycleService() {
   companion object {
     private val TAG = UploadService::class.simpleName
 
-    private var pauseUntil: Date? = null
+    private var pauseUntil: Instant? = null
 
-    fun pauseUploadTimeout(millis: Long) {
-      pauseUploadUntil(Date(Calendar.getInstance().timeInMillis + millis))
+    fun pauseUploadTimeoutAtLeast(millis: Long) {
+      pauseUploadUntilAtLeast(Instant.now().plusMillis(millis))
     }
 
-    fun pauseUploadUntil(timestamp: Date?) {
+    fun pauseUploadTimeout(millis: Long) {
+      pauseUploadUntil(Instant.now().plusMillis(millis))
+    }
+
+    fun pauseUploadUntilAtLeast(timestamp: Instant?) {
+      pauseUntil?.let {
+        if (it > timestamp) {
+          Log.d(TAG, "UploadService already paused past \"at least\" timestamp.")
+          return
+        }
+      }
+      pauseUntil = timestamp
+      Log.d(TAG, "Paused UploadService until ${pauseUntil}")
+    }
+
+    fun pauseUploadUntil(timestamp: Instant?) {
       pauseUntil = timestamp
       Log.d(TAG, "Paused UploadService until ${pauseUntil}")
     }
 
     fun isPaused(): Boolean {
       val tmpPauseUntil = pauseUntil ?: return false
-      return tmpPauseUntil.after(Calendar.getInstance().time)
+      return tmpPauseUntil.isAfter(Instant.now())
     }
 
   }
@@ -95,7 +110,7 @@ class UploadService : LifecycleService() {
       } catch (e: InterruptedUploadException) {
         Log.w(TAG, "Paused, skipping directives.")
       }
-      pauseUploadTimeout(UPLOAD_RESUME_ON_START_TIMEOUT)
+      pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_START_TIMEOUT)
       while (true) {
         if (!isPaused()) {
           Log.i(TAG, "Upload loop is running.")
@@ -115,7 +130,8 @@ class UploadService : LifecycleService() {
             Log.w(TAG, "data upload interrupted: ${e.message}")
           }
         } else {
-          Log.i(TAG, "Upload loop is paused.")
+          val pauseString = pauseUntil?.toConsistentString() ?: "null"
+          Log.i(TAG, "Upload loop is paused until ${pauseString}")
         }
         delay(UPLOAD_LOOP_TIMEOUT)
       }
