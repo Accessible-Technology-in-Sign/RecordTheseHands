@@ -1275,38 +1275,50 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.withLock {
       // First run directives, to make sure we have all the data we need.
       val directivesReturnValue = runDirectives()
+      val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
       val entries = context.dataStore.data
         .map {
           it.asMap().entries
         }.firstOrNull()
+      val serverRoundTripPercentage = 20  // Amound of progress that is due to server round trips
+      var numBatches = 0
+      var numTotalBatches = numBatches + registeredFiles.size
       if (entries == null) {
         Log.i(TAG, "entries was null")
       } else if (entries.isNotEmpty()) {
+        // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
+        val keyValueBatchSize = 100
+        numBatches = entries.size / keyValueBatchSize
+        numTotalBatches = numBatches + registeredFiles.size
         notificationManager?.notify(
           UPLOAD_NOTIFICATION_ID,
           createNotification("Uploading key/values", "${entries.size} key/values uploading")
         )
         var batch = JSONArray()
         var i = 0
+        var completedBatches = 0
         for (entry in entries.iterator()) {
           val jsonEntry = JSONObject(entry.value as String)
           batch.put(jsonEntry)
           i += 1
-          // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
-          if (i >= 100) {
-            // TODO Have some indication in the progress bar for each of these.
+          if (i >= keyValueBatchSize) {
             if (!tryUploadKeyValues(batch)) {
               return false
             }
             i = 0
             batch = JSONArray()
+            completedBatches += 1
+
+            // Update progress
+            val progress = (completedBatches * serverRoundTripPercentage / numTotalBatches).coerceIn(0, 100)
+            Log.d(TAG, "Progress after key value upload: $progress%")
+            progressCallback(progress)
           }
         }
         if (!tryUploadKeyValues(batch)) {
           return false
         }
       }
-      val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
       var completedItems = 0
       var i = 0
       for (registeredFile in registeredFiles) {
@@ -1321,10 +1333,10 @@ class DataManager private constructor(val context: Context) {
         if (!uploadSession.tryUploadFile()) {
           return false
         }
-
         completedItems += 1
-        // TODO make the progress bar include the key value uploads.
-        val progress = (completedItems * 100 / registeredFiles.size).coerceIn(0, 100)
+
+        val progress = (serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
+            (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()).toInt().coerceIn(0, 100)
         Log.d(TAG, "Progress after file upload: $progress%")
         progressCallback(progress)
 
