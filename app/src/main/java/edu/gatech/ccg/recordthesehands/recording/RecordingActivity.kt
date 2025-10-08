@@ -126,6 +126,7 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toConsistentString
+import edu.gatech.ccg.recordthesehands.ui.theme.RecordingLightRed
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -783,9 +784,7 @@ class RecordingActivity : FragmentActivity() {
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
       }
       val previewViewHolder = remember {
-        FrameLayout(context).apply {
-          setBackgroundColor(android.graphics.Color.YELLOW)
-        }
+        FrameLayout(context)
       }
 
       var guidelineTargetPosition by remember { mutableStateOf(0f) }
@@ -1395,7 +1394,7 @@ class RecordingActivity : FragmentActivity() {
           Box(
             modifier = Modifier
               .size(20.dp)
-              .background(color = Color(0xFFFF160C), shape = CircleShape)
+              .background(color = RecordingLightRed, shape = CircleShape)
           )
         }
       }
