@@ -25,14 +25,14 @@
             android:exported="false" />
 
         <receiver
-            android:name=".upload.UploadServiceStarter"
+            android:name=".upload.BootReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
         <receiver
             android:name=".upload.DataManagerReceiver"
             android:enabled="true"
@@ -41,12 +41,6 @@
                 <action android:name=".upload.SESSION_API_PACKAGE_INSTALLED" />
             </intent-filter>
         </receiver>
-
-        <service
-            android:name=".upload.UploadService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <activity
             android:name=".splash.HomeScreenActivity"

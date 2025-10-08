@@ -56,8 +56,10 @@ import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
-import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
+import edu.gatech.ccg.recordthesehands.upload.UploadState
 import edu.gatech.ccg.recordthesehands.upload.UploadStatus
+import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
 import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -229,7 +231,7 @@ class HomeScreenActivity : AppCompatActivity() {
             ).also {
               it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
             }
-            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
             // This has the side effect of ensuring the lock is available
             // (hence any upload is paused).
@@ -247,20 +249,21 @@ class HomeScreenActivity : AppCompatActivity() {
 
       binding.uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
       binding.uploadButton.setOnClickListener {
-        // Disable the button and start the upload process
-        binding.uploadButton.isEnabled = false
-        binding.uploadButton.isClickable = false
-        binding.uploadButton.text = getString(R.string.upload_successful)
-
-        // Progress bar appears after confirming
-        binding.uploadProgressBarText.visibility = View.VISIBLE
-        binding.uploadProgressBar.visibility = View.VISIBLE
-        binding.uploadProgressBar.progress = 0
-
         lifecycleScope.launch(Dispatchers.IO) {
-          UploadService.pauseUploadUntil(null)
           try {
+            Log.d(TAG, "Delaying next upload work.")
+            UploadWorkManager.scheduleNextPeriodic(applicationContext)
+            UploadPauseManager.pauseUploadUntil(null)
+            dataManager.dataManagerData._uploadState.postValue(
+              UploadState(
+                status = UploadStatus.UPLOADING,
+                progress = 0
+              )
+            )
             dataManager.uploadData()
+            Log.d(TAG, "Delaying next upload work.")
+            UploadPauseManager.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            UploadWorkManager.scheduleNextPeriodic(applicationContext)
           } catch (e: InterruptedUploadException) {
             dataManager.logToServerAndPersistNonBlocking(
               "Data upload was interrupted in HomeScreenActivity."
@@ -312,8 +315,6 @@ class HomeScreenActivity : AppCompatActivity() {
     runBlocking {
       delay(1000)
     }
-    Log.d(TAG, "Starting UploadService from HomeScreenActivity.onCreate")
-    applicationContext.startForegroundService(Intent(applicationContext, UploadService::class.java))
     // Load UI from XML
     binding = ActivitySplashBinding.inflate(layoutInflater)
     setContentView(binding.root)
@@ -602,7 +603,7 @@ class HomeScreenActivity : AppCompatActivity() {
 
   override fun onResume() {
     super.onResume()
-    UploadService.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    UploadPauseManager.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 
@@ -614,7 +615,7 @@ class HomeScreenActivity : AppCompatActivity() {
   override fun onDestroy() {
     super.onDestroy()
     if (isFinishing && isTaskRoot) {
-      UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_ACTIVITY_FINISHED)
+      UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_ACTIVITY_FINISHED)
       runBlocking {
         dataManager.logToServerAndPersist("App is being closed.")
       }

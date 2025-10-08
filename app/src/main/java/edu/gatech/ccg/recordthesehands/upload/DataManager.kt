@@ -60,7 +60,6 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.io.InterruptedIOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -82,8 +81,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 val Context.prefStore: DataStore<Preferences> by preferencesDataStore(
   name = "prefStore"
 )
-
-class InterruptedUploadException(message: String) : InterruptedIOException(message)
 
 fun makeToken(username: String, password: String): String {
   val digest = MessageDigest.getInstance("SHA-256")
@@ -1099,7 +1096,7 @@ class DataManager private constructor(val context: Context) {
    * @return `true` if the state was uploaded successfully, `false` otherwise.
    */
   private suspend fun uploadState(): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValue interrupted.")
     }
     val json = JSONObject()
@@ -1190,7 +1187,7 @@ class DataManager private constructor(val context: Context) {
    * @return `true` if the upload was successful, `false` otherwise.
    */
   private suspend fun tryUploadKeyValues(entries: JSONArray): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("tryUploadKeyValues interrupted.")
     }
     for (i in 0..entries.length() - 1) {
@@ -1262,69 +1259,87 @@ class DataManager private constructor(val context: Context) {
    * @param progressCallback A function that is called with the upload progress percentage (0-100).
    * @return `true` if the entire upload process completes successfully, `false` otherwise.
    */
-  suspend fun uploadData(notificationManager: NotificationManager? = null): Boolean {
-    if (!hasServer()) {
-      Log.i(TAG, "Backend Server not specified.")
-      return false
-    }
-    if (dataManagerData.loginToken == null) {
-      Log.e(TAG, "No loginToken present, can not upload data.")
-      return false
-    }
-    dataManagerData.lock.withLock {
-      // First run directives, to make sure we have all the data we need.
-      val directivesReturnValue = runDirectives()
-      val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
-      val entries = context.dataStore.data
-        .map {
-          it.asMap().entries
-        }.firstOrNull()
+  suspend fun uploadData(): Boolean {
+    var returnValue = false
+    val notificationManager =
+      context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    try {
+      if (!hasServer()) {
+        Log.i(TAG, "Backend Server not specified.")
+        return false
+      }
+      if (dataManagerData.loginToken == null) {
+        Log.e(TAG, "No loginToken present, can not upload data.")
+        return false
+      }
+      dataManagerData.lock.withLock {
+        // First run directives, to make sure we have all the data we need.
+        returnValue = runDirectives()
+        val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
+        val entries = context.dataStore.data
+          .map {
+            it.asMap().entries
+          }.firstOrNull()
 
-      if (registeredFiles.isEmpty() && (entries == null || entries.isEmpty())) {
+        if (registeredFiles.isEmpty() && (entries == null || entries.isEmpty())) {
+          Log.d(TAG, "Nothing to Upload.")
+          return returnValue
+        }
+
         dataManagerData._uploadState.postValue(
           UploadState(
-            status = if (directivesReturnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
-            progress = 100
+            status = UploadStatus.UPLOADING,
+            progress = 0
           )
         )
-        return directivesReturnValue
-      }
 
-      dataManagerData._uploadState.postValue(
-        UploadState(
-          status = UploadStatus.UPLOADING,
-          progress = 0
-        )
-      )
-      val serverRoundTripPercentage = 20f  // Amount of progress that is due to server round trips
-      var numBatches = 0
-      var numTotalBatches = numBatches + registeredFiles.size
-      if (entries == null) {
-        Log.i(TAG, "entries was null")
-      } else if (entries.isNotEmpty()) {
-        // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
-        val keyValueBatchSize = 100
-        numBatches = ceil(entries.size.toFloat() / keyValueBatchSize.toFloat()).toInt()
-        numTotalBatches = numBatches + registeredFiles.size
-        notificationManager?.notify(
-          UPLOAD_NOTIFICATION_ID,
-          createNotification("Uploading key/values", "${entries.size} key/values uploading")
-        )
-        var batch = JSONArray()
-        var i = 0
-        var completedBatches = 0
-        for (entry in entries.iterator()) {
-          val jsonEntry = JSONObject(entry.value as String)
-          batch.put(jsonEntry)
-          i += 1
-          if (i >= keyValueBatchSize) {
+        val serverRoundTripPercentage = 20f  // Amount of progress that is due to server round trips
+        var numBatches = 0
+        var numTotalBatches = numBatches + registeredFiles.size
+        if (entries == null) {
+          Log.i(TAG, "entries was null")
+        } else if (entries.isNotEmpty()) {
+          // For production when the server is in Google Cloud API the batch size can be larger Maybe 500
+          val keyValueBatchSize = 100
+          numBatches = ceil(entries.size.toFloat() / keyValueBatchSize.toFloat()).toInt()
+          numTotalBatches = numBatches + registeredFiles.size
+          notificationManager.notify(
+            UPLOAD_NOTIFICATION_ID,
+            createNotification("Uploading key/values", "${entries.size} key/values uploading")
+          )
+          var batch = JSONArray()
+          var i = 0
+          var completedBatches = 0
+          for (entry in entries.iterator()) {
+            val jsonEntry = JSONObject(entry.value as String)
+            batch.put(jsonEntry)
+            i += 1
+            if (i >= keyValueBatchSize) {
+              if (!tryUploadKeyValues(batch)) {
+                return false
+              }
+              i = 0
+              batch = JSONArray()
+              completedBatches += 1
+
+              // Update progress
+              val progress =
+                ceil(completedBatches * serverRoundTripPercentage / numTotalBatches).toInt()
+                  .coerceIn(0, 100)
+              Log.d(TAG, "Progress after key value upload: $progress%")
+              dataManagerData._uploadState.postValue(
+                UploadState(
+                  status = UploadStatus.UPLOADING,
+                  progress = progress
+                )
+              )
+            }
+          }
+          if (batch.length() > 0) {
             if (!tryUploadKeyValues(batch)) {
               return false
             }
-            i = 0
-            batch = JSONArray()
             completedBatches += 1
-
             // Update progress
             val progress =
               ceil(completedBatches * serverRoundTripPercentage / numTotalBatches).toInt()
@@ -1338,16 +1353,30 @@ class DataManager private constructor(val context: Context) {
             )
           }
         }
-        if (batch.length() > 0) {
-          if (!tryUploadKeyValues(batch)) {
+        var completedItems = 0
+        for (registeredFile in registeredFiles) {
+          notificationManager.notify(
+            UPLOAD_NOTIFICATION_ID,
+            createNotification("Uploading file", "${completedItems + 1} of ${registeredFiles.size}")
+          )
+
+          Log.i(TAG, "Creating UploadSession for ${registeredFile.relativePath}")
+
+          val uploadSession = UploadSession(context, registeredFile)
+          // TODO We could add a callback to update the progress bar as bytes are transferred.
+          if (!uploadSession.tryUploadFile()) {
             return false
           }
-          completedBatches += 1
-          // Update progress
+          completedItems += 1
+
+          // TODO this progress should track bytes uploaded, not files uploaded.
           val progress =
-            ceil(completedBatches * serverRoundTripPercentage / numTotalBatches).toInt()
+            ceil(
+              serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
+                  (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()
+            ).toInt()
               .coerceIn(0, 100)
-          Log.d(TAG, "Progress after key value upload: $progress%")
+          Log.d(TAG, "Progress after file upload: $progress%")
           dataManagerData._uploadState.postValue(
             UploadState(
               status = UploadStatus.UPLOADING,
@@ -1355,46 +1384,24 @@ class DataManager private constructor(val context: Context) {
             )
           )
         }
+        returnValue = true
+        return true
       }
-      var completedItems = 0
-      for (registeredFile in registeredFiles) {
-        notificationManager?.notify(
-          UPLOAD_NOTIFICATION_ID,
-          createNotification("Uploading file", "${completedItems + 1} of ${registeredFiles.size}")
-        )
-
-        Log.i(TAG, "Creating UploadSession for ${registeredFile.relativePath}")
-
-        val uploadSession = UploadSession(context, registeredFile)
-        // TODO We could add a callback to update the progress bar as bytes are transferred.
-        if (!uploadSession.tryUploadFile()) {
-          return false
-        }
-        completedItems += 1
-
-        // TODO this progress should track bytes uploaded, not files uploaded.
-        val progress =
-          ceil(
-            serverRoundTripPercentage * (numBatches + completedItems).toFloat() / numTotalBatches.toFloat() +
-                (100 - serverRoundTripPercentage) * completedItems.toFloat() / registeredFiles.size.toFloat()
-          ).toInt()
-            .coerceIn(0, 100)
-        Log.d(TAG, "Progress after file upload: $progress%")
-        dataManagerData._uploadState.postValue(
-          UploadState(
-            status = UploadStatus.UPLOADING,
-            progress = progress
-          )
-        )
-      }
-
+    } finally {
       dataManagerData._uploadState.postValue(
         UploadState(
-          status = if (directivesReturnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
+          status = if (returnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
           progress = 100
         )
       )
-      return directivesReturnValue
+      notificationManager.notify(
+        UPLOAD_NOTIFICATION_ID,
+        if (returnValue) {
+          createNotification("Upload Complete", "Upload completed successfully.")
+        } else {
+          createNotification("Upload Failed", "Upload Failed, retrying later.")
+        }
+      )
     }
   }
 
@@ -1629,7 +1636,7 @@ class DataManager private constructor(val context: Context) {
       Log.e(TAG, "No loginToken present, can not download data.")
       return false
     }
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("runDirective was interrupted.")
     }
 

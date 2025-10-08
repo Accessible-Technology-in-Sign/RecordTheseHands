@@ -37,7 +37,7 @@ import edu.gatech.ccg.recordthesehands.databinding.SectionListItemBinding
 import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.PromptState
-import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import kotlinx.coroutines.launch
 
 class PromptSelectActivity : AppCompatActivity() {
@@ -117,7 +117,7 @@ class PromptSelectActivity : AppCompatActivity() {
         sectionBinding.sectionButton.setOnClickListener {
           lifecycleScope.launch {
             Log.d(TAG, "Clicked on button to set Prompts Section to ${sectionName}")
-            UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+            UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             dataManager.resetToSection(sectionName)
             finish() // Return to HomeScreen
           }
@@ -129,7 +129,7 @@ class PromptSelectActivity : AppCompatActivity() {
 
   override fun onResume() {
     super.onResume()
-    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 

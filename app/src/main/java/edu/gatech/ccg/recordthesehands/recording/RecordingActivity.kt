@@ -132,7 +132,8 @@ import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
-import edu.gatech.ccg.recordthesehands.upload.UploadService
+import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
+import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -144,6 +145,7 @@ import java.io.File
 import java.lang.Integer.min
 import java.time.Instant
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
@@ -716,7 +718,7 @@ class RecordingActivity : FragmentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
-    UploadService.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    UploadPauseManager.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
 
     // Initialize camera variables.
     frontFacingCamera = true
@@ -1277,7 +1279,12 @@ class RecordingActivity : FragmentActivity() {
       concludeLatch.await()
       return
     }
-    UploadService.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT)
+    UploadWorkManager.scheduleUpload(
+      this,
+      UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT + 1000,
+      TimeUnit.MILLISECONDS
+    )
     setResult(result)
 
     stopRecording()

@@ -68,7 +68,7 @@ class UploadSession(
         while (read > -1) {
           digest.update(buffer, 0, read)
           read = stream.read(buffer, 0, STREAM_BUFFER_LENGTH)
-          if (UploadService.isPaused()) {
+          if (UploadPauseManager.isPaused()) {
             throw InterruptedUploadException("Computation of md5sum was interrupted.")
           }
         }
@@ -84,7 +84,7 @@ class UploadSession(
   }
 
   private suspend fun acquireUploadLink(): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("acquireUploadLink interrupted.")
     }
     Log.i(TAG, "acquiring upload link: \"${relativePath}\"")
@@ -121,7 +121,7 @@ class UploadSession(
   }
 
   private suspend fun acquireSessionLink(): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("acquireSessionLink interrupted.")
     }
     Log.i(TAG, "Getting Upload link: \"${relativePath}\"")
@@ -158,7 +158,7 @@ class UploadSession(
   }
 
   private suspend fun acquireSessionState(): Long? {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("acquireSessionState interrupted.")
     }
     val numSavedBytes: Long
@@ -206,7 +206,7 @@ class UploadSession(
   }
 
   private suspend fun uploadFileToSession(numSavedBytes: Long): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("uploadFileToSession interrupted.")
     }
     Log.i(TAG, "uploading from byte $numSavedBytes")
@@ -242,7 +242,7 @@ class UploadSession(
           var read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
           while (read > -1) {
             outputStream.write(buffer, 0, read)
-            if (UploadService.isPaused()) {
+            if (UploadPauseManager.isPaused()) {
               throw InterruptedUploadException("Uploading of file interrupted.")
             }
             read = fileStream.read(buffer, 0, STREAM_BUFFER_LENGTH)
@@ -279,7 +279,7 @@ class UploadSession(
   }
 
   private suspend fun verifyUpload(): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("verifyUpload interrupted.")
     }
     Log.i(TAG, "verifying upload: \"${relativePath}\"")
@@ -339,7 +339,7 @@ class UploadSession(
   }
 
   suspend fun tryUploadFile(): Boolean {
-    if (UploadService.isPaused()) {
+    if (UploadPauseManager.isPaused()) {
       throw InterruptedUploadException("tryUploadFile interrupted.")
     }
 
