@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.recording
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
@@ -54,6 +55,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInCirc
 import androidx.compose.animation.core.EaseOutCirc
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -87,6 +89,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -131,6 +134,7 @@ import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.theme.RecordingLightRed
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
+import edu.gatech.ccg.recordthesehands.upload.PromptType
 import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
@@ -1609,10 +1613,34 @@ fun PromptView(prompt: Prompt, modifier: Modifier = Modifier) {
       .background(Color.White, shape = RoundedCornerShape(8.dp))
       .padding(12.dp)
   ) {
-    Text(
-      text = prompt.prompt ?: "",
-      color = Color.Black,
-      fontSize = 30.sp
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Text(
+        text = prompt.prompt ?: "",
+        color = Color.Black,
+        fontSize = 30.sp,
+        modifier = Modifier.weight(1f)
+      )
+      if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
+        Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
+        Spacer(modifier = Modifier.width(16.dp))
+        val context = LocalContext.current
+        val imageBitmap = remember(prompt.resourcePath) {
+          val file = File(context.filesDir, prompt.resourcePath)
+          if (file.exists()) {
+            BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+          } else {
+            null
+          }
+        }
+        if (imageBitmap != null) {
+          // TODO When clicking on the image, enlarge it with an animation.
+          Image(
+            bitmap = imageBitmap,
+            contentDescription = null,
+            modifier = Modifier.width(300.dp)
+          )
+        }
+      }
+    }
   }
 }

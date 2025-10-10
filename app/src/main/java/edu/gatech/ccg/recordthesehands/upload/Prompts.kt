@@ -13,7 +13,7 @@ enum class PromptType {
 class Prompt(
   val index: Int,
   val promptId: String,
-  val type: PromptType,
+  val promptType: PromptType,
   val prompt: String?,
   val resourcePath: String?,
   val readMinMs: Int?,
@@ -23,7 +23,7 @@ class Prompt(
     val json = JSONObject()
     json.put("index", index)
     json.put("promptId", promptId)
-    json.put("type", type.toString())
+    json.put("type", promptType.toString())
     if (prompt != null) {
       json.put("prompt", prompt)
     }
