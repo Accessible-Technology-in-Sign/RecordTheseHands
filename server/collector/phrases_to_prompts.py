@@ -70,8 +70,8 @@ if __name__ == '__main__':
         prompt_type = 'TEXT'
         prompt_text = line
       prompt_data = {
-          'key': f'{key_prefix}{i:0{num_zeros}d}',
-          'type': prompt_type,
+          'promptId': f'{key_prefix}{i:0{num_zeros}d}',
+          'promptType': prompt_type,
       }
       if prompt_text:
         prompt_data['prompt'] = prompt_text

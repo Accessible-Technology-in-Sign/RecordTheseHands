@@ -126,9 +126,9 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toConsistentString
-import edu.gatech.ccg.recordthesehands.ui.theme.RecordingLightRed
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
+import edu.gatech.ccg.recordthesehands.ui.theme.RecordingLightRed
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
 import edu.gatech.ccg.recordthesehands.upload.Prompts

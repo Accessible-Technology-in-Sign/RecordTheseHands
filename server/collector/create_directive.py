@@ -142,6 +142,7 @@ def main():
         '    printDirectives',
         '    changeUser NEW_USERNAME NEW_PASSWORD',
         '    setPrompts PROMPT_FILE_PATH',
+        '    setPromptsNoUpload PROMPT_FILE_PATH',
         '    deleteFile FILE_PATH',
         '    uploadState',
         '    unregisterLostFiles',
@@ -181,7 +182,9 @@ def main():
       input('Press enter when file is uploaded> ')
     if sys.argv[2] == 'setPromptsNoUpload':
       if uploaded_relative_path != sys.argv[3]:
-        print('Ignoring directory and setting path to {uploaded_relative_path}')
+        print(
+            f'Ignoring directory and setting path to {uploaded_relative_path}'
+        )
     prompts_data = {
         'path': uploaded_relative_path,
         'creationTimestamp': timestamp,
@@ -193,7 +196,7 @@ def main():
         f'collector/users/{username}/data/prompts/all/all/{timestamp}'
     )
     doc_ref.set(prompts_data)
-    create_directive(sys.argv[1], 'reloadPrompts', '{}')
+    print('THIS WILL NOT RELOAD THE PROMPTS, USE reloadPrompts FOR THAT.')
   elif sys.argv[2] == 'reloadPrompts':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':

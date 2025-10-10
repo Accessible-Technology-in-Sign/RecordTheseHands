@@ -1281,6 +1281,10 @@ class DataManager private constructor(val context: Context) {
             it.asMap().entries
           }.firstOrNull()
 
+        if (!returnValue) {
+          Log.d(TAG, "Unable to Get directives, refusing to upload.")
+          return returnValue
+        }
         if (registeredFiles.isEmpty() && (entries == null || entries.isEmpty())) {
           Log.d(TAG, "Nothing to Upload.")
           return returnValue

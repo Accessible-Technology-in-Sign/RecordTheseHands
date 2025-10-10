@@ -64,8 +64,8 @@ class Prompts(val context: Context) {
           data.opt("key") as? String ?: throw IllegalStateException("promptId not specified")
         }
         var promptType = PromptType.TEXT
-        if (data.has("type")) {
-          promptType = PromptType.valueOf(data.getString("type"))
+        if (data.has("promptType")) {
+          promptType = PromptType.valueOf(data.getString("promptType").uppercase())
         }
         val prompt: String? = data.opt("prompt") as? String
         val resourcePath: String? = data.opt("resourcePath") as? String
