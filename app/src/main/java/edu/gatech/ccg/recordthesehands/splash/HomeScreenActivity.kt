@@ -189,14 +189,6 @@ class HomeScreenActivity : AppCompatActivity() {
       }
       binding.header.isSoundEffectsEnabled = false
 
-      // exitTutorialMode button listener.
-      binding.exitTutorialModeButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      binding.exitTutorialModeButton.setOnClickListener {
-        lifecycleScope.launch(Dispatchers.IO) {
-          dataManager.setTutorialMode(false)
-        }
-      }
-
       // Setup the statistics.
       val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
       val lifetimeRecordingCount = applicationContext.prefStore.data
@@ -390,15 +382,6 @@ class HomeScreenActivity : AppCompatActivity() {
         val completed = sectionProgress?.get("mainIndex") ?: 0
         totalCompleted += completed
         totalPrompts += total
-      }
-
-      if (state.tutorialMode && ((state.currentPromptIndex ?: 0) > 0 ||
-            (state.totalPromptsInCurrentSection ?: 0) == 0)
-      ) {
-        binding.exitTutorialModeButton.visibility = View.VISIBLE
-        binding.tutorialModeText.visibility = View.GONE
-      } else {
-        binding.exitTutorialModeButton.visibility = View.GONE
       }
 
       binding.startButton.visibility = View.VISIBLE

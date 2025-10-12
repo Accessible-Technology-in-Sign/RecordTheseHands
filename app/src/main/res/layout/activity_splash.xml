@@ -423,13 +423,5 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/exitTutorialModeButton"
-            style="@style/SecondaryButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Exit Tutorial"
-            android:enabled="true"
-            android:visibility="gone" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

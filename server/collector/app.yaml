@@ -3,6 +3,9 @@ runtime: python311
 
 instance_class: F1
 
+automatic_scaling:
+  max_instances: 2
+
 liveness_check:
   check_interval_sec: 60
   timeout_sec: 120

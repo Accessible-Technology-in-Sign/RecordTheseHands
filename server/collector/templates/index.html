@@ -26,6 +26,8 @@ SOFTWARE.
 <body>
 {{dev_header|safe}}
 
+<p>Version: {{server_version}}</p>
+
 <p>You are logged in as {{ current_user.id }} you can log out <a href="{{url_for('logout')}}">here</a></p>
 
 {% if current_user.allow_webapp_access %}

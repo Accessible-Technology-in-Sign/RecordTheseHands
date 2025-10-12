@@ -72,6 +72,8 @@ async function login() {
 <body>
 {{dev_header|safe}}
 
+<p>Version: {{server_version}}</p>
+
 {% if current_user.is_authenticated %}
 <p>You are logged in as {{ current_user.id }}, also something went wrong, since you should never see this page.</p>
 {% else %}

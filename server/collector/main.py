@@ -56,9 +56,7 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 IS_PROD_ENV = PROJECT_ID == config.PROD_PROJECT
 IS_LOCAL_ENV = os.environ.get('GAE_ENV', 'localdev') == 'localdev'
-APP_VERSIONS = {
-    'collector': 1,
-}
+SERVER_VERSION = 'v2.3.0'
 
 _BANNED_USERNAMES = frozenset(
     [
@@ -213,9 +211,9 @@ def inject_favicon():
 
 
 @app.context_processor
-def inject_app_version():
-  """Make the app version available in the Jinja templates."""
-  return dict(app_version=APP_VERSIONS)
+def inject_server_version():
+  """Make the server version available in the Jinja templates."""
+  return dict(server_version=SERVER_VERSION)
 
 
 def favicon_path():
@@ -265,7 +263,7 @@ def get_username(login_token):
   return m.group(1)
 
 
-def get_download_link(object_name):
+def get_download_link(object_name, query_parameters=None):
   """Get a signed url for downloading an object."""
   gcs_path = str(object_name)
 
@@ -281,6 +279,7 @@ def get_download_link(object_name):
       bucket_name=BUCKET_NAME,
       object_name=gcs_path,
       expiration=datetime.timedelta(minutes=120),
+      query_parameters=query_parameters,
   )
 
 
@@ -317,6 +316,20 @@ def home_page():
   return flask.render_template(
       'login.html', incorrect_password=incorrect_password
   )
+
+
+@app.route('/apk', methods=['GET'])
+def apk_page():
+  """Download the latest apk."""
+  query_parameters = {
+      'response-content-disposition': (
+          f'attachment; filename="record_these_hands_{SERVER_VERSION}.apk"'
+      )
+  }
+  download_link = get_download_link(
+      'apk/record_these_hands_latest.apk', query_parameters=query_parameters
+  )
+  return flask.redirect(download_link, code=303)
 
 
 @app.route('/resource', methods=['POST'])
@@ -357,20 +370,14 @@ def prompts_page():
   logging.info(f'/prompts {username}')
 
   db = firestore.Client()
-  doc_ref = db.document(
-      f'collector/users/{username}/data/prompts/active'
-  )
+  doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
   doc_data = doc_ref.get()
   if not doc_data.exists:
-    return (
-        f'no prompts found for user {username}'
-    ), 404
+    return (f'no prompts found for user {username}'), 404
   doc_dict = doc_data.to_dict()
   path = doc_dict.get('path')
   if not path:
-    return (
-        f'prompt file not found for user {username}'
-    ), 404
+    return (f'prompt file not found for user {username}'), 404
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
   server_log_key = f'prompts-{timestamp}'

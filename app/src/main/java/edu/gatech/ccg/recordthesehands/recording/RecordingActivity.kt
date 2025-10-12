@@ -171,6 +171,7 @@ class ClipDetails(
   val filename: String,
   val prompt: Prompt,
   val videoStart: Instant,
+  val sectionName: String,
 ) {
 
   companion object {
@@ -188,6 +189,7 @@ class ClipDetails(
     val json = JSONObject()
     json.put("clipId", clipId)
     json.put("sessionId", sessionId)
+    json.put("sectionName", sectionName)
     json.put("filename", filename)
     json.put("promptData", prompt.toJson())
     json.put("endAction", endAction)
@@ -609,7 +611,7 @@ class RecordingActivity : FragmentActivity() {
       currentClipDetails =
         ClipDetails(
           newClipId(), sessionInfo.sessionId, filename,
-          prompt, sessionStartTime
+          prompt, sessionStartTime, sessionInfo.sectionName
         ).also {
           it.startTimestamp = now
           it.valid = false
@@ -647,7 +649,7 @@ class RecordingActivity : FragmentActivity() {
       currentClipDetails =
         ClipDetails(
           newClipId(), sessionInfo.sessionId,
-          filename, prompt, sessionStartTime
+          filename, prompt, sessionStartTime, sessionInfo.sectionName
         ).also {
           it.startTimestamp = now
           it.valid = false
