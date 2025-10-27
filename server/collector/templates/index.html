@@ -28,6 +28,8 @@ SOFTWARE.
 
 <p>Version: {{server_version}}</p>
 
+<a href={{url_for('apk_page')}}>Download APK</a>
+
 <p>You are logged in as {{ current_user.id }} you can log out <a href="{{url_for('logout')}}">here</a></p>
 
 {% if current_user.allow_webapp_access %}

@@ -74,6 +74,8 @@ async function login() {
 
 <p>Version: {{server_version}}</p>
 
+<a href={{url_for('apk_page')}}>Download APK</a>
+
 {% if current_user.is_authenticated %}
 <p>You are logged in as {{ current_user.id }}, also something went wrong, since you should never see this page.</p>
 {% else %}
