@@ -56,7 +56,7 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 IS_PROD_ENV = PROJECT_ID == config.PROD_PROJECT
 IS_LOCAL_ENV = os.environ.get('GAE_ENV', 'localdev') == 'localdev'
-SERVER_VERSION = 'v2.3.0'
+SERVER_VERSION = 'v2.3.1'
 
 _BANNED_USERNAMES = frozenset(
     [
