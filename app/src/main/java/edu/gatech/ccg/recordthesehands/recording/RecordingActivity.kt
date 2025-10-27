@@ -999,7 +999,6 @@ class RecordingActivity : FragmentActivity() {
           val newPage = pagerState.currentPage
           currentClipDetails?.let { clipDetails ->
             val now = Instant.now()
-            now.toConsistentString()
             if (currentPage < newPage) {
               // Swiped forward
               clipDetails.endTimestamp = now
