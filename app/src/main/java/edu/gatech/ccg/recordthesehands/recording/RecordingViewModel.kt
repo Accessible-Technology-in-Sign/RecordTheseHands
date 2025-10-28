@@ -20,6 +20,9 @@ class RecordingViewModel : ViewModel() {
   private val _goTextVisible = MutableStateFlow(false)
   val goTextVisible: StateFlow<Boolean> = _goTextVisible
 
+  private val _explainTextVisible = MutableStateFlow(false)
+  val explainTextVisible: StateFlow<Boolean> = _explainTextVisible
+
   private val _isReadTimerActive = MutableStateFlow(false)
   val isReadTimerActive: StateFlow<Boolean> = _isReadTimerActive
 
@@ -28,6 +31,9 @@ class RecordingViewModel : ViewModel() {
 
   private val _isRecordingTimerActive = MutableStateFlow(false)
   val isRecordingTimerActive: StateFlow<Boolean> = _isRecordingTimerActive
+
+  private val _isExplainTimerActive = MutableStateFlow(false)
+  val isExplainTimerActive: StateFlow<Boolean> = _isExplainTimerActive
 
   private val _recordingCountdownDuration = MutableStateFlow(0)
   val recordingCountdownDuration: StateFlow<Int> = _recordingCountdownDuration
@@ -63,6 +69,14 @@ class RecordingViewModel : ViewModel() {
     _goTextVisible.value = false
   }
 
+  fun showExplainText() {
+    _explainTextVisible.value = true
+  }
+
+  fun hideExplainText() {
+    _explainTextVisible.value = false
+  }
+
   fun setButtonState(recordVisible: Boolean, restartVisible: Boolean) {
     _recordButtonVisible.value = recordVisible
     _restartButtonVisible.value = restartVisible
@@ -82,5 +96,9 @@ class RecordingViewModel : ViewModel() {
 
   fun setRecordingCountdownDuration(durationMs: Int) {
     _recordingCountdownDuration.value = durationMs
+  }
+
+  fun setExplainTimerActive(isActive: Boolean) {
+    _isExplainTimerActive.value = isActive
   }
 }

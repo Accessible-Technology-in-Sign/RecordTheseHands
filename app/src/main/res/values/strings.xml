@@ -97,7 +97,9 @@
     <string name="finish">Finish</string>
     <string name="recording">Recording</string>
     <string name="time">15:00</string>
+    <string name="skip">Skip</string>
     <string name="go">GO!</string>
+    <string name="explain">Explain</string>
 
     <!-- Permissions -->
     <string name="perm_alert">Permissions are required to use the app</string>

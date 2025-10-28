@@ -131,6 +131,7 @@ import edu.gatech.ccg.recordthesehands.sendEmail
 import edu.gatech.ccg.recordthesehands.toConsistentString
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
+import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.ui.theme.RecordingLightRed
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.Prompt
@@ -172,6 +173,7 @@ class ClipDetails(
   val prompt: Prompt,
   val videoStart: Instant,
   val sectionName: String,
+  val isSkipExplanation: Boolean = false,
 ) {
 
   companion object {
@@ -195,6 +197,9 @@ class ClipDetails(
     json.put("endAction", endAction)
     json.put("videoStart", videoStart.toConsistentString())
     json.put("valid", valid)
+    if (isSkipExplanation) {
+      json.put("isSkipExplanation", true)
+    }
     startTimestamp?.let {
       json.put(
         "startTimestamp",
@@ -669,6 +674,43 @@ class RecordingActivity : FragmentActivity() {
     }
   }
 
+  private fun skipButtonOnClickListener() {
+    lifecycleScope.launch(Dispatchers.IO) {
+      val now = Instant.now()
+      val timestamp = now.toConsistentString()
+      dataManager.logToServerAtTimestamp(timestamp, "skipButton clicked")
+
+      runOnUiThread {
+        viewModel.setReadTimerActive(false)
+        viewModel.setRecordingTimerActive(false)
+        viewModel.showExplainText()
+        viewModel.setButtonState(recordVisible = false, restartVisible = false)
+        viewModel.setExplainTimerActive(true)
+      }
+
+      currentClipDetails?.let {
+        it.endTimestamp = now
+        it.endAction = "skip"
+        it.valid = false
+        it.lastModifiedTimestamp = now
+        dataManager.saveClipData(it)
+      }
+
+      val prompt = prompts.array[sessionStartIndex + currentPage]
+      currentClipDetails =
+        ClipDetails(
+          newClipId(), sessionInfo.sessionId, filename,
+          prompt, sessionStartTime, sessionInfo.sectionName, isSkipExplanation = true
+        ).also {
+          it.startTimestamp = now
+          it.valid = false
+          it.lastModifiedTimestamp = now
+          clipData.add(it)
+          dataManager.saveClipData(it)
+        }
+    }
+  }
+
   /**
    * Handler code for when the activity restarts. Right now, we return to the splash screen if the
    * user exits mid-session, as the app is continuously recording throughout this activity's
@@ -764,7 +806,11 @@ class RecordingActivity : FragmentActivity() {
       val isRecordingTimerActive by viewModel.isRecordingTimerActive.collectAsState()
       val recordingCountdownDuration by viewModel.recordingCountdownDuration.collectAsState()
       val recordingTimerKey by viewModel.recordingTimerKey.collectAsState()
+      val explainTextVisible by viewModel.explainTextVisible.collectAsState()
+      val isExplainTimerActive by viewModel.isExplainTimerActive.collectAsState()
       val viewedPrompts by viewModel.viewedPrompts.collectAsState()
+      var skipButtonText by remember { mutableStateOf(R.string.skip) }
+      var skipButtonEnabled by remember { mutableStateOf(true) }
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -803,7 +849,7 @@ class RecordingActivity : FragmentActivity() {
           .fillMaxSize()
           .background(Color.Black)
       ) {
-        val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton, readTimer) = createRefs()
+        val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton, readTimer, skipButton, explainText) = createRefs()
         val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
         CameraPreview(
@@ -827,7 +873,7 @@ class RecordingActivity : FragmentActivity() {
         }
         HorizontalPager(
           state = pagerState,
-          userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive,
+          userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive && !isExplainTimerActive,
           modifier = Modifier.constrainAs(pager) {
             top.linkTo(parent.top)
             start.linkTo(parent.start)
@@ -940,6 +986,22 @@ class RecordingActivity : FragmentActivity() {
           )
         }
 
+        if (isExplainTimerActive) {
+          CountdownCircle(
+            modifier = Modifier.constrainAs(readTimer) {
+              bottom.linkTo(recordButtons.bottom)
+              start.linkTo(recordButtons.end)
+              end.linkTo(parent.end)
+            },
+            componentSize = 50.dp,
+            strokeWidthProportion = 0.1f,
+            durationMs = 15000,
+            onFinished = {
+              viewModel.setExplainTimerActive(false)
+            }
+          )
+        }
+
         TimerLabel(
           text = timerText,
           modifier = Modifier.constrainAs(timerLabel) {
@@ -975,6 +1037,21 @@ class RecordingActivity : FragmentActivity() {
             }
             .padding(top = 0.dp, start = 16.dp)
         )
+        SkipButton(
+          onClick = {
+            skipButtonOnClickListener()
+            skipButtonText = R.string.explain
+            skipButtonEnabled = false
+          },
+          text = stringResource(id = skipButtonText),
+          enabled = skipButtonEnabled,
+          modifier = Modifier
+            .constrainAs(skipButton) {
+              top.linkTo(backButton.bottom)
+              start.linkTo(parent.start)
+            }
+            .padding(top = 20.dp, start = 16.dp)
+        )
         RecordingLight(
           isRecording = isRecording,
           modifier = Modifier
@@ -984,10 +1061,22 @@ class RecordingActivity : FragmentActivity() {
             }
             .padding(top = 0.dp, end = 16.dp)
         )
-        GoText(
+        AnimatedText(
+          text = stringResource(R.string.go),
           visible = goTextVisible,
           onAnimationFinish = { viewModel.hideGoText() },
           modifier = Modifier.constrainAs(goText) {
+            top.linkTo(parent.top)
+            bottom.linkTo(parent.bottom)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+          }
+        )
+        AnimatedText(
+          text = stringResource(R.string.explain),
+          visible = explainTextVisible,
+          onAnimationFinish = { viewModel.hideExplainText() },
+          modifier = Modifier.constrainAs(explainText) {
             top.linkTo(parent.top)
             bottom.linkTo(parent.bottom)
             start.linkTo(parent.start)
@@ -1029,6 +1118,8 @@ class RecordingActivity : FragmentActivity() {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
             title = "${currentPromptIndex + 1} of ${prompts.array.size}"
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
+            skipButtonText = R.string.skip
+            skipButtonEnabled = true
 
             if (promptIndex !in viewedPrompts) {
               viewModel.markPromptAsViewed(promptIndex)
@@ -1504,7 +1595,12 @@ class RecordingActivity : FragmentActivity() {
   }
 
   @Composable
-  fun GoText(visible: Boolean, onAnimationFinish: () -> Unit, modifier: Modifier = Modifier) {
+  fun AnimatedText(
+    text: String,
+    visible: Boolean,
+    onAnimationFinish: () -> Unit,
+    modifier: Modifier = Modifier
+  ) {
     if (visible) {
       val scale = remember { Animatable(0f) }
       LaunchedEffect(Unit) {
@@ -1513,20 +1609,21 @@ class RecordingActivity : FragmentActivity() {
         onAnimationFinish()
       }
       Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.Center
       ) {
         Box(
           modifier = Modifier
             .scale(scale.value)
-            .background(Color.White, shape = RoundedCornerShape(16.dp))
+            .background(Color.White, shape = RoundedCornerShape(16.dp)),
+          contentAlignment = Alignment.Center
         ) {
           Text(
-            text = stringResource(R.string.go),
+            text = text,
             color = Color.Black,
             fontSize = 50.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
           )
         }
       }
@@ -1546,6 +1643,25 @@ class RecordingActivity : FragmentActivity() {
           tint = Color.White
         )
       }
+    }
+  }
+
+  @Composable
+  fun SkipButton(
+    onClick: () -> Unit,
+    text: String,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+  ) {
+    Box(
+      modifier = modifier,
+      contentAlignment = Alignment.TopStart
+    ) {
+      SecondaryButton(
+        onClick = onClick,
+        text = text,
+        enabled = enabled,
+      )
     }
   }
 
