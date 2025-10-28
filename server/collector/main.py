@@ -320,14 +320,37 @@ def home_page():
 
 @app.route('/apk', methods=['GET'])
 def apk_page():
-  """Download the latest apk."""
+  """Download the latest apk by version number."""
+  gcs = storage.Client()
+  blobs = gcs.list_blobs(BUCKET_NAME, prefix='apk/')
+
+  latest_version = None
+  latest_apk_blob = None
+
+  version_pattern = re.compile(
+      r'record_these_hands.*_v(\d+)[._-](\d+)[._-](\d+)\.apk'
+  )
+
+  for blob in blobs:
+    match = version_pattern.fullmatch(os.path.basename(blob.name))
+    if match:
+      major, minor, patch = map(int, match.groups())
+      current_version = (major, minor, patch)
+      if latest_apk_blob is None or current_version > latest_version:
+        latest_version = current_version
+        latest_apk_blob = blob
+
+  if not latest_apk_blob:
+    return 'No valid APK file found in the storage bucket.', 404
+
+  latest_apk_filename = os.path.basename(latest_apk_blob.name)
   query_parameters = {
       'response-content-disposition': (
-          f'attachment; filename="record_these_hands_{SERVER_VERSION}.apk"'
+          f'attachment; filename="{latest_apk_filename}"'
       )
   }
   download_link = get_download_link(
-      'apk/record_these_hands_latest.apk', query_parameters=query_parameters
+      latest_apk_blob.name, query_parameters=query_parameters
   )
   return flask.redirect(download_link, code=303)
 

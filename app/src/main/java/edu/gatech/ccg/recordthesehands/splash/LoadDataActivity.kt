@@ -24,11 +24,13 @@
 package edu.gatech.ccg.recordthesehands.splash
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -79,8 +81,6 @@ class LoadDataActivity : AppCompatActivity() {
       clearTextFocus()
       false // Do not consume the event.
     }
-
-
 
     dataManager = DataManager.getInstance(applicationContext)
     dataManager.promptState.observe(this) { state ->
@@ -136,6 +136,13 @@ class LoadDataActivity : AppCompatActivity() {
       }
     }
 
+    binding.downloadApkButton.setOnClickListener {
+      val serverAddress = dataManager.getServer()
+      val apkUrl = "$serverAddress/apk"
+      val intent = Intent(Intent.ACTION_VIEW)
+      intent.data = apkUrl.toUri()
+      startActivity(intent)
+    }
   }
 
 
