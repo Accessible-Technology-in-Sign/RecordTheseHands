@@ -28,43 +28,51 @@ import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Button
+import androidx.compose.material.LinearProgressIndicator
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
-import edu.gatech.ccg.recordthesehands.Constants.APP_VERSION
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.databinding.ActivitySplashBinding
-import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
-import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
-import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
-import edu.gatech.ccg.recordthesehands.upload.UploadState
 import edu.gatech.ccg.recordthesehands.upload.UploadStatus
-import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
-import edu.gatech.ccg.recordthesehands.upload.prefStore
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -73,9 +81,8 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * The home page for the app. The user can see statistics and start recording from this page.
  */
-class HomeScreenActivity : AppCompatActivity() {
+class HomeScreenActivity : ComponentActivity() {
 
-  private lateinit var binding: ActivitySplashBinding
 
   private var windowInsetsController: WindowInsetsControllerCompat? = null
 
@@ -160,111 +167,6 @@ class HomeScreenActivity : AppCompatActivity() {
     startActivity(Intent(this, PromptSelectActivity::class.java))
   }
 
-  /**
-   * Sets up all of the UI elements.
-   */
-  // The `setOnTouchListener` is used for haptic feedback and the click is handled by a separate
-  // `setOnClickListener`, so `performClick` does not need to be called manually.
-  @SuppressLint("ClickableViewAccessibility")
-  private fun setupUI() {
-    lifecycleScope.launch {
-
-      binding.backButton.setOnClickListener {
-        finish()
-      }
-
-      binding.loadingText.visibility = View.GONE
-      binding.mainGroup.visibility = View.VISIBLE
-
-      // Listener for the super secret admin menu accessed by touching the
-      // titleText (i.e. "RecordTheseHands") 5 times in a row.
-      var numTitleClicks = 0
-      binding.header.setOnClickListener {
-        numTitleClicks += 1
-        if (numTitleClicks == 5) {
-          numTitleClicks = 0
-          val intent = Intent(this@HomeScreenActivity, LoadDataActivity::class.java)
-          startActivity(intent)
-        }
-      }
-      binding.header.isSoundEffectsEnabled = false
-
-      // Setup the statistics.
-      val recordingCountKeyObject = intPreferencesKey("lifetimeRecordingCount")
-      val lifetimeRecordingCount = applicationContext.prefStore.data
-        .map {
-          it[recordingCountKeyObject]
-        }.firstOrNull() ?: 0
-      binding.recordingCountText.text = lifetimeRecordingCount.toString()
-      val recordingMsKeyObject = longPreferencesKey("lifetimeRecordingMs")
-      val lifetimeRecordingMs = applicationContext.prefStore.data
-        .map {
-          it[recordingMsKeyObject]
-        }.firstOrNull() ?: 0L
-      binding.recordingTimeParsedText.text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
-      binding.sessionCounterBox.text = currentRecordingSessions.toString()
-
-      binding.startButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      binding.startButton.setOnClickListener {
-        if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
-          switchPromptsButtonAction()
-          return@setOnClickListener
-        }
-        fun checkPermission(perm: String): Boolean {
-          return ContextCompat.checkSelfPermission(applicationContext, perm) ==
-              PackageManager.PERMISSION_GRANTED
-        }
-
-        if (checkPermission(CAMERA)) {
-          lifecycleScope.launch {
-            // You can use the API that requires the permission.
-            val intent = Intent(
-              this@HomeScreenActivity, RecordingActivity::class.java
-            ).also {
-              it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
-            }
-            UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-            Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
-            // This has the side effect of ensuring the lock is available
-            // (hence any upload is paused).
-            dataManager.logToServerAndPersist("Launching RecordingActivity.")
-            Log.d(TAG, "Data lock was available.")
-
-            handleRecordingResult.launch(intent)
-          }
-        } else {
-          val text = getString(R.string.enable_camera_access)
-          val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
-          toast.show()
-        }
-      } // setRecordingButton.onClickListener
-
-      binding.uploadButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-      binding.uploadButton.setOnClickListener {
-        lifecycleScope.launch(Dispatchers.IO) {
-          try {
-            Log.d(TAG, "Delaying next upload work.")
-            UploadWorkManager.scheduleNextPeriodic(applicationContext)
-            UploadPauseManager.pauseUploadUntil(null)
-            dataManager.dataManagerData._uploadState.postValue(
-              UploadState(
-                status = UploadStatus.UPLOADING,
-                progress = 0
-              )
-            )
-            dataManager.uploadData()
-            Log.d(TAG, "Delaying next upload work.")
-            UploadPauseManager.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
-            UploadWorkManager.scheduleNextPeriodic(applicationContext)
-          } catch (e: InterruptedUploadException) {
-            dataManager.logToServerAndPersistNonBlocking(
-              "Data upload was interrupted in HomeScreenActivity."
-            )
-          }
-        }
-      }
-    }
-  }
 
   fun lifetimeMSTimeFormatter(milliseconds: Long): String {
     return milliseconds.milliseconds.toComponents { hours, minutes, seconds, nanoseconds ->
@@ -307,10 +209,10 @@ class HomeScreenActivity : AppCompatActivity() {
     runBlocking {
       delay(1000)
     }
-    // Load UI from XML
-    binding = ActivitySplashBinding.inflate(layoutInflater)
-    setContentView(binding.root)
-    binding.versionText.text = getString(R.string.version_text, APP_VERSION)
+
+    setContent {
+      HomeScreenContent()
+    }
 
     // `resources.getIdentifier` is used intentionally to check for the existence of optional
     // credentials defined in a `credentials.xml` file, which may not be present at compile time.
@@ -353,213 +255,9 @@ class HomeScreenActivity : AppCompatActivity() {
       )
     }
 
-    lifecycleScope.launch {
-      val keyObject = booleanPreferencesKey("permissionRequestedPreviously")
-      permissionRequestedPreviously = applicationContext.prefStore.data
-        .map {
-          it[keyObject]
-        }.firstOrNull() ?: false
-      setupUI()
-    }
 
-    binding.switchPromptsButton.setOnClickListener {
-      switchPromptsButtonAction()
-    }
 
-    dataManager.promptState.observe(this@HomeScreenActivity) { state ->
-      this@HomeScreenActivity.startRecordingShouldSwitchPrompts = false
-      binding.tutorialModeText.visibility = if (state.tutorialMode) View.VISIBLE else View.GONE
 
-      // Total Progress Calculation
-      var totalCompleted = 0
-      var totalPrompts = 0
-      val sections =
-        state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name } ?: emptyList()
-      sections.forEachIndexed { index, section ->
-        val prompts = section.mainPrompts
-        val total = prompts.array.size
-        val sectionProgress = state.promptProgress[section.name]
-        val completed = sectionProgress?.get("mainIndex") ?: 0
-        totalCompleted += completed
-        totalPrompts += total
-      }
-
-      binding.startButton.visibility = View.VISIBLE
-      if (state.currentPrompts != null && state.username != null) {
-        if ((state.currentPromptIndex ?: 0) < (state.totalPromptsInCurrentSection ?: 0)) {
-          binding.startButton.isEnabled = true
-          binding.startButton.isClickable = true
-          binding.startButton.text = getString(R.string.start_button)
-        } else {
-          if (totalCompleted >= totalPrompts) {
-            binding.startButton.isEnabled = false
-            binding.startButton.isClickable = false
-            binding.startButton.text = getString(R.string.no_more_prompts)
-          } else {
-            binding.startButton.isEnabled = true
-            binding.startButton.isClickable = true
-            binding.startButton.text = getString(R.string.switch_prompts)
-            this@HomeScreenActivity.startRecordingShouldSwitchPrompts = true
-          }
-        }
-      } else {
-        binding.startButton.isEnabled = false
-        binding.startButton.isClickable = false
-        binding.startButton.text = getString(R.string.start_disabled)
-      }
-
-      if (state.username != null) {
-        binding.usernameBox.text = state.username
-      }
-
-      if (state.deviceId != null) {
-        binding.deviceIdBox.text = state.deviceId
-      }
-
-      binding.sectionNameText.text = state.currentSectionName ?: getString(R.string.section_not_set)
-
-      if (state.tutorialMode) {
-        binding.tutorialProgressText.visibility = View.VISIBLE
-        binding.completedAndTotalPromptsText.visibility = View.GONE
-      } else {
-        binding.tutorialProgressText.visibility = View.GONE
-        binding.completedAndTotalPromptsText.visibility = View.VISIBLE
-        val completedPrompts = (state.currentPromptIndex ?: 0).toString()
-        val totalPrompts = (state.totalPromptsInCurrentSection ?: 0).toString()
-        binding.completedAndTotalPromptsText.text =
-          getString(R.string.ratio, completedPrompts, totalPrompts)
-      }
-
-      binding.sectionsCompletedLayout.removeAllViews()
-
-      sections.forEachIndexed { index, section ->
-        val prompts = section.mainPrompts
-        val sectionProgress = state.promptProgress[section.name]
-        val completed = sectionProgress?.get("mainIndex") ?: 0
-        val total = prompts.array.size
-
-        if (index > 0) {
-          val space = TextView(this).apply { text = " " }
-          binding.sectionsCompletedLayout.addView(space)
-        }
-
-        val textView = TextView(this).apply {
-          text = section.name
-          val color = if (completed >= total) R.color.alert_green else R.color.alert_red
-          setTextColor(ContextCompat.getColor(this@HomeScreenActivity, color))
-        }
-        binding.sectionsCompletedLayout.addView(textView)
-      }
-
-      binding.totalProgressCountText.text =
-        getString(R.string.ratio, totalCompleted.toString(), totalPrompts.toString())
-    }
-
-    dataManager.serverStatus.observe(this@HomeScreenActivity) { isConnected ->
-      val connectivityManager =
-        applicationContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-      val network = connectivityManager.activeNetwork
-
-      binding.internetConnectionText.visibility = View.VISIBLE
-      binding.serverConnectionText.visibility = View.VISIBLE
-
-      if (network == null) {
-        binding.internetConnectionText.text = getString(R.string.internet_failed)
-        binding.internetConnectionText.setTextColor(
-          ContextCompat.getColor(
-            this@HomeScreenActivity,
-            R.color.alert_red
-          )
-        )
-        binding.serverConnectionText.text = getString(R.string.server_failed)
-        binding.serverConnectionText.setTextColor(
-          ContextCompat.getColor(
-            this@HomeScreenActivity,
-            R.color.alert_red
-          )
-        )
-      } else {
-        binding.internetConnectionText.text = getString(R.string.internet_success)
-        binding.internetConnectionText.setTextColor(
-          ContextCompat.getColor(
-            this@HomeScreenActivity,
-            R.color.alert_green
-          )
-        )
-        if (isConnected) {
-          binding.serverConnectionText.text = getString(R.string.server_success)
-          binding.serverConnectionText.setTextColor(
-            ContextCompat.getColor(
-              this@HomeScreenActivity,
-              R.color.alert_green
-            )
-          )
-        } else {
-          binding.serverConnectionText.text = getString(R.string.server_failed)
-          binding.serverConnectionText.setTextColor(
-            ContextCompat.getColor(
-              this@HomeScreenActivity,
-              R.color.alert_red
-            )
-          )
-        }
-      }
-    }
-    dataManager.uploadState.observe(this@HomeScreenActivity) { state ->
-      if (state.status == previousUploadStatus && state.status != UploadStatus.UPLOADING) {
-        return@observe
-      }
-      previousUploadStatus = state.status
-      when (state.status) {
-        UploadStatus.IDLE -> {
-          binding.uploadButton.isEnabled = true
-          binding.uploadButton.isClickable = true
-          binding.uploadProgressBar.visibility = View.GONE
-          binding.uploadProgressBarText.visibility = View.GONE
-          binding.uploadButton.text = getString(R.string.upload_button)
-        }
-
-        UploadStatus.UPLOADING -> {
-          binding.uploadButton.isEnabled = false
-          binding.uploadButton.isClickable = false
-          binding.uploadProgressBar.visibility = View.VISIBLE
-          binding.uploadProgressBarText.visibility = View.VISIBLE
-          binding.uploadProgressBar.progress = state.progress
-          binding.uploadButton.text = getString(R.string.upload_in_progress)
-        }
-
-        UploadStatus.SUCCESS -> {
-          binding.uploadButton.isEnabled = true
-          binding.uploadButton.isClickable = true
-          binding.uploadProgressBar.visibility = View.GONE
-          binding.uploadProgressBarText.visibility = View.GONE
-          binding.uploadButton.text = getString(R.string.upload_button)
-          val textFinish = getString(R.string.upload_complete)
-          val toastFinish =
-            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_SHORT)
-          toastFinish.show()
-        }
-
-        UploadStatus.FAILED -> {
-          binding.uploadButton.isEnabled = true
-          binding.uploadButton.isClickable = true
-          binding.uploadProgressBar.visibility = View.GONE
-          binding.uploadProgressBarText.visibility = View.GONE
-          binding.uploadButton.text = getString(R.string.upload_failed)
-          val textFinish = getString(R.string.upload_failed_toast)
-          val toastFinish =
-            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-          toastFinish.show()
-        }
-
-        UploadStatus.INTERRUPTED -> {
-          val textFinish = getString(R.string.upload_interrupted)
-          val toastFinish =
-            Toast.makeText(applicationContext, textFinish, Toast.LENGTH_LONG)
-          toastFinish.show()
-        }
-      }
-    }
     checkAndRequestPermissions()
     dataManager.checkServerConnection()
   }
@@ -602,6 +300,440 @@ class HomeScreenActivity : AppCompatActivity() {
       runBlocking {
         dataManager.logToServerAndPersist("App is being closed.")
       }
+    }
+  }
+}
+
+@Composable
+fun HomeScreenContent() {
+  val dataManager = DataManager.getInstance(LocalContext.current.applicationContext)
+  val promptState by dataManager.promptState.observeAsState()
+  val serverStatus by dataManager.serverStatus.observeAsState()
+  val uploadState by dataManager.uploadState.observeAsState()
+
+  // Total Progress Calculation
+  var totalCompleted = 0
+  var totalPrompts = 0
+  promptState?.let { state ->
+    val sections =
+      state.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name }
+        ?: emptyList()
+    sections.forEachIndexed { index, section ->
+      val prompts = section.mainPrompts
+      val total = prompts.array.size
+      val sectionProgress = state.promptProgress[section.name]
+      val completed = sectionProgress?.get("mainIndex") ?: 0
+      totalCompleted += completed
+      totalPrompts += total
+    }
+  }
+  val lifetimeRecordingCount = 0
+  val lifetimeRecordingMs = 0
+
+  ConstraintLayout(
+    modifier = Modifier.fillMaxSize()
+  ) {
+    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, tutorialModeContainer) = createRefs()
+
+    // 1. Back Button (ImageButton)
+    Image(
+      painter = painterResource(id = R.drawable.back_arrow),
+      contentDescription = stringResource(id = R.string.back_button),
+      modifier = Modifier
+        .constrainAs(backButton) {
+          start.linkTo(parent.start, margin = 16.dp)
+          top.linkTo(parent.top, margin = 16.dp)
+        }
+        .clickable { /* Handle back button click */ }
+    )
+
+    // 2. Header (TextView)
+    Text(
+      text = stringResource(id = R.string.app_name),
+      fontSize = 50.sp,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.constrainAs(header) {
+        start.linkTo(parent.start, margin = 32.dp)
+        end.linkTo(parent.end)
+        top.linkTo(parent.top, margin = 24.dp)
+      }
+    )
+
+    // 3. Version Text (TextView)
+    Text(
+      text = "Version: ${Constants.APP_VERSION}",
+      fontSize = 20.sp,
+      color = colorResource(id = R.color.dark_gray),
+      modifier = Modifier.constrainAs(versionText) {
+        top.linkTo(header.top)
+        end.linkTo(parent.end, margin = 24.dp)
+      }
+    )
+
+    // 4. Loading Text (TextView)
+    if (promptState?.promptsCollection == null) {
+      Text(
+        text = stringResource(id = R.string.loading),
+        fontSize = 30.sp,
+        modifier = Modifier
+          .constrainAs(loadingText) {
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            top.linkTo(header.bottom, margin = 32.dp)
+          }
+      )
+    }
+
+    // 6. Session Information (LinearLayout)
+    Row(
+      modifier = Modifier
+        .constrainAs(sessionInformation) {
+          start.linkTo(header.start)
+          end.linkTo(header.end)
+          top.linkTo(header.bottom)
+        },
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = stringResource(id = R.string.id_label),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier.padding(end = 6.dp)
+      )
+      Text(
+        text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
+        fontStyle = FontStyle.Italic,
+        fontSize = 18.sp,
+        modifier = Modifier.padding(end = 20.dp)
+      )
+      Text(
+        text = stringResource(id = R.string.username_label),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier.padding(start = 20.dp, end = 6.dp)
+      )
+      Text(
+        text = promptState?.username ?: stringResource(id = R.string.username_error),
+        fontStyle = FontStyle.Italic,
+        fontSize = 18.sp
+      )
+    }
+
+    // 7. Status Header (TextView)
+    Text(
+      text = stringResource(id = R.string.status_header),
+      fontWeight = FontWeight.Bold,
+      fontSize = 32.sp,
+      modifier = Modifier.constrainAs(statusHeader) {
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
+        top.linkTo(sessionInformation.bottom, margin = 30.dp)
+      }
+    )
+
+    // 8. Status Information (LinearLayout)
+    Row(
+      modifier = Modifier
+        .constrainAs(statusInformation) {
+          start.linkTo(header.start)
+          end.linkTo(header.end)
+          top.linkTo(statusHeader.bottom)
+        },
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = stringResource(id = R.string.internet_status),
+        color = colorResource(R.color.alert_green), // if (serverStatus?.internetConnected == true) colorResource(id = R.color.green) else colorResource(id = R.color.alert_yellow),
+        fontStyle = FontStyle.Italic,
+        fontSize = 20.sp,
+        modifier = Modifier.padding(end = 50.dp)
+      )
+      Text(
+        text = stringResource(id = R.string.server_status),
+        color = colorResource(R.color.alert_green), // if (serverStatus?.serverConnected == true) colorResource(id = R.color.green) else colorResource(id = R.color.alert_yellow),
+        fontStyle = FontStyle.Italic,
+        fontSize = 20.sp,
+        modifier = Modifier.padding(start = 50.dp)
+      )
+    }
+
+    // 9. Statistics Header (TextView)
+    Text(
+      text = stringResource(id = R.string.statistics_header),
+      fontSize = 32.sp,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.constrainAs(statisticsHeader) {
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
+        top.linkTo(statusInformation.bottom, margin = 30.dp)
+      }
+    )
+
+    // 10. Statistics Information (ConstraintLayout)
+    ConstraintLayout(
+      modifier = Modifier
+        .constrainAs(statisticsInformation) {
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+          top.linkTo(statisticsHeader.bottom)
+        }
+        .padding(horizontal = 16.dp)
+    ) {
+      val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sessionCounterText, sessionCounterBox, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
+      val guideline = createGuidelineFromStart(0.5f)
+
+      // Prompts Progress Text
+      Text(
+        text = stringResource(id = R.string.prompts_completed),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(promptsProgressText) {
+            top.linkTo(parent.top, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+
+      // Section Name Text
+      Text(
+        text = promptState?.currentSectionName ?: "",
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(sectionNameText) {
+            top.linkTo(parent.top, margin = 15.dp)
+            start.linkTo(guideline)
+          }
+          .padding(end = 8.dp)
+      )
+
+      // Completed and Total Prompts Text
+      Text(
+        text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(completedAndTotalPromptsText) {
+            top.linkTo(parent.top, margin = 15.dp)
+            start.linkTo(sectionNameText.end)
+          }
+      )
+
+      // Tutorial Progress Text
+      Text(
+        text = stringResource(id = R.string.tutorial_mode),
+        color = colorResource(id = R.color.blue),
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+          .constrainAs(tutorialProgressText) {
+            top.linkTo(parent.top, margin = 15.dp)
+            start.linkTo(sectionNameText.end)
+          }
+          .alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
+      )
+
+      // Total Progress Text
+      Text(
+        text = stringResource(id = R.string.total_progress),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(totalProgressText) {
+            top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+      // Total Progress Count Text
+      Text(
+        text = "${totalCompleted ?: 0}/${totalPrompts ?: 0}",
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(totalProgressCountText) {
+            top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+            start.linkTo(guideline)
+          }
+      )
+
+      // Recordings Progress Text
+      Text(
+        text = stringResource(id = R.string.total_recordings),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(recordingsProgressText) {
+            top.linkTo(totalProgressText.bottom, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+
+      // Recording Count Text
+      Text(
+        text = lifetimeRecordingCount.toString() ?: stringResource(id = R.string.counter),
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(recordingCountText) {
+            top.linkTo(totalProgressText.bottom, margin = 15.dp)
+            start.linkTo(guideline)
+          }
+      )
+
+      // Recording Time Text
+      Text(
+        text = stringResource(id = R.string.total_time),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(recordingTimeText) {
+            top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+
+      // Recording Time Parsed Text
+      Text(
+        text = lifetimeRecordingMs.toString(0) ?: stringResource(id = R.string.counter),
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(recordingTimeParsedText) {
+            top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
+            start.linkTo(guideline)
+          }
+      )
+
+      // Session Counter Text
+      Text(
+        text = stringResource(id = R.string.total_sessions),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(sessionCounterText) {
+            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+
+      // Session Counter Box
+      Text(
+        text = "TODO total sessions" ?: stringResource(id = R.string.counter),
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(sessionCounterBox) {
+            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
+            start.linkTo(guideline)
+          }
+      )
+
+      // Sections Completed Text
+      Text(
+        text = stringResource(id = R.string.sections_completed),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(sectionsCompletedText) {
+            top.linkTo(sessionCounterText.bottom, margin = 15.dp)
+            end.linkTo(guideline)
+          }
+      )
+
+      // Sections Completed Layout (FlexboxLayout)
+      Row(
+        modifier = Modifier
+          .constrainAs(sectionsCompletedLayout) {
+            top.linkTo(sessionCounterText.bottom, margin = 15.dp)
+            start.linkTo(guideline)
+            end.linkTo(parent.end)
+          }
+      ) {
+        promptState?.promptsCollection?.sections?.forEach { section ->
+          Text(text = section.key, modifier = Modifier.padding(end = 4.dp))
+          // TODO Green if the section isn't done.
+        }
+      }
+    }
+
+    // 11. Upload Progress Bar Layout (LinearLayout with ProgressBar and TextView)
+    Row(
+      modifier = Modifier
+        .constrainAs(uploadProgressBarLayout) {
+          start.linkTo(parent.start, margin = 20.dp)
+          end.linkTo(parent.end, margin = 20.dp)
+          bottom.linkTo(tutorialModeContainer.top)
+        },
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      if (uploadState?.status == UploadStatus.UPLOADING) {
+        Text(
+          text = "Upload Progress: ",
+          fontSize = 18.sp,
+          color = colorResource(id = R.color.blue),
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier
+            .padding(bottom = 32.dp)
+        )
+        LinearProgressIndicator(
+          progress = uploadState?.progress?.toFloat()?.div(100f) ?: 0f,
+          modifier = Modifier
+            .weight(1f)
+            .height(32.dp)
+        )
+      }
+    }
+
+    // 12. Upload Button (AppCompatButton)
+    Button(
+      onClick = { /* Handle upload button click */ },
+      modifier = Modifier
+        .constrainAs(uploadButton) {
+          start.linkTo(parent.start)
+          end.linkTo(startButton.start)
+          bottom.linkTo(parent.bottom, margin = 24.dp)
+        },
+    ) {
+      Text(text = stringResource(id = R.string.upload_button))
+    }
+
+    // 13. Start Button (AppCompatButton)
+    Button(
+      onClick = { /* Handle start button click */ },
+      modifier = Modifier
+        .constrainAs(startButton) {
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+          bottom.linkTo(parent.bottom, margin = 24.dp)
+        },
+    ) {
+      Text(text = stringResource(id = R.string.start_button))
+    }
+
+    // 14. Switch Prompts Button (AppCompatButton)
+    Button(
+      onClick = { /* Handle switch prompts button click */ },
+      modifier = Modifier
+        .constrainAs(switchPromptsButton) {
+          start.linkTo(startButton.end)
+          end.linkTo(parent.end)
+          bottom.linkTo(parent.bottom, margin = 24.dp)
+        },
+    ) {
+      Text(text = stringResource(id = R.string.switch_prompts))
+    }
+
+    // 15. Tutorial Mode Container (LinearLayout with TextView)
+    Row(
+      modifier = Modifier
+        .constrainAs(tutorialModeContainer) {
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+          bottom.linkTo(uploadButton.top, margin = 24.dp)
+        },
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = stringResource(id = R.string.tutorial_mode),
+        fontSize = 32.sp,
+        color = colorResource(id = R.color.blue),
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
+      )
     }
   }
 }
