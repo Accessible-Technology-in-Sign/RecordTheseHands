@@ -2250,6 +2250,9 @@ class DataManager private constructor(val context: Context) {
    */
   private fun pingServer(): Boolean {
     try {
+      // TODO Maybe ensure that the loginToken works.
+      // We could have one status message: Internet Unreachable, Server Unreachable,
+      // Unable to Login to Server, and Connected to Server.
       val url = URL(getServer())
       val urlConnection = url.openConnection() as HttpsURLConnection
       setAppropriateTrust(urlConnection)

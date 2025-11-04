@@ -28,7 +28,9 @@ import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -532,17 +534,43 @@ fun HomeScreenContent(
         },
       verticalAlignment = Alignment.CenterVertically
     ) {
+      val context = LocalContext.current
+      val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      val network = connectivityManager.activeNetwork
+      val isNetworkConnected = network != null
+
+      val internetStatusText = if (isNetworkConnected) {
+        stringResource(id = R.string.internet_success)
+      } else {
+        stringResource(id = R.string.internet_failed)
+      }
+      val internetStatusColor = if (isNetworkConnected) {
+        colorResource(id = R.color.alert_green)
+      } else {
+        colorResource(id = R.color.alert_red)
+      }
       Text(
-        text = stringResource(id = R.string.internet_status),
-        // TODO
-        color = colorResource(R.color.alert_green), // if (serverStatus?.internetConnected == true) colorResource(id = R.color.green) else colorResource(id = R.color.alert_yellow),
+        text = internetStatusText,
+        color = internetStatusColor,
         fontStyle = FontStyle.Italic,
         fontSize = 20.sp,
         modifier = Modifier.padding(end = 50.dp)
       )
+
+      val serverStatusText = if (isNetworkConnected && serverStatus == true) {
+        stringResource(id = R.string.server_success)
+      } else {
+        stringResource(id = R.string.server_failed)
+      }
+      val serverStatusColor = if (isNetworkConnected && serverStatus == true) {
+        colorResource(id = R.color.alert_green)
+      } else {
+        colorResource(id = R.color.alert_red)
+      }
       Text(
-        text = stringResource(id = R.string.server_status),
-        color = colorResource(R.color.alert_green), // if (serverStatus?.serverConnected == true) colorResource(id = R.color.green) else colorResource(id = R.color.alert_yellow),
+        text = serverStatusText,
+        color = serverStatusColor,
         fontStyle = FontStyle.Italic,
         fontSize = 20.sp,
         modifier = Modifier.padding(start = 50.dp)
