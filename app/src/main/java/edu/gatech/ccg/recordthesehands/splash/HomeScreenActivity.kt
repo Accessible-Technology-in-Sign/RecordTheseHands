@@ -44,11 +44,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
+import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -766,7 +767,12 @@ fun HomeScreenContent(
     }
 
     // 12. Upload Button (AppCompatButton)
-    Button(
+    val uploadButtonText = when (uploadState?.status) {
+      UploadStatus.UPLOADING -> stringResource(id = R.string.upload_in_progress)
+      UploadStatus.FAILED -> stringResource(id = R.string.upload_failed)
+      else -> stringResource(id = R.string.upload_button)
+    }
+    SecondaryButton(
       onClick = { onUploadClick() },
       modifier = Modifier
         .constrainAs(uploadButton) {
@@ -774,15 +780,9 @@ fun HomeScreenContent(
           end.linkTo(startButton.start)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
-      enabled = uploadState?.status != UploadStatus.UPLOADING
-    ) {
-      val uploadButtonText = when (uploadState?.status) {
-        UploadStatus.UPLOADING -> stringResource(id = R.string.upload_in_progress)
-        UploadStatus.FAILED -> stringResource(id = R.string.upload_failed)
-        else -> stringResource(id = R.string.upload_button)
-      }
-      Text(text = uploadButtonText)
-    }
+      enabled = uploadState?.status != UploadStatus.UPLOADING,
+      text = uploadButtonText
+    )
 
     // 13. Start Button (AppCompatButton)
     val startButtonEnabled: Boolean
@@ -813,7 +813,7 @@ fun HomeScreenContent(
       startRecordingShouldSwitchPrompts = false
     }
 
-    Button(
+    PrimaryButton(
       onClick = { onStartClick() },
       modifier = Modifier
         .constrainAs(startButton) {
@@ -821,13 +821,12 @@ fun HomeScreenContent(
           end.linkTo(parent.end)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
-      enabled = startButtonEnabled
-    ) {
-      Text(text = startButtonText)
-    }
+      enabled = startButtonEnabled,
+      text = startButtonText
+    )
 
     // 14. Switch Prompts Button (AppCompatButton)
-    Button(
+    SecondaryButton(
       onClick = { onSwitchPromptsClick() },
       modifier = Modifier
         .constrainAs(switchPromptsButton) {
@@ -835,9 +834,8 @@ fun HomeScreenContent(
           end.linkTo(parent.end)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
-    ) {
-      Text(text = stringResource(id = R.string.switch_prompts))
-    }
+      text = stringResource(id = R.string.switch_prompts)
+    )
 
     // 15. Tutorial Mode Container (LinearLayout with TextView)
     Row(
