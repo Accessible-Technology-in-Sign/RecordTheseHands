@@ -53,6 +53,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -75,10 +76,16 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
+import edu.gatech.ccg.recordthesehands.upload.prefStore
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
@@ -409,8 +416,25 @@ fun HomeScreenContent(
       totalPrompts += total
     }
   }
-  val lifetimeRecordingCount = 0
-  val lifetimeRecordingMs = 0
+
+  @Composable
+  fun lifetimeMSTimeFormatter(milliseconds: Long): String {
+    val context = LocalContext.current
+    return milliseconds.milliseconds.toComponents { hours, minutes, seconds, nanoseconds ->
+      if (hours == 0L) {
+        context.getString(R.string.time_format_min_sec, minutes, seconds)
+      } else {
+        context.getString(R.string.time_format_hour_min_sec, hours, minutes, seconds)
+      }
+    }
+  }
+
+  val lifetimeRecordingCount by LocalContext.current.applicationContext.prefStore.data
+    .map { it[intPreferencesKey("lifetimeRecordingCount")] ?: 0 }
+    .collectAsState(initial = 0)
+  val lifetimeRecordingMs by LocalContext.current.applicationContext.prefStore.data
+    .map { it[longPreferencesKey("lifetimeRecordingMs")] ?: 0L }
+    .collectAsState(initial = 0L)
 
   ConstraintLayout(
     modifier = Modifier
@@ -713,7 +737,7 @@ fun HomeScreenContent(
 
       // Recording Time Parsed Text
       Text(
-        text = lifetimeRecordingMs.toString() ?: stringResource(id = R.string.counter),
+        text = lifetimeMSTimeFormatter(lifetimeRecordingMs) ?: stringResource(id = R.string.counter),
         fontSize = 18.sp,
         modifier = Modifier
           .constrainAs(recordingTimeParsedText) {
