@@ -27,8 +27,8 @@ import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.os.Build
@@ -43,16 +43,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -76,16 +75,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
-import edu.gatech.ccg.recordthesehands.upload.prefStore
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
@@ -96,8 +91,10 @@ import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import edu.gatech.ccg.recordthesehands.upload.UploadState
 import edu.gatech.ccg.recordthesehands.upload.UploadStatus
 import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
+import edu.gatech.ccg.recordthesehands.upload.prefStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -399,6 +396,38 @@ fun HomeScreenContent(
   val serverStatus by dataManager.serverStatus.observeAsState()
   val uploadState by dataManager.uploadState.observeAsState()
   var numTitleClicks by remember { mutableStateOf(0) }
+  var showUploadStatus by remember { mutableStateOf(false) }
+  var uploadStatusMessage by remember { mutableStateOf(null as String?) }
+
+  val context = LocalContext.current
+  LaunchedEffect(uploadState) {
+    uploadState?.let {
+      when (it.status) {
+        UploadStatus.SUCCESS -> {
+          uploadStatusMessage = context.getString(R.string.upload_complete)
+          showUploadStatus = true
+          delay(10000) // Keep visible for 10 seconds
+          showUploadStatus = false
+        }
+
+        UploadStatus.FAILED -> {
+          uploadStatusMessage = context.getString(R.string.upload_failed)
+          showUploadStatus = true
+          delay(10000) // Keep visible for 10 seconds
+          showUploadStatus = false
+        }
+
+        UploadStatus.UPLOADING -> {
+          uploadStatusMessage = null
+          showUploadStatus = true
+        }
+
+        else -> {
+          showUploadStatus = false
+        }
+      }
+    }
+  }
 
   // Total Progress Calculation
   var totalCompleted = 0
@@ -441,7 +470,7 @@ fun HomeScreenContent(
       .fillMaxSize()
       .background(colorResource(id = R.color.white))
   ) {
-    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton) = createRefs()
+    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText) = createRefs()
 
     // 1. Back Button (ImageButton)
     val activity = (LocalContext.current as? Activity)
@@ -737,7 +766,8 @@ fun HomeScreenContent(
 
       // Recording Time Parsed Text
       Text(
-        text = lifetimeMSTimeFormatter(lifetimeRecordingMs) ?: stringResource(id = R.string.counter),
+        text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
+          ?: stringResource(id = R.string.counter),
         fontSize = 18.sp,
         modifier = Modifier
           .constrainAs(recordingTimeParsedText) {
@@ -779,7 +809,7 @@ fun HomeScreenContent(
             val color = if (completed >= total) R.color.alert_green else R.color.alert_red
 
             Row(
-            modifier = Modifier.padding(end = 4.dp)
+              modifier = Modifier.padding(end = 4.dp)
             ) {
               Text(
                 text = section.name,
@@ -799,16 +829,31 @@ fun HomeScreenContent(
     }
 
     // 11. Upload Progress Bar Layout (LinearLayout with ProgressBar and TextView)
-    Row(
-      modifier = Modifier
-        .constrainAs(uploadProgressBarLayout) {
-          start.linkTo(parent.start, margin = 20.dp)
-          end.linkTo(parent.end, margin = 20.dp)
-          bottom.linkTo(uploadButton.top, margin = 30.dp)
-        },
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      if (uploadState?.status == UploadStatus.UPLOADING) {
+    if (showUploadStatus) {
+      if (uploadStatusMessage != null) {
+        Text(
+          text = uploadStatusMessage ?: "",
+          fontSize = 18.sp,
+          color = colorResource(id = R.color.blue),
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier
+            .padding(start = 20.dp, end = 8.dp)
+            .constrainAs(uploadStatusMessageText) {
+              start.linkTo(parent.start, margin = 20.dp)
+              end.linkTo(parent.end, margin = 20.dp)
+              bottom.linkTo(uploadProgressBarLayout.top, margin = 16.dp)
+            },
+        )
+      }
+      Row(
+        modifier = Modifier
+          .constrainAs(uploadProgressBarLayout) {
+            start.linkTo(parent.start, margin = 20.dp)
+            end.linkTo(parent.end, margin = 20.dp)
+            bottom.linkTo(uploadButton.top, margin = 30.dp)
+          },
+        verticalAlignment = Alignment.CenterVertically
+      ) {
         Text(
           text = stringResource(id = R.string.upload_progress),
           fontSize = 18.sp,
@@ -818,7 +863,10 @@ fun HomeScreenContent(
         )
         LinearProgressIndicator(
           progress = uploadState?.progress?.toFloat()?.div(100f) ?: 0f,
-          modifier = Modifier.weight(1f).height(20.dp).padding(end = 20.dp),
+          modifier = Modifier
+            .weight(1f)
+            .height(20.dp)
+            .padding(end = 20.dp),
           color = colorResource(id = R.color.blue),
           backgroundColor = colorResource(id = R.color.very_light_gray)
         )
@@ -828,7 +876,7 @@ fun HomeScreenContent(
     // 12. Upload Button (AppCompatButton)
     val uploadButtonText = when (uploadState?.status) {
       UploadStatus.UPLOADING -> stringResource(id = R.string.upload_in_progress)
-      UploadStatus.FAILED -> stringResource(id = R.string.upload_failed)
+      UploadStatus.FAILED -> stringResource(id = R.string.upload_failed_try_again)
       else -> stringResource(id = R.string.upload_button)
     }
     SecondaryButton(

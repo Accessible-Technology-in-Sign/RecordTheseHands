@@ -59,7 +59,7 @@
     <string name="yes">はい</string>
     <!-- Upload Button Messages -->
     <string name="upload_button">今すぐアップロード</string>
-    <string name="upload_failed">アップロードに失敗しました。クリックして再試行</string>
+    <string name="upload_failed_try_again">アップロードに失敗しました。クリックして再試行</string>
     <string name="upload_successful">アップロード中…</string>
 
     <!-- Recording Session Page -->

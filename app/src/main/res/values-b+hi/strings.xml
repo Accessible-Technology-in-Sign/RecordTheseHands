@@ -58,7 +58,7 @@
     <string name="yes">हाँ</string>
     <!-- Upload Button Messages -->
     <string name="upload_button">अभी अपलोड करें</string>
-    <string name="upload_failed">अपलोड विफल, पुनः प्रयास करने के लिए क्लिक करें</string>
+    <string name="upload_failed_try_again">अपलोड विफल, पुनः प्रयास करने के लिए क्लिक करें</string>
     <string name="upload_successful">अपलोड हो रहा है…</string>
 
     <!-- Recording Session Page -->

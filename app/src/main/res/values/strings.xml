@@ -64,7 +64,7 @@
     <!-- Upload Button Messages -->
     <string name="upload_progress">Upload Progress:&#160;</string>
     <string name="upload_button">Upload Now</string>
-    <string name="upload_failed">Upload Failed, Try Again</string>
+    <string name="upload_failed_try_again">Upload Failed, Try Again</string>
     <string name="upload_successful">Uploading…</string>
 
     <!-- HomeScreenActivity -->
@@ -75,7 +75,7 @@
     <string name="upload_in_progress">Uploading…</string>
     <string name="upload_complete">Upload Complete</string>
     <string name="upload_interrupted">Upload Interrupted</string>
-    <string name="upload_failed_toast">Upload Failed</string>
+    <string name="upload_failed">Upload Failed</string>
     <string name="section_not_set">&lt;Section Not Set&gt;</string>
     <string name="switch_prompts">Switch Prompts</string>
     <string name="other_sections_header">Other Sections</string>

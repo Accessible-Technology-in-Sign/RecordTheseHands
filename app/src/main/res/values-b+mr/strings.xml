@@ -56,7 +56,7 @@
     <string name="yes">होय</string>
     <!-- Upload Button Messages -->
     <string name="upload_button">आता अपलोड करा</string>
-    <string name="upload_failed">अपलोड अयशस्वी, पुन्हा प्रयत्न करण्यासाठी क्लिक करा</string>
+    <string name="upload_failed_try_again">अपलोड अयशस्वी, पुन्हा प्रयत्न करण्यासाठी क्लिक करा</string>
     <string name="upload_successful">अपलोड होत आहे…</string>
 
     <!-- Recording Session Page -->
