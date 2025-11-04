@@ -141,11 +141,6 @@ class HomeScreenActivity : ComponentActivity() {
    */
   private var currentRecordingSessions = 0
 
-  /**
-   * Make the startRecording button call switch prompts and return.
-   */
-  private var startRecordingShouldSwitchPrompts = false
-
   private var previousUploadStatus: UploadStatus? = null
 
   /**
@@ -286,10 +281,6 @@ class HomeScreenActivity : ComponentActivity() {
   }
 
   private fun startButtonAction() {
-    if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
-      switchPromptsButtonAction()
-      return
-    }
     fun checkPermission(perm: String): Boolean {
       return ContextCompat.checkSelfPermission(applicationContext, perm) ==
           PackageManager.PERMISSION_GRANTED
@@ -894,30 +885,36 @@ fun HomeScreenContent(
     // 13. Start Button (AppCompatButton)
     val startButtonEnabled: Boolean
     val startButtonText: String
+    val startRecordingShouldSwitchPrompts: Boolean
 
     if (promptState != null && promptState!!.currentPrompts != null && promptState!!.username != null) {
       if ((promptState!!.currentPromptIndex ?: 0) < (promptState!!.totalPromptsInCurrentSection
           ?: 0)
       ) {
         startButtonEnabled = true
+        startRecordingShouldSwitchPrompts = false
         startButtonText = stringResource(id = R.string.start_button)
       } else {
         if (totalCompleted >= totalPrompts) {
           startButtonEnabled = false
+          startRecordingShouldSwitchPrompts = false
           startButtonText = stringResource(id = R.string.no_more_prompts)
         } else {
           startButtonEnabled = true
+          startRecordingShouldSwitchPrompts = true
           startButtonText = stringResource(id = R.string.switch_prompts)
-          // TODO Make sure it actually switches prompts here.
         }
       }
     } else {
       startButtonEnabled = false
+      startRecordingShouldSwitchPrompts = false
       startButtonText = stringResource(id = R.string.start_disabled)
     }
 
     PrimaryButton(
-      onClick = { onStartClick() },
+      onClick = {
+        if (startRecordingShouldSwitchPrompts) onSwitchPromptsClick() else onStartClick()
+      },
       modifier = Modifier
         .constrainAs(startButton) {
           start.linkTo(parent.start)
