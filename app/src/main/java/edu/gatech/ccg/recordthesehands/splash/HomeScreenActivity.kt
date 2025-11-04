@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.splash
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -49,6 +50,9 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -70,9 +74,14 @@ import edu.gatech.ccg.recordthesehands.Constants
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINISHED
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
 import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
+import edu.gatech.ccg.recordthesehands.upload.UploadState
 import edu.gatech.ccg.recordthesehands.upload.UploadStatus
+import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -212,7 +221,11 @@ class HomeScreenActivity : ComponentActivity() {
     }
 
     setContent {
-      HomeScreenContent()
+      HomeScreenContent(
+        onStartClick = ::startButtonAction,
+        onUploadClick = ::uploadButtonAction,
+        onSwitchPromptsClick = ::switchPromptsButtonAction
+      )
     }
 
     // `resources.getIdentifier` is used intentionally to check for the existence of optional
@@ -260,6 +273,64 @@ class HomeScreenActivity : ComponentActivity() {
     dataManager.checkServerConnection()
   }
 
+  private fun startButtonAction() {
+    if (this@HomeScreenActivity.startRecordingShouldSwitchPrompts) {
+      switchPromptsButtonAction()
+      return
+    }
+    fun checkPermission(perm: String): Boolean {
+      return ContextCompat.checkSelfPermission(applicationContext, perm) ==
+          PackageManager.PERMISSION_GRANTED
+    }
+
+    if (checkPermission(CAMERA)) {
+      lifecycleScope.launch {
+        // You can use the API that requires the permission.
+        val intent = Intent(
+          this@HomeScreenActivity, RecordingActivity::class.java
+        ).also {
+          it.putExtra("SEND_CONFIRMATION_EMAIL", emailing)
+        }
+        UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+        Log.d(TAG, "Pausing uploads and waiting for data lock to be available.")
+        // This has the side effect of ensuring the lock is available
+        // (hence any upload is paused).
+        dataManager.logToServerAndPersist("Launching RecordingActivity.")
+        Log.d(TAG, "Data lock was available.")
+
+        handleRecordingResult.launch(intent)
+      }
+    } else {
+      val text = getString(R.string.enable_camera_access)
+      val toast = Toast.makeText(applicationContext, text, Toast.LENGTH_LONG)
+      toast.show()
+    }
+  }
+
+  private fun uploadButtonAction() {
+    lifecycleScope.launch(Dispatchers.IO) {
+      try {
+        Log.d(TAG, "Delaying next upload work.")
+        UploadWorkManager.scheduleNextPeriodic(applicationContext)
+        UploadPauseManager.pauseUploadUntil(null)
+        dataManager.dataManagerData._uploadState.postValue(
+          UploadState(
+            status = UploadStatus.UPLOADING,
+            progress = 0
+          )
+        )
+        dataManager.uploadData()
+        Log.d(TAG, "Delaying next upload work.")
+        UploadPauseManager.pauseUploadTimeoutAtLeast(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+        UploadWorkManager.scheduleNextPeriodic(applicationContext)
+      } catch (e: InterruptedUploadException) {
+        dataManager.logToServerAndPersistNonBlocking(
+          "Data upload was interrupted in HomeScreenActivity."
+        )
+      }
+    }
+  }
+
   private fun checkAndRequestPermissions() {
     val permissionsToRequest = mutableListOf<String>()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -303,11 +374,16 @@ class HomeScreenActivity : ComponentActivity() {
 }
 
 @Composable
-fun HomeScreenContent() {
+fun HomeScreenContent(
+  onStartClick: () -> Unit,
+  onUploadClick: () -> Unit,
+  onSwitchPromptsClick: () -> Unit
+) {
   val dataManager = DataManager.getInstance(LocalContext.current.applicationContext)
   val promptState by dataManager.promptState.observeAsState()
   val serverStatus by dataManager.serverStatus.observeAsState()
   val uploadState by dataManager.uploadState.observeAsState()
+  var numTitleClicks by remember { mutableStateOf(0) }
 
   // Total Progress Calculation
   var totalCompleted = 0
@@ -329,11 +405,14 @@ fun HomeScreenContent() {
   val lifetimeRecordingMs = 0
 
   ConstraintLayout(
-    modifier = Modifier.fillMaxSize().background(colorResource(id = R.color.white))
+    modifier = Modifier
+      .fillMaxSize()
+      .background(colorResource(id = R.color.white))
   ) {
     val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, tutorialModeContainer) = createRefs()
 
     // 1. Back Button (ImageButton)
+    val activity = (LocalContext.current as? Activity)
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
       contentDescription = stringResource(id = R.string.back_button),
@@ -342,19 +421,29 @@ fun HomeScreenContent() {
           start.linkTo(parent.start, margin = 16.dp)
           top.linkTo(parent.top, margin = 16.dp)
         }
-        .clickable { /* Handle back button click */ }
+        .clickable { activity?.finish() }
     )
 
     // 2. Header (TextView)
+    val context = LocalContext.current
     Text(
       text = stringResource(id = R.string.app_name),
       fontSize = 50.sp,
       fontWeight = FontWeight.Bold,
-      modifier = Modifier.constrainAs(header) {
-        start.linkTo(parent.start, margin = 32.dp)
-        end.linkTo(parent.end)
-        top.linkTo(parent.top, margin = 24.dp)
-      }
+      modifier = Modifier
+        .constrainAs(header) {
+          start.linkTo(parent.start, margin = 32.dp)
+          end.linkTo(parent.end)
+          top.linkTo(parent.top, margin = 24.dp)
+        }
+        .clickable {
+          numTitleClicks++
+          if (numTitleClicks == 5) {
+            numTitleClicks = 0
+            val intent = Intent(context, LoadDataActivity::class.java)
+            context.startActivity(intent)
+          }
+        }
     )
 
     // 3. Version Text (TextView)
@@ -678,33 +767,68 @@ fun HomeScreenContent() {
 
     // 12. Upload Button (AppCompatButton)
     Button(
-      onClick = { /* Handle upload button click */ },
+      onClick = { onUploadClick() },
       modifier = Modifier
         .constrainAs(uploadButton) {
           start.linkTo(parent.start)
           end.linkTo(startButton.start)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
+      enabled = uploadState?.status != UploadStatus.UPLOADING
     ) {
-      Text(text = stringResource(id = R.string.upload_button))
+      val uploadButtonText = when (uploadState?.status) {
+        UploadStatus.UPLOADING -> stringResource(id = R.string.upload_in_progress)
+        UploadStatus.FAILED -> stringResource(id = R.string.upload_failed)
+        else -> stringResource(id = R.string.upload_button)
+      }
+      Text(text = uploadButtonText)
     }
 
     // 13. Start Button (AppCompatButton)
+    val startButtonEnabled: Boolean
+    val startButtonText: String
+    val startRecordingShouldSwitchPrompts: Boolean
+
+    if (promptState != null && promptState!!.currentPrompts != null && promptState!!.username != null) {
+      if ((promptState!!.currentPromptIndex ?: 0) < (promptState!!.totalPromptsInCurrentSection
+          ?: 0)
+      ) {
+        startButtonEnabled = true
+        startButtonText = stringResource(id = R.string.start_button)
+        startRecordingShouldSwitchPrompts = false
+      } else {
+        if (totalCompleted >= totalPrompts) {
+          startButtonEnabled = false
+          startButtonText = stringResource(id = R.string.no_more_prompts)
+          startRecordingShouldSwitchPrompts = false
+        } else {
+          startButtonEnabled = true
+          startButtonText = stringResource(id = R.string.switch_prompts)
+          startRecordingShouldSwitchPrompts = true
+        }
+      }
+    } else {
+      startButtonEnabled = false
+      startButtonText = stringResource(id = R.string.start_disabled)
+      startRecordingShouldSwitchPrompts = false
+    }
+
     Button(
-      onClick = { /* Handle start button click */ },
+      onClick = { onStartClick() },
       modifier = Modifier
         .constrainAs(startButton) {
           start.linkTo(parent.start)
           end.linkTo(parent.end)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
+      enabled = startButtonEnabled
     ) {
-      Text(text = stringResource(id = R.string.start_button))
+      Text(text = startButtonText)
     }
 
     // 14. Switch Prompts Button (AppCompatButton)
     Button(
-      onClick = { /* Handle switch prompts button click */ },
+      onClick = { onSwitchPromptsClick() },
       modifier = Modifier
         .constrainAs(switchPromptsButton) {
           start.linkTo(startButton.end)
