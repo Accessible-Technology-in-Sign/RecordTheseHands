@@ -37,6 +37,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -255,9 +256,6 @@ class HomeScreenActivity : ComponentActivity() {
       )
     }
 
-
-
-
     checkAndRequestPermissions()
     dataManager.checkServerConnection()
   }
@@ -331,7 +329,7 @@ fun HomeScreenContent() {
   val lifetimeRecordingMs = 0
 
   ConstraintLayout(
-    modifier = Modifier.fillMaxSize()
+    modifier = Modifier.fillMaxSize().background(colorResource(id = R.color.white))
   ) {
     val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, tutorialModeContainer) = createRefs()
 
@@ -590,7 +588,7 @@ fun HomeScreenContent() {
 
       // Recording Time Parsed Text
       Text(
-        text = lifetimeRecordingMs.toString(0) ?: stringResource(id = R.string.counter),
+        text = lifetimeRecordingMs.toString() ?: stringResource(id = R.string.counter),
         fontSize = 18.sp,
         modifier = Modifier
           .constrainAs(recordingTimeParsedText) {
