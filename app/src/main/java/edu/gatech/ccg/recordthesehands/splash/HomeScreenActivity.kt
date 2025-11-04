@@ -40,6 +40,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -48,8 +50,6 @@ import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
-import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -76,6 +77,8 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINIS
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
+import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
+import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
@@ -531,6 +534,7 @@ fun HomeScreenContent(
     ) {
       Text(
         text = stringResource(id = R.string.internet_status),
+        // TODO
         color = colorResource(R.color.alert_green), // if (serverStatus?.internetConnected == true) colorResource(id = R.color.green) else colorResource(id = R.color.alert_yellow),
         fontStyle = FontStyle.Italic,
         fontSize = 20.sp,
@@ -564,8 +568,8 @@ fun HomeScreenContent(
           start.linkTo(parent.start)
           end.linkTo(parent.end)
           top.linkTo(statisticsHeader.bottom)
+          width = Dimension.fillToConstraints
         }
-        .padding(horizontal = 16.dp)
     ) {
       val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sessionCounterText, sessionCounterBox, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
       val guideline = createGuidelineFromStart(0.5f)
@@ -586,38 +590,39 @@ fun HomeScreenContent(
       Text(
         text = promptState?.currentSectionName ?: "",
         fontSize = 18.sp,
+        softWrap = true,
         modifier = Modifier
           .constrainAs(sectionNameText) {
             top.linkTo(parent.top, margin = 15.dp)
             start.linkTo(guideline)
           }
-          .padding(end = 8.dp)
+          .padding(end = 4.dp)
       )
 
-      // Completed and Total Prompts Text
-      Text(
-        text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(completedAndTotalPromptsText) {
-            top.linkTo(parent.top, margin = 15.dp)
-            start.linkTo(sectionNameText.end)
-          }
-      )
-
-      // Tutorial Progress Text
-      Text(
-        text = stringResource(id = R.string.tutorial_mode),
-        color = colorResource(id = R.color.blue),
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier
-          .constrainAs(tutorialProgressText) {
-            top.linkTo(parent.top, margin = 15.dp)
-            start.linkTo(sectionNameText.end)
-          }
-          .alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
-      )
+      if (promptState?.tutorialMode == true) {
+        Text(
+          text = stringResource(id = R.string.tutorial_mode),
+          color = colorResource(id = R.color.blue),
+          fontSize = 18.sp,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier
+            .constrainAs(tutorialProgressText) {
+              top.linkTo(parent.top, margin = 15.dp)
+              start.linkTo(sectionNameText.end)
+            }
+            .alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
+        )
+      } else {
+        Text(
+          text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
+          fontSize = 18.sp,
+          modifier = Modifier
+            .constrainAs(completedAndTotalPromptsText) {
+              top.linkTo(parent.top, margin = 15.dp)
+              start.linkTo(sectionNameText.end)
+            }
+        )
+      }
 
       // Total Progress Text
       Text(
@@ -723,18 +728,32 @@ fun HomeScreenContent(
       )
 
       // Sections Completed Layout (FlexboxLayout)
-      Row(
+      FlowRow(
         modifier = Modifier
           .constrainAs(sectionsCompletedLayout) {
             top.linkTo(sessionCounterText.bottom, margin = 15.dp)
             start.linkTo(guideline)
-            end.linkTo(parent.end)
-          }
+            end.linkTo(parent.end, margin = 16.dp)
+            width = Dimension.fillToConstraints
+          },
+        horizontalArrangement = Arrangement.Start,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
       ) {
-        promptState?.promptsCollection?.sections?.forEach { section ->
-          Text(text = section.key, modifier = Modifier.padding(end = 4.dp))
-          // TODO Green if the section isn't done.
-        }
+        promptState?.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name }
+          ?.forEach { section ->
+            val prompts = section.mainPrompts
+            val total = prompts.array.size
+            val sectionProgress = promptState?.promptProgress?.get(section.name)
+            val completed = sectionProgress?.get("mainIndex") ?: 0
+            val color = if (completed >= total) R.color.alert_green else R.color.alert_red
+
+            Text(
+              text = section.name,
+              fontSize = 18.sp,
+              color = colorResource(id = color),
+              modifier = Modifier.padding(end = 4.dp)
+            )
+          }
       }
     }
 
@@ -787,7 +806,6 @@ fun HomeScreenContent(
     // 13. Start Button (AppCompatButton)
     val startButtonEnabled: Boolean
     val startButtonText: String
-    val startRecordingShouldSwitchPrompts: Boolean
 
     if (promptState != null && promptState!!.currentPrompts != null && promptState!!.username != null) {
       if ((promptState!!.currentPromptIndex ?: 0) < (promptState!!.totalPromptsInCurrentSection
@@ -795,22 +813,19 @@ fun HomeScreenContent(
       ) {
         startButtonEnabled = true
         startButtonText = stringResource(id = R.string.start_button)
-        startRecordingShouldSwitchPrompts = false
       } else {
         if (totalCompleted >= totalPrompts) {
           startButtonEnabled = false
           startButtonText = stringResource(id = R.string.no_more_prompts)
-          startRecordingShouldSwitchPrompts = false
         } else {
           startButtonEnabled = true
           startButtonText = stringResource(id = R.string.switch_prompts)
-          startRecordingShouldSwitchPrompts = true
+          // TODO Make sure it actually switches prompts here.
         }
       }
     } else {
       startButtonEnabled = false
       startButtonText = stringResource(id = R.string.start_disabled)
-      startRecordingShouldSwitchPrompts = false
     }
 
     PrimaryButton(
