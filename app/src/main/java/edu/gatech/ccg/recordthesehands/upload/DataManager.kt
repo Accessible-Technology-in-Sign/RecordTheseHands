@@ -1272,22 +1272,22 @@ class DataManager private constructor(val context: Context) {
         Log.e(TAG, "No loginToken present, can not upload data.")
         return false
       }
-      dataManagerData.lock.withLock {
+      returnValue = dataManagerData.lock.withLock {
         // First run directives, to make sure we have all the data we need.
-        returnValue = runDirectives()
+        val successful = runDirectives()
         val registeredFiles = RegisteredFile.getAllRegisteredFiles(context)
         val entries = context.dataStore.data
           .map {
             it.asMap().entries
           }.firstOrNull()
 
-        if (!returnValue) {
+        if (!successful) {
           Log.d(TAG, "Unable to Get directives, refusing to upload.")
-          return returnValue
+          return@withLock successful
         }
         if (registeredFiles.isEmpty() && (entries == null || entries.isEmpty())) {
           Log.d(TAG, "Nothing to Upload.")
-          return returnValue
+          return@withLock successful
         }
 
         dataManagerData._uploadState.postValue(
@@ -1320,7 +1320,7 @@ class DataManager private constructor(val context: Context) {
             i += 1
             if (i >= keyValueBatchSize) {
               if (!tryUploadKeyValues(batch)) {
-                return false
+                return@withLock false
               }
               i = 0
               batch = JSONArray()
@@ -1341,7 +1341,7 @@ class DataManager private constructor(val context: Context) {
           }
           if (batch.length() > 0) {
             if (!tryUploadKeyValues(batch)) {
-              return false
+              return@withLock false
             }
             completedBatches += 1
             // Update progress
@@ -1369,7 +1369,7 @@ class DataManager private constructor(val context: Context) {
           val uploadSession = UploadSession(context, registeredFile)
           // TODO We could add a callback to update the progress bar as bytes are transferred.
           if (!uploadSession.tryUploadFile()) {
-            return false
+            return@withLock false
           }
           completedItems += 1
 
@@ -1388,8 +1388,7 @@ class DataManager private constructor(val context: Context) {
             )
           )
         }
-        returnValue = true
-        return true
+        return@withLock true
       }
     } finally {
       dataManagerData._uploadState.postValue(
@@ -1407,6 +1406,7 @@ class DataManager private constructor(val context: Context) {
         }
       )
     }
+    return returnValue
   }
 
   /**
