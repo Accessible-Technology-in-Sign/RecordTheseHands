@@ -601,7 +601,7 @@ fun HomeScreenContent(
           width = Dimension.fillToConstraints
         }
     ) {
-      val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sessionCounterText, sessionCounterBox, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
+      val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
       val guideline = createGuidelineFromStart(0.5f)
 
       // Prompts Progress Text
@@ -722,29 +722,6 @@ fun HomeScreenContent(
           }
       )
 
-      // Session Counter Text
-      Text(
-        text = stringResource(id = R.string.total_sessions),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(sessionCounterText) {
-            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-
-      // Session Counter Box
-      Text(
-        text = "TODO total sessions" ?: stringResource(id = R.string.counter),
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(sessionCounterBox) {
-            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
-            start.linkTo(guideline)
-          }
-      )
-
       // Sections Completed Text
       Text(
         text = stringResource(id = R.string.sections_completed),
@@ -752,7 +729,7 @@ fun HomeScreenContent(
         fontSize = 18.sp,
         modifier = Modifier
           .constrainAs(sectionsCompletedText) {
-            top.linkTo(sessionCounterText.bottom, margin = 15.dp)
+            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
             end.linkTo(guideline)
           }
       )
@@ -761,7 +738,7 @@ fun HomeScreenContent(
       FlowRow(
         modifier = Modifier
           .constrainAs(sectionsCompletedLayout) {
-            top.linkTo(sessionCounterText.bottom, margin = 15.dp)
+            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
             start.linkTo(guideline)
             end.linkTo(parent.end, margin = 16.dp)
             width = Dimension.fillToConstraints
