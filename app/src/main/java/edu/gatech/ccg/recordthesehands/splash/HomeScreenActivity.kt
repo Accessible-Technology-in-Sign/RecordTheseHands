@@ -441,7 +441,7 @@ fun HomeScreenContent(
       .fillMaxSize()
       .background(colorResource(id = R.color.white))
   ) {
-    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, tutorialModeContainer) = createRefs()
+    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton) = createRefs()
 
     // 1. Back Button (ImageButton)
     val activity = (LocalContext.current as? Activity)
@@ -804,7 +804,7 @@ fun HomeScreenContent(
         .constrainAs(uploadProgressBarLayout) {
           start.linkTo(parent.start, margin = 20.dp)
           end.linkTo(parent.end, margin = 20.dp)
-          bottom.linkTo(tutorialModeContainer.top, margin = 8.dp)
+          bottom.linkTo(uploadButton.top, margin = 30.dp)
         },
       verticalAlignment = Alignment.CenterVertically
     ) {
@@ -892,24 +892,6 @@ fun HomeScreenContent(
       text = stringResource(id = R.string.switch_prompts)
     )
 
-    // 15. Tutorial Mode Container (LinearLayout with TextView)
-    Row(
-      modifier = Modifier
-        .constrainAs(tutorialModeContainer) {
-          start.linkTo(parent.start)
-          end.linkTo(parent.end)
-          bottom.linkTo(uploadButton.top, margin = 24.dp)
-        },
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Text(
-        text = stringResource(id = R.string.tutorial_mode),
-        fontSize = 32.sp,
-        color = colorResource(id = R.color.blue),
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
-      )
-    }
   }
 }
 
