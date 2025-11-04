@@ -43,9 +43,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.LinearProgressIndicator
@@ -791,24 +793,23 @@ fun HomeScreenContent(
         .constrainAs(uploadProgressBarLayout) {
           start.linkTo(parent.start, margin = 20.dp)
           end.linkTo(parent.end, margin = 20.dp)
-          bottom.linkTo(tutorialModeContainer.top)
+          bottom.linkTo(tutorialModeContainer.top, margin = 8.dp)
         },
       verticalAlignment = Alignment.CenterVertically
     ) {
       if (uploadState?.status == UploadStatus.UPLOADING) {
         Text(
-          text = "Upload Progress: ",
+          text = stringResource(id = R.string.upload_progress),
           fontSize = 18.sp,
           color = colorResource(id = R.color.blue),
           fontWeight = FontWeight.Bold,
-          modifier = Modifier
-            .padding(bottom = 32.dp)
+          modifier = Modifier.padding(start = 20.dp, end = 8.dp)
         )
         LinearProgressIndicator(
           progress = uploadState?.progress?.toFloat()?.div(100f) ?: 0f,
-          modifier = Modifier
-            .weight(1f)
-            .height(32.dp)
+          modifier = Modifier.weight(1f).height(20.dp).padding(end = 20.dp),
+          color = colorResource(id = R.color.blue),
+          backgroundColor = colorResource(id = R.color.very_light_gray)
         )
       }
     }

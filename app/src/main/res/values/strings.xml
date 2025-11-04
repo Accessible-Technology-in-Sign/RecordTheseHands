@@ -62,6 +62,7 @@
     <string name="no">No</string>
     <string name="yes">Yes</string>
     <!-- Upload Button Messages -->
+    <string name="upload_progress">Upload Progress:&#160;</string>
     <string name="upload_button">Upload Now</string>
     <string name="upload_failed">Upload Failed, Try Again</string>
     <string name="upload_successful">Uploading…</string>
