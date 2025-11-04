@@ -771,19 +771,29 @@ fun HomeScreenContent(
         verticalArrangement = Arrangement.spacedBy(4.dp)
       ) {
         promptState?.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name }
-          ?.forEach { section ->
+          ?.forEachIndexed { index, section ->
             val prompts = section.mainPrompts
             val total = prompts.array.size
             val sectionProgress = promptState?.promptProgress?.get(section.name)
             val completed = sectionProgress?.get("mainIndex") ?: 0
             val color = if (completed >= total) R.color.alert_green else R.color.alert_red
 
-            Text(
-              text = section.name,
-              fontSize = 18.sp,
-              color = colorResource(id = color),
-              modifier = Modifier.padding(end = 4.dp)
-            )
+            Row(
+            modifier = Modifier.padding(end = 4.dp)
+            ) {
+              Text(
+                text = section.name,
+                fontSize = 18.sp,
+                color = colorResource(id = color),
+              )
+              if (index < (promptState?.promptsCollection?.sections?.values?.size ?: 0) - 1) {
+                Text(
+                  text = ", ",
+                  fontSize = 18.sp,
+                  color = colorResource(id = R.color.black),
+                )
+              }
+            }
           }
       }
     }
