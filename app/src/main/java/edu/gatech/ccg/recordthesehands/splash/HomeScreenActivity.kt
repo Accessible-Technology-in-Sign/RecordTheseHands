@@ -141,8 +141,6 @@ class HomeScreenActivity : ComponentActivity() {
    */
   private var currentRecordingSessions = 0
 
-  private var previousUploadStatus: UploadStatus? = null
-
   /**
    * Handler for what happens when the recording activity finishes.
    */
