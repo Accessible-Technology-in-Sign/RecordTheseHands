@@ -32,7 +32,8 @@ fun CountdownCircle(
   key: Any? = Unit,
   componentSize: Dp = 100.dp,
   strokeWidthProportion: Float = 0.2f,
-  onFinished: () -> Unit
+  showText: Boolean = true,
+  onFinished: () -> Unit,
 ) {
   val animatable = remember { Animatable(0f) }
   var clickCount by remember { mutableStateOf(0) }
@@ -98,13 +99,15 @@ fun CountdownCircle(
       textAlign = android.graphics.Paint.Align.CENTER
     }
 
-    drawIntoCanvas {
-      it.nativeCanvas.drawText(
-        text,
-        center.x,
-        center.y - (paint.descent() + paint.ascent()) / 2,
-        paint
-      )
+    if (showText) {
+      drawIntoCanvas {
+        it.nativeCanvas.drawText(
+          text,
+          center.x,
+          center.y - (paint.descent() + paint.ascent()) / 2,
+          paint
+        )
+      }
     }
   }
 }

@@ -1,11 +1,13 @@
 package edu.gatech.ccg.recordthesehands.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -22,7 +24,8 @@ fun PrimaryButton(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
   text: String,
-  grayOnDisabled: Boolean = false
+  grayOnDisabled: Boolean = false,
+  extraContent: (@Composable() () -> Unit)? = null,
 ) {
   Button(
     onClick = onClick,
@@ -41,10 +44,15 @@ fun PrimaryButton(
     ),
     contentPadding = PaddingValues(12.dp)
   ) {
-    Text(
-      text = text,
-      fontSize = 24.sp
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Text(
+        text = text,
+        fontSize = 24.sp
+      )
+      if (extraContent != null) {
+        extraContent()
+      }
+    }
   }
 }
 

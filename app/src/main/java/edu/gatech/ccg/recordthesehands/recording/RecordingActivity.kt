@@ -809,7 +809,7 @@ class RecordingActivity : FragmentActivity() {
       val explainTextVisible by viewModel.explainTextVisible.collectAsState()
       val isExplainTimerActive by viewModel.isExplainTimerActive.collectAsState()
       val viewedPrompts by viewModel.viewedPrompts.collectAsState()
-      var skipButtonText by remember { mutableStateOf(R.string.skip) }
+      var skipButtonText by remember { mutableStateOf(R.string.bad_prompt) }
       var skipButtonEnabled by remember { mutableStateOf(true) }
       var skipButtonVisible by remember { mutableStateOf(true) }
 
@@ -936,7 +936,7 @@ class RecordingActivity : FragmentActivity() {
           }
         }
 
-        if (isReadTimerActive) {
+        if (false && isReadTimerActive) {
           Box(
             modifier = Modifier
               .constrainAs(readTimer) {
@@ -1029,6 +1029,8 @@ class RecordingActivity : FragmentActivity() {
               end.linkTo(parent.end, margin = 120.dp)
             },
           enabled = !isReadTimerActive,
+          isReadTimerActive = isReadTimerActive,
+          readCountdownDuration = readCountdownDuration,
         )
         BackButton(
           onClick = {
@@ -1132,7 +1134,7 @@ class RecordingActivity : FragmentActivity() {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
             title = "${currentPromptIndex + 1} of ${prompts.array.size}"
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
-            skipButtonText = R.string.skip
+            skipButtonText = R.string.bad_prompt
             skipButtonEnabled = true
             skipButtonVisible = true
 
@@ -1520,28 +1522,37 @@ class RecordingActivity : FragmentActivity() {
     onRestartClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean,
+    isReadTimerActive: Boolean,
+    readCountdownDuration: Int,
   ) {
     val hapticFeedback = LocalHapticFeedback.current
     val density = LocalDensity.current
 
     SubcomposeLayout(modifier = modifier) { constraints ->
-      // --- Measurement Phase ---
-      // We subcompose both buttons to find out their dimensions.
-      // The content is not placed, just measured.
-      val recordMeasurables = subcompose("record") {
-        PrimaryButton(onClick = {}, text = stringResource(R.string.record))
-      }
-      val restartMeasurables = subcompose("restart") {
-        AlertButton(onClick = {}, text = stringResource(R.string.restart))
-      }
+      val countdownCircleSize = 30.dp
+      val buttonModifier = if (isReadTimerActive) {
+        // When the Read timer is active, we embed it in the button.
+        Modifier
+      } else {
+        // --- Measurement Phase ---
+        // We subcompose both buttons to find out their dimensions.
+        // The content is not placed, just measured.
+        val recordMeasurables = subcompose("record") {
+          PrimaryButton(onClick = {}, text = stringResource(R.string.record))
+        }
+        val restartMeasurables = subcompose("restart") {
+          AlertButton(onClick = {}, text = stringResource(R.string.restart))
+        }
 
-      // Measure them to get their widths in pixels.
-      val recordWidth =
-        recordMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
-      val restartWidth =
-        restartMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
-      val maxWidth = max(recordWidth, restartWidth)
-      val maxWidthDp = with(density) { maxWidth.toDp() }
+        // Measure them to get their widths in pixels.
+        val recordWidth =
+          recordMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
+        val restartWidth =
+          restartMeasurables.map { it.measure(constraints) }.maxOfOrNull { it.width } ?: 0
+        val maxWidth = max(recordWidth, restartWidth)
+        val maxWidthDp = with(density) { maxWidth.toDp() }
+        Modifier.width(maxWidthDp)
+      }
 
       // --- Layout Phase ---
       // Now we subcompose the actual content that will be displayed.
@@ -1551,8 +1562,23 @@ class RecordingActivity : FragmentActivity() {
           contentAlignment = Alignment.BottomEnd
         ) {
           Column {
-            val buttonModifier = Modifier.width(maxWidthDp)
             if (recordButtonVisible) {
+              val extraContent = if (isReadTimerActive) {
+                @Composable {
+                  CountdownCircle(
+                    modifier = Modifier.padding(start = 10.dp),
+                    durationMs = readCountdownDuration,
+                    componentSize = countdownCircleSize,
+                    strokeWidthProportion = 0.3f,
+                    onFinished = {
+                      viewModel.setReadTimerActive(false)
+                    },
+                    showText = false,
+                  )
+                }
+              } else {
+                null
+              }
               PrimaryButton(
                 onClick = {
                   onRecordClick()
@@ -1561,7 +1587,8 @@ class RecordingActivity : FragmentActivity() {
                 text = stringResource(R.string.record),
                 enabled = enabled,
                 grayOnDisabled = true,
-                modifier = buttonModifier
+                modifier = buttonModifier,
+                extraContent = extraContent,
               )
             }
             if (restartButtonVisible) {
