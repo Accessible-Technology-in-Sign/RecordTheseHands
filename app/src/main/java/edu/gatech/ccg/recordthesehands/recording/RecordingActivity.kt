@@ -811,6 +811,7 @@ class RecordingActivity : FragmentActivity() {
       val viewedPrompts by viewModel.viewedPrompts.collectAsState()
       var skipButtonText by remember { mutableStateOf(R.string.skip) }
       var skipButtonEnabled by remember { mutableStateOf(true) }
+      var skipButtonVisible by remember { mutableStateOf(true) }
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -873,6 +874,10 @@ class RecordingActivity : FragmentActivity() {
         }
         HorizontalPager(
           state = pagerState,
+          // TODO allow scrolling back (but not forward) when isReadTimerActive is true.
+          // This would be done by implementing custom gesture detection and triggering the
+          // pager animation manually.  Also, the read timer would need to be removed but
+          // reactivate when the page appears again.
           userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive && !isExplainTimerActive,
           modifier = Modifier.constrainAs(pager) {
             top.linkTo(parent.top)
@@ -1037,21 +1042,24 @@ class RecordingActivity : FragmentActivity() {
             }
             .padding(top = 0.dp, start = 16.dp)
         )
-        SkipButton(
-          onClick = {
-            skipButtonOnClickListener()
-            skipButtonText = R.string.explain
-            skipButtonEnabled = false
-          },
-          text = stringResource(id = skipButtonText),
-          enabled = skipButtonEnabled,
-          modifier = Modifier
-            .constrainAs(skipButton) {
-              top.linkTo(backButton.bottom)
-              start.linkTo(parent.start)
-            }
-            .padding(top = 20.dp, start = 16.dp)
-        )
+        if (skipButtonVisible && !isReadTimerActive) {
+          SkipButton(
+            onClick = {
+              skipButtonOnClickListener()
+              skipButtonText = R.string.explain
+              skipButtonEnabled = false
+              skipButtonVisible = true
+            },
+            text = stringResource(id = skipButtonText),
+            enabled = skipButtonEnabled,
+            modifier = Modifier
+              .constrainAs(skipButton) {
+                top.linkTo(backButton.bottom)
+                start.linkTo(parent.start)
+              }
+              .padding(top = 20.dp, start = 16.dp)
+          )
+        }
         RecordingLight(
           isRecording = isRecording,
           modifier = Modifier
@@ -1086,6 +1094,12 @@ class RecordingActivity : FragmentActivity() {
 
         LaunchedEffect(pagerState.currentPage) {
           val newPage = pagerState.currentPage
+          if (isReadTimerActive && newPage > currentPage) {
+            // TODO This is here in anticipation of allowing swiping backwards but not forward
+            // when the read timer is active.
+            pagerState.scrollToPage(currentPage)
+            return@LaunchedEffect
+          }
           currentClipDetails?.let { clipDetails ->
             val now = Instant.now()
             if (currentPage < newPage) {
@@ -1120,6 +1134,7 @@ class RecordingActivity : FragmentActivity() {
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
             skipButtonText = R.string.skip
             skipButtonEnabled = true
+            skipButtonVisible = true
 
             if (promptIndex !in viewedPrompts) {
               viewModel.markPromptAsViewed(promptIndex)
