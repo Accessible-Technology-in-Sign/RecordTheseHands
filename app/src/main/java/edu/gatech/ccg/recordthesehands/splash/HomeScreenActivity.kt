@@ -498,7 +498,7 @@ fun HomeScreenContent(
 
     // 3. Version Text (TextView)
     Text(
-      text = "Version: ${Constants.APP_VERSION}",
+      text = stringResource(id = R.string.version_text, Constants.APP_VERSION),
       fontSize = 20.sp,
       color = colorResource(id = R.color.dark_gray),
       modifier = Modifier.constrainAs(versionText) {

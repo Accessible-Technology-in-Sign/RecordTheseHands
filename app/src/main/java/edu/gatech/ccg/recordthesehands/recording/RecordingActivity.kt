@@ -1569,7 +1569,7 @@ class RecordingActivity : FragmentActivity() {
                     modifier = Modifier.padding(start = 10.dp),
                     durationMs = readCountdownDuration,
                     componentSize = countdownCircleSize,
-                    strokeWidthProportion = 0.3f,
+                    strokeWidthProportion = 0.25f,
                     onFinished = {
                       viewModel.setReadTimerActive(false)
                     },
