@@ -26,7 +26,6 @@ package edu.gatech.ccg.recordthesehands.splash
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -42,9 +41,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.LinearProgressIndicator
@@ -522,62 +523,44 @@ fun HomeScreenContent(
     }
 
     // 6. Session Information (LinearLayout)
-    Row(
-      modifier = Modifier
-        .constrainAs(sessionInformation) {
-          start.linkTo(header.start)
-          end.linkTo(header.end)
-          top.linkTo(header.bottom)
-        },
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Text(
-        text = stringResource(id = R.string.id_label),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier.padding(end = 6.dp)
-      )
-      Text(
-        text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
-        fontStyle = FontStyle.Italic,
-        fontSize = 18.sp,
-        modifier = Modifier.padding(end = 20.dp)
-      )
-      Text(
-        text = stringResource(id = R.string.username_label),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier.padding(start = 20.dp, end = 6.dp)
-      )
-      Text(
-        text = promptState?.username ?: stringResource(id = R.string.username_error),
-        fontStyle = FontStyle.Italic,
-        fontSize = 18.sp
-      )
-    }
-
-    // 7. Status Header (TextView)
-    Text(
-      text = stringResource(id = R.string.status_header),
-      fontWeight = FontWeight.Bold,
-      fontSize = 32.sp,
-      modifier = Modifier.constrainAs(statusHeader) {
-        start.linkTo(parent.start)
-        end.linkTo(parent.end)
-        top.linkTo(sessionInformation.bottom, margin = 30.dp)
-      }
-    )
-
-    // 8. Status Information (LinearLayout)
-    Row(
+    Column(
       modifier = Modifier
         .constrainAs(statusInformation) {
-          start.linkTo(header.start)
-          end.linkTo(header.end)
-          top.linkTo(statusHeader.bottom)
-        },
-      verticalAlignment = Alignment.CenterVertically
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+          top.linkTo(header.bottom)
+        }.fillMaxWidth(),
+      horizontalAlignment = Alignment.CenterHorizontally
     ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(id = R.string.id_label),
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp,
+          modifier = Modifier.padding(end = 6.dp)
+        )
+        Text(
+          text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
+          fontStyle = FontStyle.Italic,
+          fontSize = 18.sp,
+          modifier = Modifier.padding(end = 20.dp)
+        )
+        Text(
+          text = stringResource(id = R.string.username_label),
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp,
+          modifier = Modifier.padding(start = 20.dp, end = 6.dp)
+        )
+        Text(
+          text = promptState?.username ?: stringResource(id = R.string.username_error),
+          fontStyle = FontStyle.Italic,
+          fontSize = 18.sp
+        )
+      }
+
+      // 8. Status Information (LinearLayout)
       val statusText: String
       val statusColor: Int
 

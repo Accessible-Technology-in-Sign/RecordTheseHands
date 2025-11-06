@@ -27,10 +27,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.sync.Mutex
 import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 
 object DataManagerData {
   val initializationStarted = AtomicBoolean(false)
+  val initializationLatch = CountDownLatch(1)
 
   val lock = Mutex()
   var loginToken: String? = null

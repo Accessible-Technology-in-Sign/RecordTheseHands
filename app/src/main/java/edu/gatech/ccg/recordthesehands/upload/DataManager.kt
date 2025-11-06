@@ -246,6 +246,7 @@ class DataManager private constructor(val context: Context) {
       deviceId = deviceId,
     )
     updatePromptStateAndPost(initialState)
+    dataManagerData.initializationLatch.countDown()
   }
 
   /**
@@ -2263,6 +2264,7 @@ class DataManager private constructor(val context: Context) {
    */
   fun checkServerConnection() {
     scope.launch {
+      dataManagerData.initializationLatch.await()
       pingServer()
     }
   }
