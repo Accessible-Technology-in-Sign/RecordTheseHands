@@ -83,6 +83,7 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_ACTIVITY_FINIS
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.RecordingActivity
+import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -183,16 +184,6 @@ class HomeScreenActivity : ComponentActivity() {
     startActivity(Intent(this, PromptSelectActivity::class.java))
   }
 
-
-  fun lifetimeMSTimeFormatter(milliseconds: Long): String {
-    return milliseconds.milliseconds.toComponents { hours, minutes, seconds, nanoseconds ->
-      if (hours == 0L) {
-        getString(R.string.time_format_min_sec, minutes, seconds)
-      } else {
-        getString(R.string.time_format_hour_min_sec, hours, minutes, seconds)
-      }
-    }
-  }
 
   /**
    * onCreate() function from Activity - called when the home screen activity is launched.
@@ -390,6 +381,7 @@ fun HomeScreenContent(
   var uploadStatusMessage by remember { mutableStateOf(null as String?) }
 
   val context = LocalContext.current
+  val isTablet = thisDeviceIsATablet(context)
   LaunchedEffect(uploadState) {
     uploadState?.let {
       when (it.status) {
@@ -460,7 +452,7 @@ fun HomeScreenContent(
       .fillMaxSize()
       .background(colorResource(id = R.color.white))
   ) {
-    val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText) = createRefs()
+    val (backButton, header, versionText, loadingText, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText) = createRefs()
 
     // 1. Back Button (ImageButton)
     val activity = LocalActivity.current
@@ -529,7 +521,8 @@ fun HomeScreenContent(
           start.linkTo(parent.start)
           end.linkTo(parent.end)
           top.linkTo(header.bottom)
-        }.fillMaxWidth(),
+        }
+        .fillMaxWidth(),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Row(
@@ -738,8 +731,7 @@ fun HomeScreenContent(
 
       // Recording Time Parsed Text
       Text(
-        text = lifetimeMSTimeFormatter(lifetimeRecordingMs)
-          ?: stringResource(id = R.string.counter),
+        text = lifetimeMSTimeFormatter(lifetimeRecordingMs),
         fontSize = 18.sp,
         modifier = Modifier
           .constrainAs(recordingTimeParsedText) {

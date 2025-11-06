@@ -23,6 +23,7 @@
  */
 package edu.gatech.ccg.recordthesehands
 
+import android.content.Context
 import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -161,4 +162,9 @@ fun hapticFeedbackOnTouchListener(view: View, event: MotionEvent): Boolean {
     }
   }
   return false // Allow other listeners to receive events.
+}
+
+fun thisDeviceIsATablet(context: Context): Boolean {
+  val configuration = context.resources.configuration
+  return configuration.smallestScreenWidthDp >= 600
 }
