@@ -170,6 +170,7 @@ def main():
       print(f'Randomly generated password is: {password!r}')
     login_token, login_hash = token_maker.make_token(username, password)
     output = {'loginToken': login_token}
+    print(json.dumps(output, indent=2))
     db = firestore.Client()
     doc_ref = db.document(f'collector/users/{username}/login_hash')
     doc_ref.set({'login_hash': login_hash})

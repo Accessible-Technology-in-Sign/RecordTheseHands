@@ -34,6 +34,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -461,7 +462,7 @@ fun HomeScreenContent(
     val (backButton, header, versionText, loadingText, sessionInformation, statusHeader, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText) = createRefs()
 
     // 1. Back Button (ImageButton)
-    val activity = (LocalContext.current as? Activity)
+    val activity = LocalActivity.current
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
       contentDescription = stringResource(id = R.string.back_button),

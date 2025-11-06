@@ -322,8 +322,9 @@ def home_page():
 def is_authenticated_page():
   """The homepage."""
   if flask_login.current_user.is_authenticated:
-    return "", 200
-  return "", 401
+    username = flask_login.current_user.id
+    return f'You are logged in as {username!r}', 200
+  return 'Authentication Failed', 401
 
 
 @app.route('/apk', methods=['GET'])
