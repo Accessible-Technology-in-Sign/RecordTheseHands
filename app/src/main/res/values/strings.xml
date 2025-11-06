@@ -37,9 +37,12 @@
     <!-- Status Information -->
     <string name="status_header">Status Information</string>
     <string name="internet_status">Checking for Internet Connection…</string>
-    <string name="internet_failed">Internet Unavailable</string>
+    <string name="internet_unavailable">Internet Unavailable</string>
     <string name="internet_success">Internet Connected</string>
     <string name="server_status">Checking for Server Connection…</string>
+    <string name="server_unavailable">Server Unavailable</string>
+    <string name="server_error">Error on Server Connection</string>
+    <string name="server_unauthorized">Server Connection Unauthorized</string>
     <string name="server_failed">Unable to Connect to Server</string>
     <string name="server_success">Server Connected</string>
     <!-- Statistics -->

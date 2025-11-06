@@ -216,7 +216,6 @@ class UploadSession(
 
     val urlConnection = url.openConnection() as HttpsURLConnection
     dataManager.setAppropriateTrust(urlConnection)
-
     var code: Int = -1
     var output: String? = null
     var interrupted = false
@@ -271,7 +270,7 @@ class UploadSession(
       Log.e(TAG, "Upload Failed: $e")
     } finally {
       if (!interrupted) {
-        dataManager.dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
+        dataManager.postServerStatusFromCode(code)
       }
       urlConnection.disconnect()
     }

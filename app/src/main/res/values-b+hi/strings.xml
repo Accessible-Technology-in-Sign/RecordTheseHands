@@ -34,7 +34,7 @@
     <!-- Status Information -->
     <string name="status_header">स्थिति जानकारी</string>
     <string name="internet_status">इंटरनेट कनेक्शन की जांच हो रही है…</string>
-    <string name="internet_failed">इंटरनेट उपलब्ध नहीं</string>
+    <string name="internet_unavailable">इंटरनेट उपलब्ध नहीं</string>
     <string name="internet_success">इंटरनेट कनेक्टेड</string>
     <string name="server_status">सर्वर कनेक्शन की जांच हो रही है…</string>
     <string name="server_failed">सर्वर से कनेक्ट नहीं हो सका</string>

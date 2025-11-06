@@ -34,7 +34,7 @@
     <!-- Status Information -->
     <string name="status_header">ステータス情報</string>
     <string name="internet_status">インターネット接続を確認中…</string>
-    <string name="internet_failed">インターネットが利用できません</string>
+    <string name="internet_unavailable">インターネットが利用できません</string>
     <string name="internet_success">インターネットに接続済み</string>
     <string name="server_status">サーバー接続を確認中…</string>
     <string name="server_failed">サーバーに接続できません</string>

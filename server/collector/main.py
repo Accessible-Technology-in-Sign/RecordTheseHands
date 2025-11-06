@@ -318,6 +318,14 @@ def home_page():
   )
 
 
+@app.route('/is_authenticated', methods=['GET', 'POST'])
+def is_authenticated_page():
+  """The homepage."""
+  if flask_login.current_user.is_authenticated:
+    return "", 200
+  return "", 401
+
+
 @app.route('/apk', methods=['GET'])
 def apk_page():
   """Download the latest apk by version number."""
@@ -386,7 +394,7 @@ def prompts_page():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
 
   assert username
 
@@ -426,7 +434,7 @@ def upload():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
   app_version = flask.request.values.get('app_version', 'unknown')
 
   assert username
@@ -509,7 +517,7 @@ def verify():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
 
   assert username
 
@@ -834,7 +842,7 @@ def save():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
 
   data_string = flask.request.values.get('data', '[]')
   app_version = flask.request.values.get('app_version', 'unknown')
@@ -900,7 +908,7 @@ def save_state():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
 
   logging.info(f'/save_state {username}')
 
@@ -929,7 +937,7 @@ def directives_page():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
 
   assert username
 
@@ -990,7 +998,7 @@ def directive_completed():
 
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
-    return 'login_token invalid', 400
+    return 'login_token invalid', 401
   if not directive_id:
     return 'no directive id provided', 400
   if not timestamp:

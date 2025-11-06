@@ -87,6 +87,7 @@ import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InterruptedUploadException
+import edu.gatech.ccg.recordthesehands.upload.ServerStatus
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import edu.gatech.ccg.recordthesehands.upload.UploadState
 import edu.gatech.ccg.recordthesehands.upload.UploadStatus
@@ -578,46 +579,41 @@ fun HomeScreenContent(
         },
       verticalAlignment = Alignment.CenterVertically
     ) {
-      val context = LocalContext.current
-      val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-      val network = connectivityManager.activeNetwork
-      val isNetworkConnected = network != null
+      val statusText: String
+      val statusColor: Int
 
-      val internetStatusText = if (isNetworkConnected) {
-        stringResource(id = R.string.internet_success)
-      } else {
-        stringResource(id = R.string.internet_failed)
+      when (serverStatus?.status ?: ServerStatus.UNKNOWN) {
+        ServerStatus.UNKNOWN -> {
+          statusText = stringResource(id = R.string.server_status)
+          statusColor = R.color.alert_yellow
+        }
+        ServerStatus.NO_INTERNET -> {
+          statusText = stringResource(id = R.string.internet_unavailable)
+          statusColor = R.color.alert_red
+        }
+        ServerStatus.NO_SERVER -> {
+          statusText = stringResource(id = R.string.server_unavailable)
+          statusColor = R.color.alert_red
+        }
+        ServerStatus.SERVER_ERROR -> {
+          statusText = stringResource(id = R.string.server_error)
+          statusColor = R.color.alert_red
+        }
+        ServerStatus.NO_LOGIN -> {
+          statusText = stringResource(id = R.string.server_unauthorized)
+          statusColor = R.color.alert_red
+        }
+        ServerStatus.ACTIVE -> {
+          statusText = stringResource(id = R.string.server_success)
+          statusColor = R.color.alert_green
+        }
       }
-      val internetStatusColor = if (isNetworkConnected) {
-        colorResource(id = R.color.alert_green)
-      } else {
-        colorResource(id = R.color.alert_red)
-      }
+
       Text(
-        text = internetStatusText,
-        color = internetStatusColor,
+        text = statusText,
+        color = colorResource(id = statusColor),
         fontStyle = FontStyle.Italic,
         fontSize = 20.sp,
-        modifier = Modifier.padding(end = 50.dp)
-      )
-
-      val serverStatusText = if (isNetworkConnected && serverStatus == true) {
-        stringResource(id = R.string.server_success)
-      } else {
-        stringResource(id = R.string.server_failed)
-      }
-      val serverStatusColor = if (isNetworkConnected && serverStatus == true) {
-        colorResource(id = R.color.alert_green)
-      } else {
-        colorResource(id = R.color.alert_red)
-      }
-      Text(
-        text = serverStatusText,
-        color = serverStatusColor,
-        fontStyle = FontStyle.Italic,
-        fontSize = 20.sp,
-        modifier = Modifier.padding(start = 50.dp)
       )
     }
 

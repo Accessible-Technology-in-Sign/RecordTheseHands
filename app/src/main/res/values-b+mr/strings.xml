@@ -32,7 +32,7 @@
     <!-- Status Information -->
     <string name="status_header">स्थिती माहिती</string>
     <string name="internet_status">इंटरनेट कनेक्शन तपासत आहे…</string>
-    <string name="internet_failed">इंटरनेट उपलब्ध नाही</string>
+    <string name="internet_unavailable">इंटरनेट उपलब्ध नाही</string>
     <string name="internet_success">इंटरनेट कनेक्ट झाले</string>
     <string name="server_status">सर्व्हर कनेक्शन तपासत आहे…</string>
     <string name="server_failed">सर्व्हरशी कनेक्ट होऊ शकत नाही</string>

@@ -25,6 +25,7 @@ import datetime
 import json
 import os
 import pathlib
+import secrets
 import sys
 
 from google.cloud import firestore
@@ -140,6 +141,7 @@ def main():
         '  operations:',
         '    noop',
         '    printDirectives',
+        '    setPassword [PASSWORD]',
         '    changeUser NEW_USERNAME NEW_PASSWORD',
         '    setPrompts PROMPT_FILE_PATH',
         '    setPromptsNoUpload PROMPT_FILE_PATH',
@@ -160,9 +162,25 @@ def main():
 
   elif sys.argv[2] == 'printDirectives':
     print_directives(sys.argv[1])
+  elif sys.argv[2] == 'setPassword':
+    if (len(sys.argv) >= 5):
+      password = sys.argv[4]
+    else:
+      password = secrets.token_hex(16)
+      print(f'Randomly generated password is: {password!r}')
+    login_token, login_hash = token_maker.make_token(username, password)
+    output = {'loginToken': login_token}
+    db = firestore.Client()
+    doc_ref = db.document(f'collector/users/{username}/login_hash')
+    doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'changeUser':
     new_username = sys.argv[3]
-    login_token, login_hash = token_maker.make_token(sys.argv[3], sys.argv[4])
+    if (len(sys.argv) >= 5):
+      password = sys.argv[4]
+    else:
+      password = secrets.token_hex(16)
+      print(f'Randomly generated password is: {password!r}')
+    login_token, login_hash = token_maker.make_token(new_username, password)
     output = {'loginToken': login_token}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
     db = firestore.Client()

@@ -39,8 +39,8 @@ object DataManagerData {
   // All UI visible State.
   var promptStateContainer: PromptState? = null
 
-  internal val _serverStatus = MutableLiveData<Boolean>()
-  val serverStatus: LiveData<Boolean> get() = _serverStatus
+  internal val _serverStatus = MutableLiveData<ServerState>()
+  val serverStatus: LiveData<ServerState> get() = _serverStatus
 
   internal val _promptState = MutableLiveData<PromptState>()
   val promptState: LiveData<PromptState> get() = _promptState

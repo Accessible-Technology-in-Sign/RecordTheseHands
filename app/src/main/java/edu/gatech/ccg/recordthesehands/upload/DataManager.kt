@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.upload
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.net.ConnectivityManager
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -167,7 +168,7 @@ class DataManager private constructor(val context: Context) {
   val dataManagerData = DataManagerData
 
   // Public getters for LiveData now point to the singleton instance.
-  val serverStatus: LiveData<Boolean> get() = dataManagerData.serverStatus
+  val serverStatus: LiveData<ServerState> get() = dataManagerData.serverStatus
   val promptState: LiveData<PromptState> get() = dataManagerData.promptState
   val uploadState: LiveData<UploadState> get() = dataManagerData.uploadState
 
@@ -401,7 +402,12 @@ class DataManager private constructor(val context: Context) {
    * @param data A map of key-value pairs to be form-encoded and sent as the request body.
    * @return A `Pair` containing the HTTP response code and the response body as a `String`.
    */
-  fun serverFormPostRequest(url: URL, data: Map<String, String>): Pair<Int, String?> {
+  fun serverFormPostRequest(
+    url: URL,
+    data: Map<String, String>,
+    connectTimeout: Int? = null,
+    readTimeout: Int? = null,
+  ): Pair<Int, String?> {
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
     }.joinToString("&").toByteArray(Charsets.UTF_8)
@@ -410,7 +416,9 @@ class DataManager private constructor(val context: Context) {
       "POST",
       mapOf("Content-Type" to "application/x-www-form-urlencoded"),
       formData,
-      null
+      null,
+      connectTimeout = connectTimeout,
+      readTimeout = readTimeout,
     )
     return Pair(code, output)
   }
@@ -435,6 +443,17 @@ class DataManager private constructor(val context: Context) {
     data: Map<String, String>,
     fileOutputStream: FileOutputStream
   ): Boolean {
+    val connectivityManager =
+      context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork
+    if (network == null) {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.NO_INTERNET,
+        )
+      )
+      return false
+    }
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
     }.joinToString("&").toByteArray(Charsets.UTF_8)
@@ -470,7 +489,7 @@ class DataManager private constructor(val context: Context) {
       return false
     } finally {
       if (!interrupted) {
-        dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
+        postServerStatusFromCode(code)
       }
       urlConnection.disconnect()
     }
@@ -499,8 +518,22 @@ class DataManager private constructor(val context: Context) {
    */
   fun serverRequest(
     url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
-    outputHeader: String?
+    outputHeader: String?,
+    connectTimeout: Int? = null,
+    readTimeout: Int? = null,
   ): Triple<Int, String?, String?> {
+    val connectivityManager =
+      context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork
+    if (network == null) {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.NO_INTERNET,
+        )
+      )
+      return Triple(-1, null, null)
+    }
+
     var outputFromHeader: String? = null
     val urlConnection = url.openConnection() as HttpsURLConnection
     setAppropriateTrust(urlConnection)
@@ -512,6 +545,12 @@ class DataManager private constructor(val context: Context) {
       urlConnection.setDoOutput(true)
       urlConnection.setFixedLengthStreamingMode(data.size)
       urlConnection.requestMethod = requestMethod
+      connectTimeout?.let {
+        urlConnection.connectTimeout = it
+      }
+      readTimeout?.let {
+        urlConnection.readTimeout = it
+      }
       headers.forEach {
         urlConnection.setRequestProperty(it.key, it.value)
       }
@@ -529,8 +568,7 @@ class DataManager private constructor(val context: Context) {
       getDataStream(urlConnection).use { inputStream ->
         output = inputStream.readBytes().toString(Charsets.UTF_8)
       }
-
-      if (urlConnection.responseCode >= 400) {
+      if (code >= 400) {
         Log.e(TAG, "Response code: $code " + output)
       }
     } catch (e: InterruptedUploadException) {
@@ -540,7 +578,7 @@ class DataManager private constructor(val context: Context) {
       Log.e(TAG, "Post request failed: $e")
     } finally {
       if (!interrupted) {
-        dataManagerData._serverStatus.postValue(code >= 200 && code < 400)
+        postServerStatusFromCode(code)
       }
       urlConnection.disconnect()
     }
@@ -2236,6 +2274,34 @@ class DataManager private constructor(val context: Context) {
     dataManagerData._promptState.postValue(newState)
   }
 
+  fun postServerStatusFromCode(code: Int) {
+    if (code >= 200 && code < 400) {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.ACTIVE,
+        )
+      )
+    } else if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.NO_LOGIN,
+        )
+      )
+    } else if (code < 0) {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.NO_SERVER,
+        )
+      )
+    } else {
+      dataManagerData._serverStatus.postValue(
+        ServerState(
+          status = ServerStatus.SERVER_ERROR,
+        )
+      )
+    }
+  }
+
   /**
    * Pings the server to check for connectivity.
    *
@@ -2246,27 +2312,21 @@ class DataManager private constructor(val context: Context) {
    * This function does not acquire the data lock, but it performs a network request and
    * will block for the duration of the timeout (or until a connection is established/fails).
    *
-   * @return `true` if the server is reachable (responds with HTTP 200 OK), `false` otherwise.
+   * @return `true` if the server is active, `false` otherwise.
    */
   private fun pingServer(): Boolean {
-    try {
-      // TODO Maybe ensure that the loginToken works.
-      // We could have one status message: Internet Unreachable, Server Unreachable,
-      // Unable to Login to Server, and Connected to Server.
-      val url = URL(getServer())
-      val urlConnection = url.openConnection() as HttpsURLConnection
-      setAppropriateTrust(urlConnection)
-      urlConnection.requestMethod = "GET"
-      urlConnection.connectTimeout = 5000
-      urlConnection.readTimeout = 5000
-      val responseCode = urlConnection.responseCode
-      val success = responseCode == HttpURLConnection.HTTP_OK
-      dataManagerData._serverStatus.postValue(success)
-      return success
-    } catch (e: Exception) {
-      Log.d(TAG, e.toString())
-      dataManagerData._serverStatus.postValue(false)
-      return false
-    }
+    val url = URL(getServer() + "/is_authenticated")
+    Log.d(TAG, "Pinging server for login state: $url")
+    val (code, _) =
+      serverFormPostRequest(
+        url,
+        mapOf(
+          "app_version" to APP_VERSION,
+          "login_token" to (dataManagerData.loginToken ?: "")
+        ),
+        connectTimeout = 5000,
+        readTimeout = 5000
+      )
+    return code >= 200 && code < 400
   }
 }
