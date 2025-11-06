@@ -56,7 +56,7 @@ fun CountdownCircle(
         detectTapGestures(
           onTap = {
             clickCount++
-            if (clickCount >= 5) {
+            if (clickCount >= 3) {
               onFinished()
             }
           }
