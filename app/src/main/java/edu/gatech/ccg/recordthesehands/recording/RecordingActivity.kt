@@ -150,8 +150,10 @@ import org.json.JSONObject
 import java.io.File
 import java.lang.Integer.min
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
@@ -304,8 +306,8 @@ class RecordingActivity : FragmentActivity() {
 
   private val viewModel: RecordingViewModel by viewModels()
 
-  private val isConcluding = java.util.concurrent.atomic.AtomicBoolean(false)
-  private val concludeLatch = java.util.concurrent.CountDownLatch(1)
+  private val isConcluding = AtomicBoolean(false)
+  private val concludeLatch = CountDownLatch(1)
 
   /**
    * Marks whether the user is using a tablet (diagonal screen size > 7.0 inches (~17.78 cm)).
