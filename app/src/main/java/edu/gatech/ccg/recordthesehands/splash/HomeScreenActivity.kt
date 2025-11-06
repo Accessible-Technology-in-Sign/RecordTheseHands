@@ -27,10 +27,8 @@ import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -587,22 +585,27 @@ fun HomeScreenContent(
           statusText = stringResource(id = R.string.server_status)
           statusColor = R.color.alert_yellow
         }
+
         ServerStatus.NO_INTERNET -> {
           statusText = stringResource(id = R.string.internet_unavailable)
           statusColor = R.color.alert_red
         }
+
         ServerStatus.NO_SERVER -> {
           statusText = stringResource(id = R.string.server_unavailable)
           statusColor = R.color.alert_red
         }
+
         ServerStatus.SERVER_ERROR -> {
           statusText = stringResource(id = R.string.server_error)
           statusColor = R.color.alert_red
         }
+
         ServerStatus.NO_LOGIN -> {
           statusText = stringResource(id = R.string.server_unauthorized)
           statusColor = R.color.alert_red
         }
+
         ServerStatus.ACTIVE -> {
           statusText = stringResource(id = R.string.server_success)
           statusColor = R.color.alert_green

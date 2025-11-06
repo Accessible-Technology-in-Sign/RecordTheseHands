@@ -219,7 +219,7 @@ class DataManager private constructor(val context: Context) {
     val tutorialMode = getTutorialModeFromPrefStore()
     val promptsCollection = getPromptsCollectionFromDisk()
     val promptProgress = getPromptProgressFromPrefStore()
-    val currentSectionName = getCurrentSectionNameFromPrefStore()
+    var currentSectionName = getCurrentSectionNameFromPrefStore()
     val username = getUsernameUnderLock()
 
     // Special handling for first-time device ID initialization.
@@ -230,6 +230,11 @@ class DataManager private constructor(val context: Context) {
       context.prefStore.edit { preferences ->
         preferences[deviceIdKey] = deviceId
       }
+    }
+
+    if (currentSectionName == null && promptsCollection != null && promptsCollection.sections.isNotEmpty()) {
+      currentSectionName = promptsCollection.sections.values.first().name
+      setCurrentSectionPrefStoreUnderLock(currentSectionName)
     }
 
     val initialState = PromptState(
@@ -817,6 +822,10 @@ class DataManager private constructor(val context: Context) {
     val currentState = dataManagerData.promptStateContainer
       ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
     updatePromptStateAndPost(currentState.copy(currentSectionName = sectionName))
+    setCurrentSectionPrefStoreUnderLock(sectionName)
+  }
+
+  private suspend fun setCurrentSectionPrefStoreUnderLock(sectionName: String) {
     val keyObject = stringPreferencesKey("currentSectionName")
     context.prefStore.edit {
       it[keyObject] = sectionName
