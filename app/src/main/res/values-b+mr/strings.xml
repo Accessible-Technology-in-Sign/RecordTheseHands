@@ -8,7 +8,7 @@
     <string name="username_label">वापरकर्तानाव:</string>
     <string name="username_label_with_current">वापरकर्तानाव (%1$s):</string>
     <string name="username_input">वापरकर्तानाव टाका</string>
-    <string name="password_label">पासवर्ड:&#160;</string>
+    <string name="password_label">पासवर्ड:</string>
     <string name="password_input">पासवर्ड टाका</string>
     <string name="login_button">लॉग इन</string>
     <string name="signup_button">खाते तयार करा</string>
@@ -39,10 +39,10 @@
     <string name="server_success">सर्व्हरशी कनेक्ट झाले</string>
     <!-- Statistics -->
     <string name="statistics_header">सांख्यिकी माहिती</string>
-    <string name="prompts_completed">पूर्ण केलेले संकेत:&#160;</string>
-    <string name="total_recordings">एकूण रेकॉर्डिंग्स:&#160;</string>
-    <string name="total_time">एकूण वेळ खर्च:&#160;</string>
-    <string name="total_sessions">या सत्रात पूर्ण केलेले सत्र:&#160;</string>
+    <string name="prompts_completed">पूर्ण केलेले संकेत:</string>
+    <string name="total_recordings">एकूण रेकॉर्डिंग्स:</string>
+    <string name="total_time">एकूण वेळ खर्च:</string>
+    <string name="total_sessions">या सत्रात पूर्ण केलेले सत्र:</string>
     <string name="total_uploaded">एकूण अपलोड</string>
     <string name="ratio">%1$s पैकी %2$s</string>
     <string name="counter">0</string>

@@ -458,7 +458,7 @@ fun HomeScreenContent(
       .background(colorResource(id = R.color.white))
   ) {
     val (backButton, header, versionText, loadingText, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
-    val guideline = createGuidelineFromStart(0.5f)
+    val centerGuideline = createGuidelineFromStart(0.5f)
 
     // 1. Back Button (ImageButton)
     val activity = LocalActivity.current
@@ -530,7 +530,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(deviceIdLabelText) {
           top.linkTo(header.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
     Text(
@@ -540,7 +540,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(deviceIdText) {
           top.linkTo(header.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
     )
 
@@ -551,7 +551,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(usernameLabelText) {
           top.linkTo(deviceIdLabelText.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
     Text(
@@ -561,7 +561,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(usernameText) {
           top.linkTo(deviceIdLabelText.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
     )
 
@@ -637,7 +637,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(promptsProgressText) {
           top.linkTo(statisticsHeader.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
 
@@ -649,7 +649,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(sectionNameText) {
           top.linkTo(statisticsHeader.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
         .padding(end = 4.dp)
     )
@@ -686,7 +686,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(totalProgressText) {
           top.linkTo(promptsProgressText.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
     // Total Progress Count Text
@@ -696,7 +696,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(totalProgressCountText) {
           top.linkTo(promptsProgressText.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
     )
 
@@ -708,7 +708,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(recordingsProgressText) {
           top.linkTo(totalProgressText.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
 
@@ -719,7 +719,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(recordingCountText) {
           top.linkTo(totalProgressText.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
     )
 
@@ -731,7 +731,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(recordingTimeText) {
           top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
-          end.linkTo(guideline)
+          end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
 
@@ -742,7 +742,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(recordingTimeParsedText) {
           top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
-          start.linkTo(guideline)
+          start.linkTo(centerGuideline)
         }
     )
 
@@ -832,7 +832,7 @@ fun HomeScreenContent(
           fontSize = 18.sp,
           color = colorResource(id = R.color.blue),
           fontWeight = FontWeight.Bold,
-          modifier = Modifier.padding(start = 20.dp, end = 8.dp)
+          modifier = Modifier.padding(start = 20.dp, end = 12.dp)
         )
         LinearProgressIndicator(
           progress = uploadState?.progress?.toFloat()?.div(100f) ?: 0f,

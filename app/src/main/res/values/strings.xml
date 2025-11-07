@@ -10,7 +10,7 @@
     <string name="id_label">Device ID:</string>
     <string name="username_label">Username:</string>
     <string name="username_input">Enter Username</string>
-    <string name="password_label">Password:&#160;</string>
+    <string name="password_label">Password:</string>
     <string name="password_input">Enter Password</string>
     <string name="login_button">Log In</string>
     <string name="signup_button">Create an Account</string>
@@ -47,12 +47,12 @@
     <string name="server_success">Server Connected</string>
     <!-- Statistics -->
     <string name="statistics_header">Statistics</string>
-    <string name="prompts_completed">Section Progress:&#160;</string>
-    <string name="total_progress">Total Progress:&#160;</string>
-    <string name="sections_completed">Sections:&#160;</string>
-    <string name="total_recordings">Total Recordings:&#160;</string>
-    <string name="total_time">Total Time Spent:&#160;</string>
-    <string name="total_sessions">Session Completed This Sitting:&#160;</string>
+    <string name="prompts_completed">Section Progress:</string>
+    <string name="total_progress">Total Progress:</string>
+    <string name="sections_completed">Sections:</string>
+    <string name="total_recordings">Total Recordings:</string>
+    <string name="total_time">Total Time Spent:</string>
+    <string name="total_sessions">Session Completed This Sitting:</string>
     <string name="total_uploaded">Total Uploads</string>
     <string name="ratio">%1$s of %2$s</string>
     <string name="counter">0</string>
@@ -65,7 +65,7 @@
     <string name="no">No</string>
     <string name="yes">Yes</string>
     <!-- Upload Button Messages -->
-    <string name="upload_progress">Upload Progress:&#160;</string>
+    <string name="upload_progress">Upload Progress:</string>
     <string name="upload_button">Upload Now</string>
     <string name="upload_failed_try_again">Upload Failed, Try Again</string>
     <string name="upload_successful">Uploading…</string>
