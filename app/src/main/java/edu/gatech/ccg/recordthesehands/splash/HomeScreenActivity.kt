@@ -409,7 +409,15 @@ fun HomeScreenContent(
           showUploadStatus = true
         }
 
-        else -> {
+        UploadStatus.INTERRUPTED -> {
+          uploadStatusMessage = context.getString(R.string.upload_interrupted)
+          showUploadStatus = true
+          delay(10000) // Keep visible for 10 seconds
+          showUploadStatus = false
+        }
+
+        UploadStatus.IDLE -> {
+          uploadStatusMessage = null
           showUploadStatus = false
         }
       }

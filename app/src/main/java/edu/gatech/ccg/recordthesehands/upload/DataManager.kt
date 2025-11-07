@@ -1311,6 +1311,7 @@ class DataManager private constructor(val context: Context) {
     var returnValue = false
     val notificationManager =
       context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    var interrupted = false
     try {
       if (!hasServer()) {
         Log.i(TAG, "Backend Server not specified.")
@@ -1438,16 +1439,29 @@ class DataManager private constructor(val context: Context) {
         }
         return@withLock true
       }
-    } finally {
+    } catch (e: InterruptedUploadException) {
+      Log.i(TAG, "Upload was interrupted.")
+      interrupted = true
       dataManagerData._uploadState.postValue(
         UploadState(
-          status = if (returnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
-          progress = 100
+          status = UploadStatus.INTERRUPTED,
+          progress = dataManagerData._uploadState.value?.progress ?: 0
         )
       )
+    } finally {
+      if (!interrupted) {
+        dataManagerData._uploadState.postValue(
+          UploadState(
+            status = if (returnValue) UploadStatus.SUCCESS else UploadStatus.FAILED,
+            progress = if (returnValue) 100 else (dataManagerData._uploadState.value?.progress ?: 0)
+          )
+        )
+      }
       notificationManager.notify(
         UPLOAD_NOTIFICATION_ID,
-        if (returnValue) {
+        if (interrupted) {
+          createNotification("Upload Interrupted", "Upload Interrupted, retrying later.")
+        } else if (returnValue) {
           createNotification("Upload Complete", "Upload completed successfully.")
         } else {
           createNotification("Upload Failed", "Upload Failed, retrying later.")
