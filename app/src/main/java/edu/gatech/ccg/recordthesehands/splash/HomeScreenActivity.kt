@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -504,9 +505,9 @@ fun HomeScreenContent(
           end.linkTo(parent.end, margin = 32.dp)
           top.linkTo(backButton.bottom, margin = 6.dp)
         }
-        .clickable {
+        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
           numTitleClicks++
-          if (numTitleClicks == 5) {
+          if (numTitleClicks == 3) {
             numTitleClicks = 0
             val intent = Intent(context, LoadDataActivity::class.java)
             context.startActivity(intent)
