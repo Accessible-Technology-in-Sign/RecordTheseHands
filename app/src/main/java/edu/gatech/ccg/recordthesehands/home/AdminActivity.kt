@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.Text
@@ -52,6 +53,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -226,6 +228,7 @@ fun AdminScreenContent(
             value = adminPassword,
             onValueChange = { adminPassword = it },
             visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.weight(1f)
           )
         }
@@ -238,13 +241,12 @@ fun AdminScreenContent(
           onAttachToAccount(newUsername, adminPassword) { result ->
             isAttaching = false
             if (result) {
-              dialogTitle = "Success"
-              dialogMessage = "Created account for \"$newUsername\" and stored credentials."
+              onBackClick()
             } else {
               dialogTitle = "Failed"
               dialogMessage = "Failed to Create account for \"$newUsername\"."
+              showResultDialog = true
             }
-            showResultDialog = true
           }
         },
         enabled = !isAttaching,
@@ -267,9 +269,6 @@ fun AdminScreenContent(
         confirmButton = {
           Button(onClick = {
             showResultDialog = false
-            if (dialogTitle == "Success") {
-              onBackClick()
-            }
           }) {
             Text("OK")
           }
