@@ -27,6 +27,7 @@ import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -190,6 +191,13 @@ class HomeScreenActivity : ComponentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    val isTablet = thisDeviceIsATablet(applicationContext)
+    if (isTablet) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+    } else {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
 
     windowInsetsController =
       WindowCompat.getInsetsController(window, window.decorView).also {
@@ -467,17 +475,28 @@ fun HomeScreenContent(
         .clickable { activity?.finish() }
     )
 
+    // Version Text (TextView)
+    Text(
+      text = stringResource(id = R.string.version_text, Constants.APP_VERSION),
+      fontSize = 20.sp,
+      color = colorResource(id = R.color.dark_gray),
+      modifier = Modifier.constrainAs(versionText) {
+        top.linkTo(backButton.top)
+        end.linkTo(parent.end, margin = 24.dp)
+      }
+    )
+
     // 2. Header (TextView)
     val context = LocalContext.current
     Text(
       text = stringResource(id = R.string.app_name),
-      fontSize = 50.sp,
+      fontSize = if (isTablet) 50.sp else 30.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier
         .constrainAs(header) {
           start.linkTo(parent.start, margin = 32.dp)
-          end.linkTo(parent.end)
-          top.linkTo(parent.top, margin = 24.dp)
+          end.linkTo(parent.end, margin = 32.dp)
+          top.linkTo(backButton.bottom, margin = 6.dp)
         }
         .clickable {
           numTitleClicks++
@@ -487,17 +506,6 @@ fun HomeScreenContent(
             context.startActivity(intent)
           }
         }
-    )
-
-    // 3. Version Text (TextView)
-    Text(
-      text = stringResource(id = R.string.version_text, Constants.APP_VERSION),
-      fontSize = 20.sp,
-      color = colorResource(id = R.color.dark_gray),
-      modifier = Modifier.constrainAs(versionText) {
-        top.linkTo(header.top)
-        end.linkTo(parent.end, margin = 24.dp)
-      }
     )
 
     // 4. Loading Text (TextView)
@@ -512,6 +520,7 @@ fun HomeScreenContent(
             top.linkTo(header.bottom, margin = 32.dp)
           }
       )
+      return@ConstraintLayout
     }
 
     // 6. Session Information (LinearLayout)
@@ -522,7 +531,7 @@ fun HomeScreenContent(
           end.linkTo(parent.end)
           top.linkTo(header.bottom)
         }
-        .fillMaxWidth(),
+        .fillMaxWidth().padding(top = 10.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Row(
@@ -538,13 +547,16 @@ fun HomeScreenContent(
           text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
           fontStyle = FontStyle.Italic,
           fontSize = 18.sp,
-          modifier = Modifier.padding(end = 20.dp)
         )
+      }
+      Row(
+        verticalAlignment = Alignment.CenterVertically
+      ) {
         Text(
           text = stringResource(id = R.string.username_label),
           fontWeight = FontWeight.Bold,
           fontSize = 18.sp,
-          modifier = Modifier.padding(start = 20.dp, end = 6.dp)
+          modifier = Modifier.padding(end = 6.dp)
         )
         Text(
           text = promptState?.username ?: stringResource(id = R.string.username_error),
@@ -594,6 +606,7 @@ fun HomeScreenContent(
         color = colorResource(id = statusColor),
         fontStyle = FontStyle.Italic,
         fontSize = 20.sp,
+        modifier = Modifier.padding(top = 6.dp)
       )
     }
 
@@ -620,7 +633,10 @@ fun HomeScreenContent(
         }
     ) {
       val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
-      val guideline = createGuidelineFromStart(0.5f)
+      // TODO Instead of moving this over, left justify it, have a barrier and then have the other sections.  Possibly pull out the section names and run them at full width.
+      // TODO actually, better would probably be to just have another main section called "Prompt Categories".  Make the text of the section names more visible too.  That layout should work for both tablet and phone.
+      // TODO fix the buttons as well.
+      val guideline = createGuidelineFromStart(if (isTablet) 0.5f else .40f)
 
       // Prompts Progress Text
       Text(

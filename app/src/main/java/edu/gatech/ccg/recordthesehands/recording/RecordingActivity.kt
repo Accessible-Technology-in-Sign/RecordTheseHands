@@ -128,6 +128,7 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.sendEmail
+import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.toConsistentString
 import edu.gatech.ccg.recordthesehands.ui.components.AlertButton
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
@@ -310,7 +311,7 @@ class RecordingActivity : FragmentActivity() {
   private val concludeLatch = CountDownLatch(1)
 
   /**
-   * Marks whether the user is using a tablet (diagonal screen size > 7.0 inches (~17.78 cm)).
+   * Marks whether the user is using a tablet.
    */
   private var isTablet = false
 
@@ -768,7 +769,14 @@ class RecordingActivity : FragmentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+
+    isTablet = thisDeviceIsATablet(applicationContext)
+    if (isTablet) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+    } else {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
+
     UploadPauseManager.pauseUploadTimeout(COUNTDOWN_DURATION + UPLOAD_RESUME_ON_IDLE_TIMEOUT)
 
     // Initialize camera variables.
@@ -1163,15 +1171,6 @@ class RecordingActivity : FragmentActivity() {
       }
 
     dataManager = DataManager.getInstance(applicationContext)
-
-    // Calculate the display size to determine whether to use mobile or tablet layout.
-    val displayMetrics = resources.displayMetrics
-    val heightInches = displayMetrics.heightPixels / displayMetrics.ydpi
-    val widthInches = displayMetrics.widthPixels / displayMetrics.xdpi
-    val diagonal = sqrt((heightInches * heightInches) + (widthInches * widthInches))
-    Log.i(TAG, "Computed screen size: $diagonal inches")
-
-    isTablet = diagonal > TABLET_SIZE_THRESHOLD_INCHES
 
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
