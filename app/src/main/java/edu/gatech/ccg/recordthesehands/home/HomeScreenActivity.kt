@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package edu.gatech.ccg.recordthesehands.splash
+package edu.gatech.ccg.recordthesehands.home
 
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.POST_NOTIFICATIONS
@@ -509,7 +509,7 @@ fun HomeScreenContent(
           numTitleClicks++
           if (numTitleClicks == 3) {
             numTitleClicks = 0
-            val intent = Intent(context, LoadDataActivity::class.java)
+            val intent = Intent(context, AdminActivity::class.java)
             context.startActivity(intent)
           }
         }

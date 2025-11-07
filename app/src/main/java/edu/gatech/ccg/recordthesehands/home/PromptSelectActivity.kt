@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package edu.gatech.ccg.recordthesehands.splash
+package edu.gatech.ccg.recordthesehands.home
 
 import android.os.Bundle
 import android.util.Log

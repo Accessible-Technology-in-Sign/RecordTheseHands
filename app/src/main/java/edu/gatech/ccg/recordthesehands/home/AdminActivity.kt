@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package edu.gatech.ccg.recordthesehands.splash
+package edu.gatech.ccg.recordthesehands.home
 
 import android.content.Context
 import android.content.Intent
@@ -42,9 +42,9 @@ import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class LoadDataActivity : AppCompatActivity() {
+class AdminActivity : AppCompatActivity() {
   companion object {
-    private val TAG = LoadDataActivity::class.simpleName
+    private val TAG = AdminActivity::class.simpleName
   }
 
   lateinit var dataManager: DataManager
@@ -114,7 +114,7 @@ class LoadDataActivity : AppCompatActivity() {
           finish()
         }
         runOnUiThread {
-          AlertDialog.Builder(this@LoadDataActivity).apply {
+          AlertDialog.Builder(this@AdminActivity).apply {
             if (result) {
               setTitle("Success")
               setMessage("Created account for \"$username\" and stored credentials.")
