@@ -465,7 +465,7 @@ fun HomeScreenContent(
       .fillMaxSize()
       .background(colorResource(id = R.color.white))
   ) {
-    val (backButton, header, versionText, loadingText, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
+    val (backButton, header, versionText, loadingText, statisticsHeader, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
     val centerGuideline = createGuidelineFromStart(0.5f)
 
     // 1. Back Button (ImageButton)
@@ -635,7 +635,7 @@ fun HomeScreenContent(
     )
 
     // 10. Statistics Information (ConstraintLayout)
-    val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText) = createRefs()
+    val (sectionProgressLabelText, sectionProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText) = createRefs()
 
     // Prompts Progress Text
     Text(
@@ -643,47 +643,44 @@ fun HomeScreenContent(
       fontWeight = FontWeight.Bold,
       fontSize = 18.sp,
       modifier = Modifier
-        .constrainAs(promptsProgressText) {
-          top.linkTo(statisticsHeader.bottom, margin = 15.dp)
+        .constrainAs(sectionProgressLabelText) {
+          top.linkTo(sectionProgressText.top)
+          bottom.linkTo(sectionProgressText.bottom)
           end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
 
-    // Section Name Text
-    Text(
-      text = promptState?.currentSectionName ?: "",
-      fontSize = 18.sp,
-      softWrap = true,
+    FlowRow(
       modifier = Modifier
-        .constrainAs(sectionNameText) {
+        .constrainAs(sectionProgressText) {
           top.linkTo(statisticsHeader.bottom, margin = 15.dp)
           start.linkTo(centerGuideline)
-        }
-        .padding(end = 4.dp)
-    )
+          end.linkTo(parent.end, margin = 4.dp)
+          width = Dimension.fillToConstraints
+        },
+      horizontalArrangement = Arrangement.spacedBy(6.dp, alignment = Alignment.Start),
+      verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+      // Section Name Text
+      Text(
+        text = promptState?.currentSectionName ?: "",
+        fontSize = 18.sp,
+      )
 
-    if (promptState?.tutorialMode == true) {
-      Text(
-        text = stringResource(id = R.string.tutorial_mode),
-        color = colorResource(id = R.color.blue),
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier
-          .constrainAs(tutorialProgressText) {
-            top.linkTo(statisticsHeader.bottom, margin = 15.dp)
-            start.linkTo(sectionNameText.end)
-          }
-      )
-    } else {
-      Text(
-        text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(completedAndTotalPromptsText) {
-            top.linkTo(statisticsHeader.bottom, margin = 15.dp)
-            start.linkTo(sectionNameText.end)
-          }
-      )
+      if (promptState?.tutorialMode == true) {
+        Text(
+          text = stringResource(id = R.string.tutorial_mode),
+          color = colorResource(id = R.color.blue),
+          fontSize = 18.sp,
+          fontWeight = FontWeight.Bold,
+        )
+      } else {
+        Text(
+          // TODO replace with stringResource.
+          text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
+          fontSize = 18.sp,
+        )
+      }
     }
 
     // Total Progress Text
@@ -693,17 +690,18 @@ fun HomeScreenContent(
       fontSize = 18.sp,
       modifier = Modifier
         .constrainAs(totalProgressText) {
-          top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+          top.linkTo(sectionProgressText.bottom, margin = 15.dp)
           end.linkTo(centerGuideline, margin = 4.dp)
         }
     )
     // Total Progress Count Text
     Text(
-      text = "${totalCompleted ?: 0}/${totalPrompts ?: 0}",
+      // TODO replace with stringResource.
+      text = "${totalCompleted}/${totalPrompts}",
       fontSize = 18.sp,
       modifier = Modifier
         .constrainAs(totalProgressCountText) {
-          top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+          top.linkTo(sectionProgressText.bottom, margin = 15.dp)
           start.linkTo(centerGuideline)
         }
     )
@@ -722,7 +720,7 @@ fun HomeScreenContent(
 
     // Recording Count Text
     Text(
-      text = lifetimeRecordingCount.toString() ?: stringResource(id = R.string.counter),
+      text = lifetimeRecordingCount.toString(),
       fontSize = 18.sp,
       modifier = Modifier
         .constrainAs(recordingCountText) {
