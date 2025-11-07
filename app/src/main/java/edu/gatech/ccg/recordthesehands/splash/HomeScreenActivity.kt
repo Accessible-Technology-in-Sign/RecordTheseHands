@@ -754,7 +754,7 @@ fun HomeScreenContent(
 
     // Sections Completed Text
     Text(
-      text = stringResource(id = R.string.sections_completed),
+      text = stringResource(id = R.string.sections_header),
       fontWeight = FontWeight.Bold,
       fontSize = if (isTablet) 32.sp else 26.sp,
       modifier = Modifier

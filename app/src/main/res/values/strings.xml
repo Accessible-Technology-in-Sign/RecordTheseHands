@@ -49,7 +49,7 @@
     <string name="statistics_header">Statistics</string>
     <string name="prompts_completed">Section Progress:</string>
     <string name="total_progress">Total Progress:</string>
-    <string name="sections_completed">Sections:</string>
+    <string name="sections_header">Sections</string>
     <string name="total_recordings">Total Recordings:</string>
     <string name="total_time">Total Time Spent:</string>
     <string name="total_sessions">Session Completed This Sitting:</string>
