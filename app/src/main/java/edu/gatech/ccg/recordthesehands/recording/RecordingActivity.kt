@@ -1064,10 +1064,14 @@ class RecordingActivity : FragmentActivity() {
             enabled = skipButtonEnabled,
             modifier = Modifier
               .constrainAs(skipButton) {
-                top.linkTo(backButton.bottom)
-                start.linkTo(parent.start)
+                if (isTablet) {
+                  top.linkTo(backButton.bottom, margin = 20.dp)
+                  start.linkTo(parent.start, margin = 16.dp)
+                } else {
+                  top.linkTo(backButton.top)
+                  start.linkTo(backButton.end, margin = 16.dp)
+                }
               }
-              .padding(top = 20.dp, start = 16.dp)
           )
         }
         RecordingLight(

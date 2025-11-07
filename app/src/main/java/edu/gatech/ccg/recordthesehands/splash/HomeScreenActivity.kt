@@ -857,7 +857,7 @@ fun HomeScreenContent(
       modifier = Modifier
         .constrainAs(uploadButton) {
           start.linkTo(parent.start, margin = 16.dp)
-          bottom.linkTo(switchPromptsButton.top, margin = 24.dp)
+          bottom.linkTo(startButton.top, margin = 24.dp)
         },
       enabled = uploadState?.status != UploadStatus.UPLOADING,
       text = uploadButtonText
@@ -905,16 +905,18 @@ fun HomeScreenContent(
       text = startButtonText
     )
 
-    // 14. Switch Prompts Button (AppCompatButton)
-    SecondaryButton(
-      onClick = { onSwitchPromptsClick() },
-      modifier = Modifier
-        .constrainAs(switchPromptsButton) {
-          start.linkTo(parent.start, margin = 16.dp)
-          bottom.linkTo(parent.bottom, margin = 24.dp)
-        },
-      text = stringResource(id = R.string.switch_prompts)
-    )
+    if (!startRecordingShouldSwitchPrompts) {
+      // 14. Switch Prompts Button (AppCompatButton)
+      SecondaryButton(
+        onClick = { onSwitchPromptsClick() },
+        modifier = Modifier
+          .constrainAs(switchPromptsButton) {
+            start.linkTo(parent.start, margin = 16.dp)
+            bottom.linkTo(parent.bottom, margin = 24.dp)
+          },
+        text = stringResource(id = R.string.switch_prompts)
+      )
+    }
 
   }
 }
