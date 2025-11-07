@@ -93,9 +93,12 @@ class AdminActivity : ComponentActivity() {
             dataManager.setDeviceId(newDeviceId)
           }
         },
-        onAttachToAccount = { username, password ->
+        onAttachToAccount = { username, password, onResult ->
           lifecycleScope.launch(Dispatchers.IO) {
-            dataManager.attachToAccount(username, password)
+            val result = dataManager.attachToAccount(username, password)
+            runOnUiThread {
+              onResult(result)
+            }
           }
         },
         onDownloadApk = {
@@ -125,7 +128,7 @@ fun AdminScreenContent(
   dataManager: DataManager,
   onBackClick: () -> Unit,
   onSetDeviceId: (String) -> Unit,
-  onAttachToAccount: (String, String) -> Unit,
+  onAttachToAccount: (String, String, (Boolean) -> Unit) -> Unit,
   onDownloadApk: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
@@ -232,7 +235,17 @@ fun AdminScreenContent(
         onClick = {
           isAttaching = true
           focusManager.clearFocus()
-          onAttachToAccount(newUsername, adminPassword)
+          onAttachToAccount(newUsername, adminPassword) { result ->
+            isAttaching = false
+            if (result) {
+              dialogTitle = "Success"
+              dialogMessage = "Created account for \"$newUsername\" and stored credentials."
+            } else {
+              dialogTitle = "Failed"
+              dialogMessage = "Failed to Create account for \"$newUsername\"."
+            }
+            showResultDialog = true
+          }
         },
         enabled = !isAttaching,
         modifier = Modifier.padding(top = 8.dp),
@@ -252,7 +265,12 @@ fun AdminScreenContent(
         title = { Text(dialogTitle) },
         text = { Text(dialogMessage) },
         confirmButton = {
-          Button(onClick = { showResultDialog = false }) {
+          Button(onClick = {
+            showResultDialog = false
+            if (dialogTitle == "Success") {
+              onBackClick()
+            }
+          }) {
             Text("OK")
           }
         }
