@@ -121,7 +121,6 @@ import edu.gatech.ccg.recordthesehands.Constants.RECORDING_HARD_STOP_DURATION
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_FAILED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_STOPPED
 import edu.gatech.ccg.recordthesehands.Constants.RESULT_ACTIVITY_UNREACHABLE
-import edu.gatech.ccg.recordthesehands.Constants.TABLET_SIZE_THRESHOLD_INCHES
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_STOP_RECORDING_TIMEOUT
@@ -158,7 +157,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.sqrt
 
 /**
  * Contains the data for a clip within the greater recording.

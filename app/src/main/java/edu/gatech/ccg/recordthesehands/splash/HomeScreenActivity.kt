@@ -42,11 +42,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.LinearProgressIndicator
@@ -61,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -460,7 +457,8 @@ fun HomeScreenContent(
       .fillMaxSize()
       .background(colorResource(id = R.color.white))
   ) {
-    val (backButton, header, versionText, loadingText, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText) = createRefs()
+    val (backButton, header, versionText, loadingText, statusInformation, statisticsHeader, statisticsInformation, uploadProgressBarLayout, uploadButton, startButton, switchPromptsButton, uploadStatusMessageText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
+    val guideline = createGuidelineFromStart(0.5f)
 
     // 1. Back Button (ImageButton)
     val activity = LocalActivity.current
@@ -490,7 +488,7 @@ fun HomeScreenContent(
     val context = LocalContext.current
     Text(
       text = stringResource(id = R.string.app_name),
-      fontSize = if (isTablet) 50.sp else 30.sp,
+      fontSize = if (isTablet) 50.sp else 40.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier
         .constrainAs(header) {
@@ -523,289 +521,279 @@ fun HomeScreenContent(
       return@ConstraintLayout
     }
 
+    val (deviceIdLabelText, deviceIdText, usernameLabelText, usernameText, internetStatusText) = createRefs()
     // 6. Session Information (LinearLayout)
-    Column(
+    Text(
+      text = stringResource(id = R.string.id_label),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
       modifier = Modifier
-        .constrainAs(statusInformation) {
+        .constrainAs(deviceIdLabelText) {
+          top.linkTo(header.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+    Text(
+      text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
+      fontStyle = FontStyle.Italic,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(deviceIdText) {
+          top.linkTo(header.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+    )
+
+    Text(
+      text = stringResource(id = R.string.username_label),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(usernameLabelText) {
+          top.linkTo(deviceIdLabelText.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+    Text(
+      text = promptState?.username ?: stringResource(id = R.string.username_error),
+      fontStyle = FontStyle.Italic,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(usernameText) {
+          top.linkTo(deviceIdLabelText.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+    )
+
+    // 8. Status Information (LinearLayout)
+    val statusText: String
+    val statusColor: Int
+
+    when (serverStatus?.status ?: ServerStatus.UNKNOWN) {
+      ServerStatus.UNKNOWN -> {
+        statusText = stringResource(id = R.string.server_status)
+        statusColor = R.color.alert_yellow
+      }
+
+      ServerStatus.NO_INTERNET -> {
+        statusText = stringResource(id = R.string.internet_unavailable)
+        statusColor = R.color.alert_red
+      }
+
+      ServerStatus.NO_SERVER -> {
+        statusText = stringResource(id = R.string.server_unavailable)
+        statusColor = R.color.alert_red
+      }
+
+      ServerStatus.SERVER_ERROR -> {
+        statusText = stringResource(id = R.string.server_error)
+        statusColor = R.color.alert_red
+      }
+
+      ServerStatus.NO_LOGIN -> {
+        statusText = stringResource(id = R.string.server_unauthorized)
+        statusColor = R.color.alert_red
+      }
+
+      ServerStatus.ACTIVE -> {
+        statusText = stringResource(id = R.string.server_success)
+        statusColor = R.color.alert_green
+      }
+    }
+
+    Text(
+      text = statusText,
+      color = colorResource(id = statusColor),
+      fontStyle = FontStyle.Italic,
+      fontSize = 20.sp,
+      modifier = Modifier
+        .constrainAs(internetStatusText) {
+          top.linkTo(usernameLabelText.bottom, margin = 15.dp)
           start.linkTo(parent.start)
           end.linkTo(parent.end)
-          top.linkTo(header.bottom)
         }
-        .fillMaxWidth().padding(top = 10.dp),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      Row(
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(id = R.string.id_label),
-          fontWeight = FontWeight.Bold,
-          fontSize = 18.sp,
-          modifier = Modifier.padding(end = 6.dp)
-        )
-        Text(
-          text = promptState?.deviceId ?: stringResource(id = R.string.id_error),
-          fontStyle = FontStyle.Italic,
-          fontSize = 18.sp,
-        )
-      }
-      Row(
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(id = R.string.username_label),
-          fontWeight = FontWeight.Bold,
-          fontSize = 18.sp,
-          modifier = Modifier.padding(end = 6.dp)
-        )
-        Text(
-          text = promptState?.username ?: stringResource(id = R.string.username_error),
-          fontStyle = FontStyle.Italic,
-          fontSize = 18.sp
-        )
-      }
-
-      // 8. Status Information (LinearLayout)
-      val statusText: String
-      val statusColor: Int
-
-      when (serverStatus?.status ?: ServerStatus.UNKNOWN) {
-        ServerStatus.UNKNOWN -> {
-          statusText = stringResource(id = R.string.server_status)
-          statusColor = R.color.alert_yellow
-        }
-
-        ServerStatus.NO_INTERNET -> {
-          statusText = stringResource(id = R.string.internet_unavailable)
-          statusColor = R.color.alert_red
-        }
-
-        ServerStatus.NO_SERVER -> {
-          statusText = stringResource(id = R.string.server_unavailable)
-          statusColor = R.color.alert_red
-        }
-
-        ServerStatus.SERVER_ERROR -> {
-          statusText = stringResource(id = R.string.server_error)
-          statusColor = R.color.alert_red
-        }
-
-        ServerStatus.NO_LOGIN -> {
-          statusText = stringResource(id = R.string.server_unauthorized)
-          statusColor = R.color.alert_red
-        }
-
-        ServerStatus.ACTIVE -> {
-          statusText = stringResource(id = R.string.server_success)
-          statusColor = R.color.alert_green
-        }
-      }
-
-      Text(
-        text = statusText,
-        color = colorResource(id = statusColor),
-        fontStyle = FontStyle.Italic,
-        fontSize = 20.sp,
-        modifier = Modifier.padding(top = 6.dp)
-      )
-    }
+    )
 
     // 9. Statistics Header (TextView)
     Text(
       text = stringResource(id = R.string.statistics_header),
-      fontSize = 32.sp,
+      fontSize = if (isTablet) 32.sp else 26.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(statisticsHeader) {
         start.linkTo(parent.start)
         end.linkTo(parent.end)
-        top.linkTo(statusInformation.bottom, margin = 30.dp)
+        top.linkTo(internetStatusText.bottom, margin = 30.dp)
       }
     )
 
     // 10. Statistics Information (ConstraintLayout)
-    ConstraintLayout(
+    val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText) = createRefs()
+
+    // Prompts Progress Text
+    Text(
+      text = stringResource(id = R.string.prompts_completed),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
       modifier = Modifier
-        .constrainAs(statisticsInformation) {
+        .constrainAs(promptsProgressText) {
+          top.linkTo(statisticsHeader.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+
+    // Section Name Text
+    Text(
+      text = promptState?.currentSectionName ?: "",
+      fontSize = 18.sp,
+      softWrap = true,
+      modifier = Modifier
+        .constrainAs(sectionNameText) {
+          top.linkTo(statisticsHeader.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+        .padding(end = 4.dp)
+    )
+
+    if (promptState?.tutorialMode == true) {
+      Text(
+        text = stringResource(id = R.string.tutorial_mode),
+        color = colorResource(id = R.color.blue),
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+          .constrainAs(tutorialProgressText) {
+            top.linkTo(statisticsHeader.bottom, margin = 15.dp)
+            start.linkTo(sectionNameText.end)
+          }
+      )
+    } else {
+      Text(
+        text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
+        fontSize = 18.sp,
+        modifier = Modifier
+          .constrainAs(completedAndTotalPromptsText) {
+            top.linkTo(statisticsHeader.bottom, margin = 15.dp)
+            start.linkTo(sectionNameText.end)
+          }
+      )
+    }
+
+    // Total Progress Text
+    Text(
+      text = stringResource(id = R.string.total_progress),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(totalProgressText) {
+          top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+    // Total Progress Count Text
+    Text(
+      text = "${totalCompleted ?: 0}/${totalPrompts ?: 0}",
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(totalProgressCountText) {
+          top.linkTo(promptsProgressText.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+    )
+
+    // Recordings Progress Text
+    Text(
+      text = stringResource(id = R.string.total_recordings),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(recordingsProgressText) {
+          top.linkTo(totalProgressText.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+
+    // Recording Count Text
+    Text(
+      text = lifetimeRecordingCount.toString() ?: stringResource(id = R.string.counter),
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(recordingCountText) {
+          top.linkTo(totalProgressText.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+    )
+
+    // Recording Time Text
+    Text(
+      text = stringResource(id = R.string.total_time),
+      fontWeight = FontWeight.Bold,
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(recordingTimeText) {
+          top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
+          end.linkTo(guideline)
+        }
+    )
+
+    // Recording Time Parsed Text
+    Text(
+      text = lifetimeMSTimeFormatter(lifetimeRecordingMs),
+      fontSize = 18.sp,
+      modifier = Modifier
+        .constrainAs(recordingTimeParsedText) {
+          top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
+          start.linkTo(guideline)
+        }
+    )
+
+    // Sections Completed Text
+    Text(
+      text = stringResource(id = R.string.sections_completed),
+      fontWeight = FontWeight.Bold,
+      fontSize = if (isTablet) 32.sp else 26.sp,
+      modifier = Modifier
+        .constrainAs(sectionsCompletedText) {
+          top.linkTo(recordingTimeText.bottom, margin = 30.dp)
           start.linkTo(parent.start)
           end.linkTo(parent.end)
-          top.linkTo(statisticsHeader.bottom)
-          width = Dimension.fillToConstraints
         }
+    )
+
+    // Sections Completed Layout (FlexboxLayout)
+    FlowRow(
+      modifier = Modifier
+        .constrainAs(sectionsCompletedLayout) {
+          top.linkTo(sectionsCompletedText.bottom, margin = 15.dp)
+          start.linkTo(parent.start, margin = 16.dp)
+          end.linkTo(parent.end, margin = 16.dp)
+          width = Dimension.fillToConstraints
+        },
+      horizontalArrangement = Arrangement.spacedBy(6.dp, alignment = Alignment.CenterHorizontally),
+      verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-      val (promptsProgressText, sectionNameText, completedAndTotalPromptsText, tutorialProgressText, totalProgressText, totalProgressCountText, recordingsProgressText, recordingCountText, recordingTimeText, recordingTimeParsedText, sectionsCompletedText, sectionsCompletedLayout) = createRefs()
-      // TODO Instead of moving this over, left justify it, have a barrier and then have the other sections.  Possibly pull out the section names and run them at full width.
-      // TODO actually, better would probably be to just have another main section called "Prompt Categories".  Make the text of the section names more visible too.  That layout should work for both tablet and phone.
-      // TODO fix the buttons as well.
-      val guideline = createGuidelineFromStart(if (isTablet) 0.5f else .40f)
+      promptState?.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name }
+        ?.forEachIndexed { index, section ->
+          val prompts = section.mainPrompts
+          val total = prompts.array.size
+          val sectionProgress = promptState?.promptProgress?.get(section.name)
+          val completed = sectionProgress?.get("mainIndex") ?: 0
+          val color = if (completed >= total) R.color.alert_green else R.color.alert_red
 
-      // Prompts Progress Text
-      Text(
-        text = stringResource(id = R.string.prompts_completed),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(promptsProgressText) {
-            top.linkTo(parent.top, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-
-      // Section Name Text
-      Text(
-        text = promptState?.currentSectionName ?: "",
-        fontSize = 18.sp,
-        softWrap = true,
-        modifier = Modifier
-          .constrainAs(sectionNameText) {
-            top.linkTo(parent.top, margin = 15.dp)
-            start.linkTo(guideline)
-          }
-          .padding(end = 4.dp)
-      )
-
-      if (promptState?.tutorialMode == true) {
-        Text(
-          text = stringResource(id = R.string.tutorial_mode),
-          color = colorResource(id = R.color.blue),
-          fontSize = 18.sp,
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier
-            .constrainAs(tutorialProgressText) {
-              top.linkTo(parent.top, margin = 15.dp)
-              start.linkTo(sectionNameText.end)
-            }
-            .alpha(if (promptState?.tutorialMode == true) 1f else 0f) // Control visibility
-        )
-      } else {
-        Text(
-          text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
-          fontSize = 18.sp,
-          modifier = Modifier
-            .constrainAs(completedAndTotalPromptsText) {
-              top.linkTo(parent.top, margin = 15.dp)
-              start.linkTo(sectionNameText.end)
-            }
-        )
-      }
-
-      // Total Progress Text
-      Text(
-        text = stringResource(id = R.string.total_progress),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(totalProgressText) {
-            top.linkTo(promptsProgressText.bottom, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-      // Total Progress Count Text
-      Text(
-        text = "${totalCompleted ?: 0}/${totalPrompts ?: 0}",
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(totalProgressCountText) {
-            top.linkTo(promptsProgressText.bottom, margin = 15.dp)
-            start.linkTo(guideline)
-          }
-      )
-
-      // Recordings Progress Text
-      Text(
-        text = stringResource(id = R.string.total_recordings),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(recordingsProgressText) {
-            top.linkTo(totalProgressText.bottom, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-
-      // Recording Count Text
-      Text(
-        text = lifetimeRecordingCount.toString() ?: stringResource(id = R.string.counter),
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(recordingCountText) {
-            top.linkTo(totalProgressText.bottom, margin = 15.dp)
-            start.linkTo(guideline)
-          }
-      )
-
-      // Recording Time Text
-      Text(
-        text = stringResource(id = R.string.total_time),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(recordingTimeText) {
-            top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-
-      // Recording Time Parsed Text
-      Text(
-        text = lifetimeMSTimeFormatter(lifetimeRecordingMs),
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(recordingTimeParsedText) {
-            top.linkTo(recordingsProgressText.bottom, margin = 15.dp)
-            start.linkTo(guideline)
-          }
-      )
-
-      // Sections Completed Text
-      Text(
-        text = stringResource(id = R.string.sections_completed),
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = Modifier
-          .constrainAs(sectionsCompletedText) {
-            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
-            end.linkTo(guideline)
-          }
-      )
-
-      // Sections Completed Layout (FlexboxLayout)
-      FlowRow(
-        modifier = Modifier
-          .constrainAs(sectionsCompletedLayout) {
-            top.linkTo(recordingTimeText.bottom, margin = 15.dp)
-            start.linkTo(guideline)
-            end.linkTo(parent.end, margin = 16.dp)
-            width = Dimension.fillToConstraints
-          },
-        horizontalArrangement = Arrangement.Start,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-      ) {
-        promptState?.promptsCollection?.sections?.values?.toList()?.sortedBy { it.name }
-          ?.forEachIndexed { index, section ->
-            val prompts = section.mainPrompts
-            val total = prompts.array.size
-            val sectionProgress = promptState?.promptProgress?.get(section.name)
-            val completed = sectionProgress?.get("mainIndex") ?: 0
-            val color = if (completed >= total) R.color.alert_green else R.color.alert_red
-
-            Row(
-              modifier = Modifier.padding(end = 4.dp)
-            ) {
+          Row {
+            Text(
+              text = section.name,
+              fontSize = 18.sp,
+              color = colorResource(id = color),
+            )
+            if (index < (promptState?.promptsCollection?.sections?.values?.size ?: 0) - 1) {
               Text(
-                text = section.name,
+                text = ",",
                 fontSize = 18.sp,
-                color = colorResource(id = color),
+                color = colorResource(id = R.color.black),
               )
-              if (index < (promptState?.promptsCollection?.sections?.values?.size ?: 0) - 1) {
-                Text(
-                  text = ", ",
-                  fontSize = 18.sp,
-                  color = colorResource(id = R.color.black),
-                )
-              }
             }
           }
-      }
+        }
     }
 
     // 11. Upload Progress Bar Layout (LinearLayout with ProgressBar and TextView)
@@ -819,9 +807,14 @@ fun HomeScreenContent(
           modifier = Modifier
             .padding(start = 20.dp, end = 8.dp)
             .constrainAs(uploadStatusMessageText) {
-              start.linkTo(parent.start, margin = 20.dp)
-              end.linkTo(parent.end, margin = 20.dp)
-              bottom.linkTo(uploadProgressBarLayout.top, margin = 16.dp)
+              if (isTablet) {
+                start.linkTo(parent.start, margin = 20.dp)
+                end.linkTo(parent.end, margin = 20.dp)
+                bottom.linkTo(uploadProgressBarLayout.top, margin = 16.dp)
+              } else {
+                end.linkTo(parent.end, margin = 16.dp)
+                top.linkTo(uploadProgressBarLayout.bottom, margin = 16.dp)
+              }
             },
         )
       }
@@ -863,9 +856,8 @@ fun HomeScreenContent(
       onClick = { onUploadClick() },
       modifier = Modifier
         .constrainAs(uploadButton) {
-          start.linkTo(parent.start)
-          end.linkTo(startButton.start)
-          bottom.linkTo(parent.bottom, margin = 24.dp)
+          start.linkTo(parent.start, margin = 16.dp)
+          bottom.linkTo(switchPromptsButton.top, margin = 24.dp)
         },
       enabled = uploadState?.status != UploadStatus.UPLOADING,
       text = uploadButtonText
@@ -906,8 +898,7 @@ fun HomeScreenContent(
       },
       modifier = Modifier
         .constrainAs(startButton) {
-          start.linkTo(parent.start)
-          end.linkTo(parent.end)
+          end.linkTo(parent.end, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
       enabled = startButtonEnabled,
@@ -919,8 +910,7 @@ fun HomeScreenContent(
       onClick = { onSwitchPromptsClick() },
       modifier = Modifier
         .constrainAs(switchPromptsButton) {
-          start.linkTo(startButton.end)
-          end.linkTo(parent.end)
+          start.linkTo(parent.start, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 24.dp)
         },
       text = stringResource(id = R.string.switch_prompts)
