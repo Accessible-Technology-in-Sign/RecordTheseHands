@@ -1078,15 +1078,12 @@ class DataManager private constructor(val context: Context) {
    * @param adminPassword The admin password required to authorize account creation on the server.
    * @return `true` if the account was created successfully, `false` otherwise.
    */
-  suspend fun attachToAccount(username: String, adminPassword: String): Boolean {
+  suspend fun attachToAccount(username: String, adminPassword: String): Pair<Boolean, String?> {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
       logToServer("attachToAccount: username \"$username\" is invalid")
-      Log.e(
-        TAG,
-        "username must be at least 3 lowercase alphanumeric or underscore " +
-            "characters with the first character being a letter."
-      )
-      return false
+      val errorMessage = "Username must be at least 3 lowercase alphanumeric or underscore characters with the first character being a letter."
+      Log.e(TAG, errorMessage)
+      return Pair(false, errorMessage)
     }
     dataManagerData.lock.withLock {
       logToServerUnderLock("attachToAccount for username \"$username\"")
@@ -1103,17 +1100,21 @@ class DataManager private constructor(val context: Context) {
 
       val url = URL(getServer() + "/register_login")
       Log.d(TAG, "Registering login at $url")
-      val (code, _) =
+      val (code, responseText) =
         serverFormPostRequest(
           url,
           mapOf(
             "app_version" to APP_VERSION,
             "admin_token" to adminToken,
-            "login_token" to newLoginToken
+            "login_token" to newLoginToken,
+            "must_have_prompts_file" to "true"
           )
         )
       if (code < 200 || code >= 300) {
-        return false
+        if (code == 400 && responseText != null) {
+          return Pair(false, "Failed to register account with the server: $responseText")
+        }
+        return Pair(false, "Failed to register account with the server.")
       }
 
       try {
@@ -1122,13 +1123,14 @@ class DataManager private constructor(val context: Context) {
           stream.write(newLoginToken.toByteArray(Charsets.UTF_8))
         }
       } catch (e: IOException) {
-        Log.e(TAG, "Failed to write login token to file", e)
-        return false
+        val errorMessage = "Failed to write login token to file: ${e.localizedMessage}"
+        Log.e(TAG, errorMessage, e)
+        return Pair(false, errorMessage)
       }
 
       dataManagerData.loginToken = newLoginToken
       reloadPromptsFromServerUnderLock()
-      return true
+      return Pair(true, null)
     }
   }
 

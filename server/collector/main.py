@@ -800,6 +800,7 @@ def register_login():
   login_token = flask.request.values.get('login_token', '')
   admin_token = flask.request.values.get('admin_token', '')
   allow_webapp_access = flask.request.values.get('allow_webapp_access', '')
+  must_have_prompts_file = flask.request.values.get('must_have_prompts_file', '')
 
   admin_token_hash = get_secret('admin_token_hash')
   if admin_token_hash != token_maker.get_login_hash('admin', admin_token):
@@ -826,6 +827,14 @@ def register_login():
         400,
     )
   db = firestore.Client()
+
+  if must_have_prompts_file:
+    doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
+    doc_data = doc_ref.get()
+    if not doc_data.exists:
+      return (f'Refusing to set login token for {username!r} because '
+              f'it does not have an associated prompts file.'), 400
+
   data = {
       'login_hash': token_maker.get_login_hash(username, login_token),
       'allow_webapp_access': allow_webapp_access == 'true',

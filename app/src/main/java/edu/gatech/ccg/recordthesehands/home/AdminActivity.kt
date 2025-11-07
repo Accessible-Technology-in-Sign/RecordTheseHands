@@ -97,9 +97,9 @@ class AdminActivity : ComponentActivity() {
         },
         onAttachToAccount = { username, password, onResult ->
           lifecycleScope.launch(Dispatchers.IO) {
-            val result = dataManager.attachToAccount(username, password)
+            val (success, errorMessage) = dataManager.attachToAccount(username, password)
             runOnUiThread {
-              onResult(result)
+              onResult(success, errorMessage)
             }
           }
         },
@@ -130,7 +130,7 @@ fun AdminScreenContent(
   dataManager: DataManager,
   onBackClick: () -> Unit,
   onSetDeviceId: (String) -> Unit,
-  onAttachToAccount: (String, String, (Boolean) -> Unit) -> Unit,
+  onAttachToAccount: (String, String, (Boolean, String?) -> Unit) -> Unit,
   onDownloadApk: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
@@ -238,13 +238,13 @@ fun AdminScreenContent(
         onClick = {
           isAttaching = true
           focusManager.clearFocus()
-          onAttachToAccount(newUsername, adminPassword) { result ->
+          onAttachToAccount(newUsername, adminPassword) { success, errorMessage ->
             isAttaching = false
-            if (result) {
+            if (success) {
               onBackClick()
             } else {
               dialogTitle = "Failed"
-              dialogMessage = "Failed to Create account for \"$newUsername\"."
+              dialogMessage = errorMessage ?: "Failed to Create account for \"$newUsername\"."
               showResultDialog = true
             }
           }
