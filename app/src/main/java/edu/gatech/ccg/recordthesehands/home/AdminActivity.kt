@@ -30,6 +30,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -64,6 +66,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
@@ -148,11 +151,15 @@ fun AdminScreenContent(
 
   val focusManager = LocalFocusManager.current
 
+  val isTablet = thisDeviceIsATablet(LocalContext.current)
+
   ConstraintLayout(
     modifier = Modifier
         .fillMaxSize()
         .background(Color.White)
-        .clickable { focusManager.clearFocus() }
+        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+          focusManager.clearFocus()
+        }
   ) {
     val (backButton, content) = createRefs()
 
@@ -172,7 +179,7 @@ fun AdminScreenContent(
           .constrainAs(content) {
               start.linkTo(backButton.end, margin = 20.dp)
               end.linkTo(parent.end, margin = 32.dp)
-              top.linkTo(parent.top)
+              top.linkTo(backButton.bottom, margin = 6.dp)
           }
           .fillMaxWidth()
     ) {
@@ -183,20 +190,43 @@ fun AdminScreenContent(
         modifier = Modifier.padding(top = 12.dp)
       )
 
-      // Device ID Section
-      Row(
-        modifier = Modifier.padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
+      @Composable
+      fun deviceIdWithCurrentText() {
         Text(
           text = stringResource(R.string.device_id_with_current, deviceId),
           fontSize = 24.sp
         )
+      }
+      @Composable
+      fun newDeviceIdTextField() {
         TextField(
           value = newDeviceId,
           onValueChange = { newDeviceId = it },
           modifier = Modifier.weight(1f)
         )
+      }
+      // Device ID Section
+      if (isTablet) {
+        Row(
+          modifier = Modifier.padding(top = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          deviceIdWithCurrentText()
+          newDeviceIdTextField()
+        }
+      } else {
+        Row(
+          modifier = Modifier.padding(top = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          deviceIdWithCurrentText()
+        }
+        Row(
+          modifier = Modifier.padding(top = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          newDeviceIdTextField()
+        }
       }
       PrimaryButton(
         onClick = {
@@ -207,23 +237,41 @@ fun AdminScreenContent(
         text = "Set DeviceId"
       )
       // Attach to Account Section
+      @Composable
+      fun newUsernameText() {
+        Text(
+          text = stringResource(R.string.username_label_with_current, username),
+          fontSize = 24.sp
+        )
+      }
+      @Composable
+      fun newUsernameTextField() {
+        TextField(
+          value = newUsername,
+          onValueChange = { newUsername = it },
+          modifier = Modifier.weight(1f)
+        )
+      }
       Column(modifier = Modifier.padding(top = 24.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          Text(
-            text = stringResource(R.string.username_label_with_current, username),
-            fontSize = 24.sp
-          )
-          TextField(
-            value = newUsername,
-            onValueChange = { newUsername = it },
-            modifier = Modifier.weight(1f)
-          )
+        if (isTablet) {
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            newUsernameText()
+            newUsernameTextField()
+          }
+        } else {
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            newUsernameText()
+          }
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            newUsernameTextField()
+          }
         }
-        Row(
-          modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        @Composable
+        fun adminPasswordText() {
           Text("Admin Password:", fontSize = 24.sp)
+        }
+        @Composable
+        fun adminPasswordTextField() {
           TextField(
             value = adminPassword,
             onValueChange = { adminPassword = it },
@@ -231,6 +279,28 @@ fun AdminScreenContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.weight(1f)
           )
+        }
+        if (isTablet) {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            adminPasswordText()
+            adminPasswordTextField()
+          }
+        } else {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            adminPasswordText()
+          }
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            adminPasswordTextField()
+          }
         }
       }
 
