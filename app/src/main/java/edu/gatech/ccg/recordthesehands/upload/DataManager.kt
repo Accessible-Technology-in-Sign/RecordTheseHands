@@ -48,10 +48,12 @@ import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
 import edu.gatech.ccg.recordthesehands.toConsistentString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
@@ -1030,32 +1032,38 @@ class DataManager private constructor(val context: Context) {
    * @return `true` if the prompts were reloaded successfully, `false` otherwise.
    */
   private suspend fun reloadPromptsFromServerUnderLock(): Boolean {
-    val currentState = dataManagerData.promptStateContainer
-    if (currentState != null) {
-      // Clear the fields in promptStateContainer.  Only relevant on some failures
-      // as reinitializeDataUnderLock should set them from the permanent state on disk.
-      dataManagerData.promptStateContainer = currentState.copy(
-        promptsCollection = null,
-        promptProgress = mutableMapOf<String, Map<String, Int>>(),
-        currentSectionName = null
-      )
-    }
-    context.prefStore.edit { preferences ->
-      // Remove current prompt state.
-      preferences.remove(stringPreferencesKey("currentSectionName"))
-      preferences.remove(stringPreferencesKey("promptProgress"))
-    }
-    val resourceDir = File(context.filesDir, "resource")
-    resourceDir.deleteRecursively()
+//    val currentState = dataManagerData.promptStateContainer
+//    if (currentState != null) {
+//      // Clear the fields in promptStateContainer in case of error.
+//      dataManagerData.promptStateContainer = currentState.copy(
+//        promptsCollection = null,
+//        promptProgress = mutableMapOf<String, Map<String, Int>>(),
+//        currentSectionName = null
+//      )
+//    }
+    try {
+      context.prefStore.edit { preferences ->
+        // Remove current prompt state.
+        preferences.remove(stringPreferencesKey("currentSectionName"))
+        preferences.remove(stringPreferencesKey("promptProgress"))
+      }
+      val resourceDir = File(context.filesDir, "resource")
+      resourceDir.deleteRecursively()
 
-    val retVal = downloadPrompts()
-    val promptsCollection = getPromptsCollectionFromDisk()
-    if (promptsCollection == null || !ensureResources(promptsCollection)) {
-      return false
+      if (!downloadPrompts()) {
+        return false
+      }
+      val promptsCollection = getPromptsCollectionFromDisk()
+      if (promptsCollection == null || !ensureResources(promptsCollection)) {
+        // Delete the prompts so we don't have inconsistent state.
+        deletePromptsFile()  // Ignore failure to delete.
+        return false
+      }
+    } finally {
+      // Re-initialize the state from scratch after download (or failure).
+      reinitializeDataUnderLock()
     }
-    // Re-initialize the state from scratch after download (or failure).
-    reinitializeDataUnderLock()
-    return retVal
+    return true
   }
 
   /**
@@ -1114,6 +1122,9 @@ class DataManager private constructor(val context: Context) {
         if (code == 400 && responseText != null) {
           return Pair(false, "Failed to register account with the server: $responseText")
         }
+        if ((code == -1 || code == 502) && responseText != null) {
+          return Pair(false, "Server Unreachable.")
+        }
         return Pair(false, "Failed to register account with the server.")
       }
 
@@ -1129,7 +1140,10 @@ class DataManager private constructor(val context: Context) {
       }
 
       dataManagerData.loginToken = newLoginToken
-      reloadPromptsFromServerUnderLock()
+      if (!reloadPromptsFromServerUnderLock()) {
+        Log.e(TAG, "Failed to reload prompts from server.")
+        return Pair(false, "Failed to reload prompts from server.")
+      }
       return Pair(true, null)
     }
   }
@@ -1572,7 +1586,7 @@ class DataManager private constructor(val context: Context) {
       setTutorialModeUnderLock(true)
       directiveCompleted(id)  // Use the old loginToken.
       dataManagerData.loginToken = newLoginToken
-      reloadPromptsFromServerUnderLock()
+      reloadPromptsFromServerUnderLock()  // TODO backout on failure.
       return false  // Ignore further directives, the next round will be done with the new login.
     } else if (op == "resetStatistics") {
       resetStatistics()
@@ -1627,6 +1641,13 @@ class DataManager private constructor(val context: Context) {
     return true
   }
 
+  private suspend fun deletePromptsFile(): Boolean {
+    val promptsFilename = File(context.filesDir, PROMPTS_FILENAME)
+    val retVal = promptsFilename.delete()
+    Log.i(TAG, "deleting prompt data in $promptsFilename yielded return value ${retVal}")
+    return retVal
+  }
+
   /**
    * Downloads the prompts file from the server.
    *
@@ -1649,7 +1670,7 @@ class DataManager private constructor(val context: Context) {
         parentDir.mkdirs()
       }
     }
-    Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
+    deletePromptsFile()  // Ignore failure to delete.
     Log.i(TAG, "downloading prompt data to $filepath")
     val (code, data) = serverFormPostRequest(
       url,
@@ -1669,12 +1690,12 @@ class DataManager private constructor(val context: Context) {
         }
       } catch (e: IOException) {
         Log.e(TAG, "Failed to write prompts to file", e)
-        Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
+        deletePromptsFile()  // Ignore failure to delete.
         return false
       }
     } else {
       Log.e(TAG, "unable to fetch prompts.")
-      Log.i(TAG, "deleting prompt data in $filepath yielded return value ${filepath.delete()}")
+      deletePromptsFile()  // Ignore failure to delete.
       return false
     }
     Log.i(TAG, "prompt data downloaded with size ${filepath.length()}")
@@ -1993,7 +2014,7 @@ class DataManager private constructor(val context: Context) {
    * Reads the prompts collection from the local filesystem.
    *
    * This function initializes a `PromptsCollection` object from the `prompts.json` file
-   * stored in the application's local data directory. It also calls [ensureResources] to
+   * stored in the application's local data directory. It also calls [downloadResourcePaths] to
    * trigger the download of any images or other resources required by the prompts.
    *
    * This function does not acquire the data lock, but it performs file I/O and network
@@ -2024,16 +2045,12 @@ class DataManager private constructor(val context: Context) {
    */
   suspend fun ensureResources(promptsCollection: PromptsCollection): Boolean {
     Log.i(TAG, "ensureResources for promptsCollection")
+    val resourcePaths = ArrayList<String>()
     for (section in promptsCollection.sections.values) {
-      Log.i(TAG, "processing ensureResources for section ${section.name}")
-      if (!ensureResources(section.mainPrompts)) {
-        return false
-      }
-      if (!ensureResources(section.tutorialPrompts)) {
-        return false
-      }
+      resourcePaths.addAll(section.mainPrompts.array.mapNotNull { it.resourcePath })
+      resourcePaths.addAll(section.tutorialPrompts.array.mapNotNull { it.resourcePath })
     }
-    return true
+    return downloadResourcePaths(resourcePaths.distinct())
   }
 
   /**
@@ -2048,17 +2065,32 @@ class DataManager private constructor(val context: Context) {
    * @param prompts The `Prompts` object containing the list of prompts to check.
    * @return `true` if all resources are successfully downloaded, `false` otherwise.
    */
-  suspend fun ensureResources(prompts: Prompts): Boolean {
-    for (prompt in prompts.array) {
-      // Log.d(TAG, "prompt ${prompt.toJson()}")
-      if (prompt.resourcePath != null) {
-        if (!ensureResource(prompt.resourcePath)) {
-          Log.e(TAG, "failed to acquire resource ${prompt.resourcePath}")
-          return false
+  suspend fun downloadResourcePaths(resourcePaths: List<String>): Boolean {
+    if (resourcePaths.isEmpty()) {
+      return true
+    }
+
+    val downloadDispatcher = Dispatchers.IO.limitedParallelism(10)
+
+    class ResourceDownloadException : IOException("Resource download failed")
+
+    return try {
+      coroutineScope {
+        resourcePaths.forEach { resourcePath ->
+          launch(downloadDispatcher) {
+            if (!ensureResource(resourcePath)) {
+              // This will cancel the parent coroutineScope, and all other children.
+              throw ResourceDownloadException()
+            }
+          }
         }
       }
+      Log.d(TAG, "All resourced downloaded.")
+      true
+    } catch (e: ResourceDownloadException) {
+      Log.d(TAG, "Failed to download all resources.")
+      false
     }
-    return true
   }
 
   /**
@@ -2131,12 +2163,12 @@ class DataManager private constructor(val context: Context) {
       if (!downloadSucceeded) {
         Log.w(TAG, "Cleaning up failed resource download: $resource")
         resource.delete()
-        return false
+      } else {
+        Log.i(TAG, "downloaded resource $resource with size ${resource.length()}")
       }
     }
 
-    Log.i(TAG, "downloaded resource $resource with size ${resource.length()}")
-    return true
+    return downloadSucceeded
   }
 
   suspend fun saveClipData(clipDetails: ClipDetails) {

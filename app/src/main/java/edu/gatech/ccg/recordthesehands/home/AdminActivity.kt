@@ -161,7 +161,7 @@ fun AdminScreenContent(
           focusManager.clearFocus()
         }
   ) {
-    val (backButton, content) = createRefs()
+    val (backButton, content, headerText) = createRefs()
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -174,6 +174,18 @@ fun AdminScreenContent(
           .clickable(onClick = onBackClick)
     )
 
+    Text(
+      text = "Admin Interface",
+      fontSize = 32.sp,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.constrainAs(headerText) {
+          top.linkTo(backButton.top)
+          bottom.linkTo(backButton.bottom)
+          start.linkTo(backButton.end, margin = 16.dp)
+          end.linkTo(parent.end, margin = 16.dp)
+        }
+    )
+
     Column(
       modifier = Modifier
           .constrainAs(content) {
@@ -183,13 +195,6 @@ fun AdminScreenContent(
           }
           .fillMaxWidth()
     ) {
-      Text(
-        text = "Admin Interface",
-        fontSize = 32.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 12.dp)
-      )
-
       @Composable
       fun deviceIdWithCurrentText() {
         Text(
