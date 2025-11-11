@@ -29,9 +29,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -43,7 +42,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +58,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
@@ -123,6 +125,7 @@ fun PromptSelectScreenContent(
   onSectionClick: (String) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
+  val isTablet = thisDeviceIsATablet(LocalContext.current)
 
   ConstraintLayout(
     modifier = Modifier
@@ -145,7 +148,7 @@ fun PromptSelectScreenContent(
 
     Text(
       text = stringResource(R.string.prompt_select_title),
-      fontSize = 24.sp,
+      fontSize = 48.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
         top.linkTo(parent.top, margin = 16.dp)
@@ -167,41 +170,96 @@ fun PromptSelectScreenContent(
       }
     )
 
-    LazyColumn(
+    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    Box(
       modifier = Modifier
         .constrainAs(sectionsList) {
           top.linkTo(topBarrier, margin = 16.dp)
           start.linkTo(parent.start, margin = 16.dp)
           end.linkTo(parent.end, margin = 16.dp)
-          bottom.linkTo(parent.bottom, margin = 16.dp)
+          bottom.linkTo(parent.bottom, margin = 0.dp)
           height = Dimension.fillToConstraints
         }
         .fillMaxWidth()
     ) {
-      val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
-      val twice = sections.flatMap { listOf(it, it) }  // DO NOT SUBMIT
-      items(twice) { sectionName ->
-        val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
-        val prompts = section.mainPrompts
-        val total = prompts.array.size
-        val sectionProgress = promptState?.promptProgress?.get(sectionName)
-        val completed = sectionProgress?.get("mainIndex") ?: 0
-        val isCompleted = total <= 0 || completed >= total
+      LazyColumn(
+        state = lazyListState,
+      ) {
+        val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
+        val twice = sections.flatMap { listOf(it, it) }  // DO NOT SUBMIT
+        items(sections) { sectionName ->
+          val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
+          val prompts = section.mainPrompts
+          val total = prompts.array.size
+          val sectionProgress = promptState?.promptProgress?.get(sectionName)
+          val completed = sectionProgress?.get("mainIndex") ?: 0
+          val isCompleted = total <= 0 || completed >= total
 
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          SecondaryButton(
-            onClick = { onSectionClick(sectionName) },
-            enabled = !isCompleted || promptState?.tutorialMode == true,
-            text = sectionName
-          )
-          Text(text = stringResource(R.string.prompts_completed_progress, completed, total))
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .padding(end = 10.dp),
+              contentAlignment = Alignment.CenterEnd
+            ) {
+              SecondaryButton(
+                onClick = { onSectionClick(sectionName) },
+                enabled = !isCompleted || promptState?.tutorialMode == true,
+                text = sectionName
+              )
+            }
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .padding(start = 10.dp),
+              contentAlignment = Alignment.CenterStart
+            ) {
+              Text(
+                text = stringResource(
+                  if (isTablet) R.string.prompts_completed_progress else R.string.prompts_completed_progress_compact,
+                  completed,
+                  total
+                ),
+                fontSize = 24.sp,
+              )
+            }
+          }
         }
+      }
+      if (lazyListState.canScrollForward) {
+        Box(
+          modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .background(
+              brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, Color.White),
+                startY = 0f,
+                endY = 160f
+              )
+            )
+            .padding(top = 80.dp)
+        ) {}
+      }
+      if (lazyListState.canScrollBackward) {
+        Box(
+          modifier = Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .background(
+              brush = Brush.verticalGradient(
+                colors = listOf(Color.White, Color.Transparent),
+                startY = 0f,
+                endY = 120f
+              )
+            )
+            .padding(top = 60.dp)
+        ) {}
       }
     }
   }
