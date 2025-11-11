@@ -158,9 +158,9 @@ fun InstructionsScreen(
             interactionSource = remember { MutableInteractionSource() },
             indication = null
           ) {
-              isMinimized = true
-              videoViewInstance?.pause()
-              isPlaying = false
+            isMinimized = true
+            videoViewInstance?.pause()
+            isPlaying = false
           }
           .verticalScroll(scrollState)
           .fillMaxWidth()
@@ -220,7 +220,13 @@ fun InstructionsScreen(
             end.linkTo(parent.end, margin = 16.dp)
           }
           .fillMaxWidth()
-          .heightIn(max = if (isMinimized) 100.dp else screenHeight / 2),
+          .heightIn(max = if (isMinimized) 100.dp else screenHeight / 2)
+          .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+          ) {
+            isMinimized = false
+          },
         videoViewRef = { videoViewInstance = it },
         onVideoStarted = { isPlaying = true },
         onVideoCompleted = { isPlaying = false }
@@ -249,6 +255,7 @@ fun InstructionsScreen(
     videoViewInstance?.let { videoView ->
       IconButton(
         onClick = {
+          isMinimized = false
           videoView.seekTo(0)
           videoView.start()
           isPlaying = true
@@ -274,6 +281,7 @@ fun InstructionsScreen(
     videoViewInstance?.let { videoView ->
       IconButton(
         onClick = {
+          isMinimized = false
           if (isPlaying) {
             videoView.pause()
           } else {
