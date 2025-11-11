@@ -39,7 +39,6 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -134,7 +133,7 @@ fun PromptSelectScreenContent(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (backButton, header, toggleTutorialButton, sectionsList) = createRefs()
+    val (backButton, header, toggleTutorialButton, sectionsList, sectionsListTopFade, sectionsListBottomFade) = createRefs()
     val topBarrier = createBottomBarrier(backButton, header, toggleTutorialButton)
 
     Image(
@@ -176,7 +175,7 @@ fun PromptSelectScreenContent(
     Box(
       modifier = Modifier
         .constrainAs(sectionsList) {
-          top.linkTo(topBarrier, margin = 16.dp)
+          top.linkTo(topBarrier, margin = 0.dp)
           start.linkTo(parent.start, margin = 16.dp)
           end.linkTo(parent.end, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 0.dp)
@@ -188,6 +187,7 @@ fun PromptSelectScreenContent(
         modifier = Modifier
           .verticalScroll(scrollState)
           .fillMaxWidth()
+          .padding(top = 16.dp, bottom = 16.dp)
       ) {
         val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
         // val twice = sections.flatMap { listOf(it, it) }
@@ -240,36 +240,40 @@ fun PromptSelectScreenContent(
           )
         }
       }
-      if (scrollState.canScrollForward) {
-        Box(
-          modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .fillMaxWidth()
-            .background(
-              brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color.White),
-                startY = 0f,
-                endY = 160f
-              )
+    }
+    if (scrollState.canScrollBackward) {
+      Box(
+        modifier = Modifier
+          .constrainAs(sectionsListTopFade) {
+            top.linkTo(sectionsList.top, margin = 0.dp)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            height = Dimension.value(100.dp)
+          }
+          .fillMaxWidth()
+          .background(
+            brush = Brush.verticalGradient(
+              colors = listOf(Color.White, Color.Transparent),
             )
-            .padding(top = 80.dp)
-        ) {}
-      }
-      if (scrollState.canScrollBackward) {
-        Box(
-          modifier = Modifier
-            .align(Alignment.TopCenter)
-            .fillMaxWidth()
-            .background(
-              brush = Brush.verticalGradient(
-                colors = listOf(Color.White, Color.Transparent),
-                startY = 0f,
-                endY = 120f
-              )
+          )
+      ) {}
+    }
+    if (scrollState.canScrollForward) {
+      Box(
+        modifier = Modifier
+          .constrainAs(sectionsListBottomFade) {
+            bottom.linkTo(sectionsList.bottom, margin = 0.dp)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            height = Dimension.value(100.dp)
+          }
+          .fillMaxWidth()
+          .background(
+            brush = Brush.verticalGradient(
+              colors = listOf(Color.Transparent, Color.White),
             )
-            .padding(top = 60.dp)
-        ) {}
-      }
+          )
+      ) {}
     }
   }
 }
