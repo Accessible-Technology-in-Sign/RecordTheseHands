@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.home
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -74,6 +75,13 @@ class PromptSelectActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    val isTablet = thisDeviceIsATablet(applicationContext)
+    if (isTablet) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+    } else {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
 
     windowInsetsController =
       WindowCompat.getInsetsController(window, window.decorView)?.also {

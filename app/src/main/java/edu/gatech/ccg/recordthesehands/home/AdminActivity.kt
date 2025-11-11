@@ -24,6 +24,7 @@
 package edu.gatech.ccg.recordthesehands.home
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -65,12 +66,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.StyledTextField
 import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -81,6 +84,13 @@ class AdminActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    val isTablet = thisDeviceIsATablet(applicationContext)
+    if (isTablet) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+    } else {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
 
     windowInsetsController =
       WindowCompat.getInsetsController(window, window.decorView).also {
@@ -120,6 +130,7 @@ class AdminActivity : ComponentActivity() {
 
   override fun onResume() {
     super.onResume()
+    UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
   }
 

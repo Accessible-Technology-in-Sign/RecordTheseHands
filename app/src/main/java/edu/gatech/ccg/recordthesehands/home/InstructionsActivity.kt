@@ -1,5 +1,6 @@
 package edu.gatech.ccg.recordthesehands.home
 
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.widget.VideoView
@@ -44,15 +45,37 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import java.io.File
 
 class InstructionsActivity : ComponentActivity() {
 
+  private var windowInsetsController: WindowInsetsControllerCompat? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    val isTablet = thisDeviceIsATablet(applicationContext)
+    if (isTablet) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+    } else {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
+
+    windowInsetsController =
+      WindowCompat.getInsetsController(window, window.decorView).also {
+        it.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
+
     val sectionName = intent.getStringExtra("sectionName") ?: return finish()
 
     setContent {
@@ -61,6 +84,17 @@ class InstructionsActivity : ComponentActivity() {
         onContinueClick = { finish() }
       )
     }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
+    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+  }
+
+  override fun onStop() {
+    super.onStop()
+    windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
   }
 }
 
