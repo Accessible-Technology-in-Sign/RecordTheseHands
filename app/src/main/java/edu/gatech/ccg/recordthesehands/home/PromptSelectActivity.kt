@@ -23,6 +23,7 @@
  */
 package edu.gatech.ccg.recordthesehands.home
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,7 +31,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -97,6 +97,9 @@ class PromptSelectActivity : ComponentActivity() {
           lifecycleScope.launch {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             dataManager.resetToSection(sectionName)
+            val intent = Intent(this@PromptSelectActivity, InstructionsActivity::class.java)
+            intent.putExtra("sectionName", sectionName)
+            startActivity(intent)
             finish()
           }
         }

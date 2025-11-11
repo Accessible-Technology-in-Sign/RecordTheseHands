@@ -68,6 +68,9 @@
         <activity
             android:name=".home.PromptSelectActivity"
             android:exported="false" />
+        <activity
+            android:name=".home.InstructionsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
