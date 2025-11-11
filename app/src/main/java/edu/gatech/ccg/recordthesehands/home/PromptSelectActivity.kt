@@ -24,23 +24,42 @@
 package edu.gatech.ccg.recordthesehands.home
 
 import android.os.Bundle
-import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
-import edu.gatech.ccg.recordthesehands.databinding.ActivityPromptSelectBinding
-import edu.gatech.ccg.recordthesehands.databinding.SectionListItemBinding
-import edu.gatech.ccg.recordthesehands.hapticFeedbackOnTouchListener
 import edu.gatech.ccg.recordthesehands.upload.DataManager
-import edu.gatech.ccg.recordthesehands.upload.PromptState
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import kotlinx.coroutines.launch
 
-class PromptSelectActivity : AppCompatActivity() {
+class PromptSelectActivity : ComponentActivity() {
 
   private var windowInsetsController: WindowInsetsControllerCompat? = null
 
@@ -49,7 +68,6 @@ class PromptSelectActivity : AppCompatActivity() {
   }
 
   private lateinit var dataManager: DataManager
-  private lateinit var binding: ActivityPromptSelectBinding
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -59,71 +77,26 @@ class PromptSelectActivity : AppCompatActivity() {
         it.systemBarsBehavior =
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
-
-    binding = ActivityPromptSelectBinding.inflate(layoutInflater)
-    setContentView(binding.root)
     dataManager = DataManager.getInstance(applicationContext)
 
-    binding.backButton.setOnClickListener {
-      finish()
-    }
-
-    // Observe the overall prompt state
-    dataManager.promptState.observe(this) { state ->
-      if (state == null) return@observe
-      updateTutorialButton(state.tutorialMode)
-      populateSections(state)
-    }
-
-    binding.toggleTutorialButton.setOnTouchListener(::hapticFeedbackOnTouchListener)
-    binding.toggleTutorialButton.setOnClickListener {
-      Log.d(TAG, "Toggle Tutorial Mode button pressed.")
-      lifecycleScope.launch {
-        dataManager.toggleTutorialMode()
-        finish() // Return to HomeScreen
-      }
-    }
-  }
-
-  private fun updateTutorialButton(isTutorialMode: Boolean) {
-    binding.toggleTutorialButton.text = if (isTutorialMode) {
-      getString(R.string.switch_to_normal_prompts)
-    } else {
-      getString(R.string.switch_to_tutorial_prompts)
-    }
-  }
-
-  private fun populateSections(state: PromptState) {
-    binding.promptSectionsLayout.removeAllViews()
-    val sections = state.promptsCollection?.sections ?: return
-
-    for (sectionName in sections.keys.sorted()) {
-      val section = sections[sectionName]!!
-      val prompts = section.mainPrompts
-      val total = prompts.array.size
-      val sectionProgress = state.promptProgress[sectionName]
-      val completed = sectionProgress?.get("mainIndex") ?: 0
-      val isCompleted = total > 0 && completed >= total
-
-      val sectionBinding =
-        SectionListItemBinding.inflate(layoutInflater, binding.promptSectionsLayout, false)
-
-      sectionBinding.sectionButton.text = sectionName
-      sectionBinding.progressText.text =
-        getString(R.string.prompts_completed_progress, completed, total)
-      sectionBinding.sectionButton.isEnabled = !isCompleted || state.tutorialMode
-
-      if (sectionBinding.sectionButton.isEnabled) {
-        sectionBinding.sectionButton.setOnClickListener {
+    setContent {
+      PromptSelectScreenContent(
+        dataManager = dataManager,
+        onBackClick = { finish() },
+        onToggleTutorialMode = {
           lifecycleScope.launch {
-            Log.d(TAG, "Clicked on button to set Prompts Section to ${sectionName}")
+            dataManager.toggleTutorialMode()
+            finish()
+          }
+        },
+        onSectionClick = { sectionName ->
+          lifecycleScope.launch {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             dataManager.resetToSection(sectionName)
-            finish() // Return to HomeScreen
+            finish()
           }
         }
-      }
-      binding.promptSectionsLayout.addView(sectionBinding.root)
+      )
     }
   }
 
@@ -136,5 +109,95 @@ class PromptSelectActivity : AppCompatActivity() {
   override fun onStop() {
     super.onStop()
     windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
+  }
+}
+
+@Composable
+fun PromptSelectScreenContent(
+  dataManager: DataManager,
+  onBackClick: () -> Unit,
+  onToggleTutorialMode: () -> Unit,
+  onSectionClick: (String) -> Unit
+) {
+  val promptState by dataManager.promptState.observeAsState()
+
+  ConstraintLayout(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(Color.White)
+  ) {
+    val (backButton, header, toggleTutorialButton, sectionsList) = createRefs()
+
+    Image(
+      painter = painterResource(id = R.drawable.back_arrow),
+      contentDescription = stringResource(R.string.back_button),
+      modifier = Modifier
+        .constrainAs(backButton) {
+          start.linkTo(parent.start, margin = 16.dp)
+          top.linkTo(parent.top, margin = 16.dp)
+        }
+        .clickable(onClick = onBackClick)
+    )
+
+    Text(
+      text = stringResource(R.string.prompt_select_title),
+      fontSize = 24.sp,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.constrainAs(header) {
+        top.linkTo(parent.top, margin = 16.dp)
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
+      }
+    )
+
+    edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton(
+      onClick = onToggleTutorialMode,
+      modifier = Modifier.constrainAs(toggleTutorialButton) {
+        top.linkTo(header.top)
+        bottom.linkTo(header.bottom)
+        end.linkTo(parent.end, margin = 16.dp)
+      },
+      text = if (promptState?.tutorialMode == true) {
+        stringResource(R.string.switch_to_normal_prompts)
+      } else {
+        stringResource(R.string.switch_to_tutorial_prompts)
+      }
+    )
+
+    LazyColumn(
+      modifier = Modifier
+        .constrainAs(sectionsList) {
+          top.linkTo(header.bottom, margin = 16.dp)
+          start.linkTo(parent.start, margin = 16.dp)
+          end.linkTo(parent.end, margin = 16.dp)
+          bottom.linkTo(parent.bottom, margin = 16.dp)
+        }
+        .fillMaxWidth()
+    ) {
+      val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
+      items(sections) { sectionName ->
+        val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
+        val prompts = section.mainPrompts
+        val total = prompts.array.size
+        val sectionProgress = promptState?.promptProgress?.get(sectionName)
+        val completed = sectionProgress?.get("mainIndex") ?: 0
+        val isCompleted = total > 0 && completed >= total
+
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton(
+            onClick = { onSectionClick(sectionName) },
+            enabled = !isCompleted || promptState?.tutorialMode == true,
+            text = sectionName
+          )
+          Text(text = stringResource(R.string.prompts_completed_progress, completed, total))
+        }
+      }
+    }
   }
 }
