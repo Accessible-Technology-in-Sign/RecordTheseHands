@@ -151,9 +151,15 @@ fun PromptSelectScreenContent(
       fontSize = 48.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
-        top.linkTo(parent.top, margin = 16.dp)
-        start.linkTo(parent.start)
-        end.linkTo(parent.end)
+        if (isTablet) {
+          top.linkTo(parent.top, margin = 16.dp)
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+        } else {
+          top.linkTo(backButton.bottom, margin = 16.dp)
+          start.linkTo(parent.start)
+          end.linkTo(parent.end)
+        }
       }
     )
 
@@ -186,7 +192,7 @@ fun PromptSelectScreenContent(
         state = lazyListState,
       ) {
         val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
-        val twice = sections.flatMap { listOf(it, it) }  // DO NOT SUBMIT
+        // val twice = sections.flatMap { listOf(it, it) }
         items(sections) { sectionName ->
           val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
           val prompts = section.mainPrompts
@@ -202,10 +208,16 @@ fun PromptSelectScreenContent(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Box(
-              modifier = Modifier
-                .weight(1f)
-                .padding(end = 10.dp),
-              contentAlignment = Alignment.CenterEnd
+              modifier = if (isTablet) {
+                Modifier
+                  .weight(1f)
+                  .padding(end = 10.dp)
+              } else {
+                Modifier
+                  .weight(1f)
+                  .padding(start = 10.dp, end = 10.dp)
+              },
+              contentAlignment = if (isTablet) Alignment.CenterEnd else Alignment.CenterEnd,
             ) {
               SecondaryButton(
                 onClick = { onSectionClick(sectionName) },
@@ -214,10 +226,15 @@ fun PromptSelectScreenContent(
               )
             }
             Box(
-              modifier = Modifier
-                .weight(1f)
-                .padding(start = 10.dp),
-              contentAlignment = Alignment.CenterStart
+              modifier = if (isTablet) {
+                Modifier
+                  .weight(1f)
+                  .padding(start = 10.dp)
+              } else {
+                Modifier
+                  .padding(start = 10.dp, end = 10.dp)
+              },
+              contentAlignment = if (isTablet) Alignment.CenterStart else Alignment.CenterStart,
             ) {
               Text(
                 text = stringResource(
