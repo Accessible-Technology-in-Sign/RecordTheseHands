@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -768,7 +769,14 @@ fun HomeScreenContent(
 
     // Sections Completed Layout (FlexboxLayout)
     FlowRow(
-      modifier = Modifier
+      modifier = if (isTablet) Modifier
+        .constrainAs(sectionsCompletedLayout) {
+          top.linkTo(sectionsCompletedText.bottom, margin = 15.dp)
+          start.linkTo(parent.start, margin = 16.dp)
+          end.linkTo(parent.end, margin = 16.dp)
+        }
+        .width(500.dp)
+      else Modifier
         .constrainAs(sectionsCompletedLayout) {
           top.linkTo(sectionsCompletedText.bottom, margin = 15.dp)
           start.linkTo(parent.start, margin = 16.dp)
@@ -812,12 +820,11 @@ fun HomeScreenContent(
           color = colorResource(id = R.color.blue),
           fontWeight = FontWeight.Bold,
           modifier = Modifier
-            .padding(start = 20.dp, end = 8.dp)
             .constrainAs(uploadStatusMessageText) {
               if (isTablet) {
                 start.linkTo(parent.start, margin = 20.dp)
                 end.linkTo(parent.end, margin = 20.dp)
-                bottom.linkTo(uploadProgressBarLayout.top, margin = 16.dp)
+                top.linkTo(uploadProgressBarLayout.bottom, margin = 16.dp)
               } else {
                 end.linkTo(parent.end, margin = 16.dp)
                 top.linkTo(uploadProgressBarLayout.bottom, margin = 16.dp)
@@ -826,12 +833,22 @@ fun HomeScreenContent(
         )
       }
       Row(
-        modifier = Modifier
-          .constrainAs(uploadProgressBarLayout) {
-            start.linkTo(parent.start, margin = 20.dp)
-            end.linkTo(parent.end, margin = 20.dp)
+        modifier = if (isTablet) {
+          Modifier.constrainAs(uploadProgressBarLayout) {
+            start.linkTo(uploadButton.end, margin = 20.dp)
+            end.linkTo(startButton.end)
+            top.linkTo(uploadButton.top)
+            bottom.linkTo(uploadButton.bottom)
+            width = Dimension.fillToConstraints
+          }
+        } else {
+          Modifier.constrainAs(uploadProgressBarLayout) {
+            start.linkTo(parent.start, margin = 16.dp)
+            end.linkTo(parent.end, margin = 16.dp)
             bottom.linkTo(uploadButton.top, margin = 30.dp)
-          },
+            width = Dimension.fillToConstraints
+          }
+        },
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text(
@@ -839,14 +856,13 @@ fun HomeScreenContent(
           fontSize = 18.sp,
           color = colorResource(id = R.color.blue),
           fontWeight = FontWeight.Bold,
-          modifier = Modifier.padding(start = 20.dp, end = 12.dp)
+          modifier = Modifier.padding(end = 12.dp)
         )
         LinearProgressIndicator(
           progress = uploadState?.progress?.toFloat()?.div(100f) ?: 0f,
           modifier = Modifier
             .weight(1f)
-            .height(20.dp)
-            .padding(end = 20.dp),
+            .height(20.dp),
           color = colorResource(id = R.color.blue),
           backgroundColor = colorResource(id = R.color.very_light_gray)
         )
@@ -863,7 +879,7 @@ fun HomeScreenContent(
       onClick = { onUploadClick() },
       modifier = Modifier
         .constrainAs(uploadButton) {
-          start.linkTo(parent.start, margin = 16.dp)
+          start.linkTo(parent.start, margin = if (isTablet) 60.dp else 16.dp)
           bottom.linkTo(startButton.top, margin = 24.dp)
         },
       enabled = uploadState?.status != UploadStatus.UPLOADING,
@@ -905,8 +921,8 @@ fun HomeScreenContent(
       },
       modifier = Modifier
         .constrainAs(startButton) {
-          end.linkTo(parent.end, margin = 16.dp)
-          bottom.linkTo(parent.bottom, margin = 24.dp)
+          end.linkTo(parent.end, margin = if (isTablet) 60.dp else 16.dp)
+          bottom.linkTo(parent.bottom, margin = if (isTablet) 40.dp else 24.dp)
         },
       enabled = startButtonEnabled,
       text = startButtonText
@@ -918,8 +934,8 @@ fun HomeScreenContent(
         onClick = { onSwitchPromptsClick() },
         modifier = Modifier
           .constrainAs(switchPromptsButton) {
-            start.linkTo(parent.start, margin = 16.dp)
-            bottom.linkTo(parent.bottom, margin = 24.dp)
+            start.linkTo(parent.start, margin = if (isTablet) 60.dp else 16.dp)
+            bottom.linkTo(parent.bottom, margin = if (isTablet) 40.dp else 24.dp)
           },
         text = stringResource(id = R.string.switch_prompts)
       )
