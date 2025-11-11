@@ -19,6 +19,8 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,7 +65,8 @@ class InstructionsActivity : ComponentActivity() {
 fun VideoPlayer(
   videoPath: String,
   modifier: Modifier = Modifier,
-  videoViewRef: (VideoView) -> Unit = {}
+  videoViewRef: (VideoView) -> Unit = {},
+  onVideoStarted: () -> Unit = {}
 ) {
   val context = LocalContext.current
   var aspectRatio by remember { mutableStateOf<Float?>(null) }
@@ -82,13 +85,14 @@ fun VideoPlayer(
         val videoFile = File(context.filesDir, videoPath)
         setVideoURI(Uri.fromFile(videoFile))
         setOnPreparedListener { mp ->
-          mp.isLooping = true
+          mp.isLooping = false
           val videoWidth = mp.videoWidth
           val videoHeight = mp.videoHeight
           if (videoHeight > 0) {
             aspectRatio = videoWidth.toFloat() / videoHeight.toFloat()
           }
           start()
+          onVideoStarted()
         }
         videoViewRef(this) // Pass the VideoView instance back
       }
@@ -105,6 +109,7 @@ fun InstructionsScreen(
   val promptState by dataManager.promptState.observeAsState()
   val metadata = promptState?.promptsCollection?.sections?.get(sectionName)?.metadata
   var videoViewInstance by remember { mutableStateOf<VideoView?>(null) }
+  var isPlaying by remember { mutableStateOf(true) }
   val configuration = LocalConfiguration.current
   val screenHeight = configuration.screenHeightDp.dp
 
@@ -113,7 +118,7 @@ fun InstructionsScreen(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton) = createRefs()
+    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton) = createRefs()
 
     Text(
       text = stringResource(R.string.instructions_for_section, sectionName),
@@ -199,10 +204,10 @@ fun InstructionsScreen(
             end.linkTo(parent.end, margin = 16.dp)
           }
           .fillMaxWidth()
-          .heightIn(max = screenHeight / 2)
-      ) {
-        videoViewInstance = it
-      }
+          .heightIn(max = screenHeight / 2),
+        videoViewRef = { videoViewInstance = it },
+        onVideoStarted = { isPlaying = true }
+      )
     }
 
     videoViewInstance?.let { videoView ->
@@ -210,10 +215,15 @@ fun InstructionsScreen(
         onClick = {
           videoView.seekTo(0)
           videoView.start()
+          isPlaying = true
         },
         modifier = Modifier
           .constrainAs(restartButton) {
-            bottom.linkTo(videoPlayer.bottom)
+            if (hasText) {
+              bottom.linkTo(videoPlayer.bottom)
+            } else {
+              top.linkTo(videoPlayer.bottom)
+            }
             end.linkTo(videoPlayer.end)
           }
           .background(
@@ -222,6 +232,37 @@ fun InstructionsScreen(
           )
       ) {
         Icon(Icons.Default.RestartAlt, contentDescription = "Restart Video")
+      }
+    }
+
+    videoViewInstance?.let { videoView ->
+      IconButton(
+        onClick = {
+          if (isPlaying) {
+            videoView.pause()
+          } else {
+            videoView.start()
+          }
+          isPlaying = !isPlaying
+        },
+        modifier = Modifier
+          .constrainAs(playPauseButton) {
+            if (hasText) {
+              bottom.linkTo(videoPlayer.bottom)
+            } else {
+              top.linkTo(videoPlayer.bottom)
+            }
+            start.linkTo(videoPlayer.start)
+          }
+          .background(
+            color = Color.White.copy(alpha = 0.5f),
+            shape = CircleShape
+          )
+      ) {
+        Icon(
+          if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+          contentDescription = if (isPlaying) "Pause Video" else "Play Video"
+        )
       }
     }
 
