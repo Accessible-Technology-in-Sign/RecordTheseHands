@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -199,10 +200,10 @@ fun InstructionsScreen(
           .verticalScroll(scrollState)
           .fillMaxWidth()
       ) {
-
         Text(
           text = instructions,
-          fontSize = 18.sp
+          fontSize = 24.sp,
+          modifier = Modifier.padding(start = 16.dp, end = 16.dp)
         )
       }
       if (scrollState.canScrollBackward) {
