@@ -34,8 +34,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -151,15 +150,9 @@ fun PromptSelectScreenContent(
       fontSize = 48.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
-        if (isTablet) {
-          top.linkTo(parent.top, margin = 16.dp)
-          start.linkTo(parent.start)
-          end.linkTo(parent.end)
-        } else {
-          top.linkTo(backButton.bottom, margin = 16.dp)
-          start.linkTo(parent.start)
-          end.linkTo(parent.end)
-        }
+        top.linkTo(backButton.bottom, margin = 16.dp)
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
       }
     )
 
@@ -176,7 +169,7 @@ fun PromptSelectScreenContent(
       }
     )
 
-    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scrollState = androidx.compose.foundation.rememberScrollState()
     Box(
       modifier = Modifier
         .constrainAs(sectionsList) {
@@ -188,12 +181,21 @@ fun PromptSelectScreenContent(
         }
         .fillMaxWidth()
     ) {
-      LazyColumn(
-        state = lazyListState,
+      ConstraintLayout(
+        modifier = Modifier
+          .verticalScroll(scrollState)
+          .fillMaxWidth()
       ) {
         val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
         // val twice = sections.flatMap { listOf(it, it) }
-        items(sections) { sectionName ->
+        val buttonRefs = sections.map { createRef() }
+        val textRefs = sections.map { createRef() }
+        val guideline = if (isTablet) {
+          createGuidelineFromStart(0.5f)
+        } else {
+          createStartBarrier(*textRefs.toTypedArray())
+        }
+        sections.forEachIndexed { index, sectionName ->
           val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
           val prompts = section.mainPrompts
           val total = prompts.array.size
@@ -201,54 +203,41 @@ fun PromptSelectScreenContent(
           val completed = sectionProgress?.get("mainIndex") ?: 0
           val isCompleted = total <= 0 || completed >= total
 
-          Row(
+          SecondaryButton(
+            onClick = { onSectionClick(sectionName) },
+            enabled = !isCompleted || promptState?.tutorialMode == true,
+            text = sectionName,
             modifier = Modifier
-              .fillMaxWidth()
-              .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Box(
-              modifier = if (isTablet) {
-                Modifier
-                  .weight(1f)
-                  .padding(end = 10.dp)
-              } else {
-                Modifier
-                  .weight(1f)
-                  .padding(start = 10.dp, end = 10.dp)
+              .constrainAs(buttonRefs[index]) {
+                if (index == 0) {
+                  top.linkTo(parent.top)
+                } else {
+                  top.linkTo(buttonRefs[index - 1].bottom, margin = 8.dp)
+                }
+                end.linkTo(guideline, margin = if (isTablet) 10.dp else 20.dp)
               },
-              contentAlignment = if (isTablet) Alignment.CenterEnd else Alignment.CenterEnd,
-            ) {
-              SecondaryButton(
-                onClick = { onSectionClick(sectionName) },
-                enabled = !isCompleted || promptState?.tutorialMode == true,
-                text = sectionName
-              )
-            }
-            Box(
-              modifier = if (isTablet) {
-                Modifier
-                  .weight(1f)
-                  .padding(start = 10.dp)
-              } else {
-                Modifier
-                  .padding(start = 10.dp, end = 10.dp)
+          )
+          Text(
+            text = stringResource(
+              if (isTablet) R.string.prompts_completed_progress else R.string.prompts_completed_progress_compact,
+              completed,
+              total
+            ),
+            fontSize = 24.sp,
+            modifier = Modifier
+              .constrainAs(textRefs[index]) {
+                top.linkTo(buttonRefs[index].top)
+                bottom.linkTo(buttonRefs[index].bottom)
+                if (isTablet) {
+                  start.linkTo(guideline, margin = 10.dp)
+                } else {
+                  end.linkTo(parent.end, margin = 10.dp)
+                }
               },
-              contentAlignment = if (isTablet) Alignment.CenterStart else Alignment.CenterStart,
-            ) {
-              Text(
-                text = stringResource(
-                  if (isTablet) R.string.prompts_completed_progress else R.string.prompts_completed_progress_compact,
-                  completed,
-                  total
-                ),
-                fontSize = 24.sp,
-              )
-            }
-          }
+          )
         }
       }
-      if (lazyListState.canScrollForward) {
+      if (scrollState.canScrollForward) {
         Box(
           modifier = Modifier
             .align(Alignment.BottomCenter)
@@ -263,7 +252,7 @@ fun PromptSelectScreenContent(
             .padding(top = 80.dp)
         ) {}
       }
-      if (lazyListState.canScrollBackward) {
+      if (scrollState.canScrollBackward) {
         Box(
           modifier = Modifier
             .align(Alignment.TopCenter)
