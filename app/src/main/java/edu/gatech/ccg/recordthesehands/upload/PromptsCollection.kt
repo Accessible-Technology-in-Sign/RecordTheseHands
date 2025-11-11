@@ -1,18 +1,29 @@
 package edu.gatech.ccg.recordthesehands.upload
 
 import android.content.Context
+import android.util.Log
 import edu.gatech.ccg.recordthesehands.Constants
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 
 class PromptsCollection(val context: Context) {
   var sections = mutableMapOf<String, PromptsSection>()
 
+  companion object {
+    private val TAG = PromptsCollection::class.simpleName
+  }
+
   suspend fun initialize(): Boolean {
     val promptsFile = File(context.filesDir, Constants.PROMPTS_FILENAME)
     if (!promptsFile.exists()) return false
 
-    val json = JSONObject(promptsFile.readText())
+    val json = try {
+      JSONObject(promptsFile.readText())
+    } catch (e: JSONException) {
+      Log.e(TAG, "Failed to parse prompts file: $e")
+      return false
+    }
     val data = json.getJSONObject("data")
     data.keys().forEach { sectionName ->
       val sectionJson = data.getJSONObject(sectionName)
