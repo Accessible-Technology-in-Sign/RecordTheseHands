@@ -328,10 +328,19 @@ fun AdminScreenContent(
         if (isTablet) {
           Row(
             modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
             newUsernameText()
             newUsernameTextField()
+          }
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            adminPasswordText()
+            adminPasswordTextField()
           }
           attachToAccountButton()
         } else {
@@ -349,17 +358,6 @@ fun AdminScreenContent(
           ) {
             newUsernameTextField()
           }
-        }
-        if (isTablet) {
-          Row(
-            modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            adminPasswordText()
-            adminPasswordTextField()
-          }
-        } else {
           Row(
             modifier = Modifier.padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -376,7 +374,6 @@ fun AdminScreenContent(
           }
         }
       }
-
 
       SecondaryButton(
         onClick = onDownloadApk,
