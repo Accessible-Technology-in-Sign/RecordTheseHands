@@ -48,12 +48,11 @@ import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
 import edu.gatech.ccg.recordthesehands.toConsistentString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.util.concurrent.CancellationException
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
@@ -1089,7 +1088,8 @@ class DataManager private constructor(val context: Context) {
   suspend fun attachToAccount(username: String, adminPassword: String): Pair<Boolean, String?> {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
       logToServer("attachToAccount: username \"$username\" is invalid")
-      val errorMessage = "Username must be at least 3 lowercase alphanumeric or underscore characters with the first character being a letter."
+      val errorMessage =
+        "Username must be at least 3 lowercase alphanumeric or underscore characters with the first character being a letter."
       Log.e(TAG, errorMessage)
       return Pair(false, errorMessage)
     }
@@ -2085,7 +2085,7 @@ class DataManager private constructor(val context: Context) {
           }
         }
       }
-      Log.d(TAG, "All resourced downloaded.")
+      Log.d(TAG, "All resources downloaded.")
       true
     } catch (e: ResourceDownloadException) {
       Log.d(TAG, "Failed to download all resources.")

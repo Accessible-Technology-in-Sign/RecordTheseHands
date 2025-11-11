@@ -41,13 +41,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.Text
-import androidx.compose.material.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -69,6 +69,7 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
+import edu.gatech.ccg.recordthesehands.ui.components.StyledTextField
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -155,11 +156,11 @@ fun AdminScreenContent(
 
   ConstraintLayout(
     modifier = Modifier
-        .fillMaxSize()
-        .background(Color.White)
-        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
-          focusManager.clearFocus()
-        }
+      .fillMaxSize()
+      .background(Color.White)
+      .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+        focusManager.clearFocus()
+      }
   ) {
     val (backButton, content, headerText) = createRefs()
 
@@ -167,11 +168,11 @@ fun AdminScreenContent(
       painter = painterResource(id = R.drawable.back_arrow),
       contentDescription = stringResource(R.string.back_button),
       modifier = Modifier
-          .constrainAs(backButton) {
-              start.linkTo(parent.start, margin = 16.dp)
-              top.linkTo(parent.top, margin = 16.dp)
-          }
-          .clickable(onClick = onBackClick)
+        .constrainAs(backButton) {
+          start.linkTo(parent.start, margin = 16.dp)
+          top.linkTo(parent.top, margin = 16.dp)
+        }
+        .clickable(onClick = onBackClick)
     )
 
     Text(
@@ -179,21 +180,22 @@ fun AdminScreenContent(
       fontSize = 32.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(headerText) {
-          top.linkTo(backButton.top)
-          bottom.linkTo(backButton.bottom)
-          start.linkTo(backButton.end, margin = 16.dp)
-          end.linkTo(parent.end, margin = 16.dp)
-        }
+        top.linkTo(backButton.top)
+        bottom.linkTo(backButton.bottom)
+        start.linkTo(backButton.end, margin = 16.dp)
+        end.linkTo(parent.end, margin = 16.dp)
+      }
     )
 
     Column(
       modifier = Modifier
-          .constrainAs(content) {
-              start.linkTo(backButton.end, margin = 20.dp)
-              end.linkTo(parent.end, margin = 32.dp)
-              top.linkTo(backButton.bottom, margin = 6.dp)
-          }
-          .fillMaxWidth()
+        .constrainAs(content) {
+          start.linkTo(backButton.end, margin = 20.dp)
+          end.linkTo(parent.end, margin = 32.dp)
+          top.linkTo(backButton.bottom, margin = 6.dp)
+        }
+        .fillMaxWidth()
+        .padding(end = 24.dp)
     ) {
       @Composable
       fun deviceIdWithCurrentText() {
@@ -202,45 +204,59 @@ fun AdminScreenContent(
           fontSize = 24.sp
         )
       }
+
       @Composable
       fun newDeviceIdTextField() {
-        TextField(
+        StyledTextField(
           value = newDeviceId,
           onValueChange = { newDeviceId = it },
-          modifier = Modifier.weight(1f)
+          modifier = Modifier.weight(1f),
+          fontSize = 24.sp,
+        )
+      }
+
+      @Composable
+      fun setDeviceIdButton() {
+        PrimaryButton(
+          onClick = {
+            onSetDeviceId(newDeviceId)
+            focusManager.clearFocus()
+          },
+          modifier = Modifier.padding(top = if (isTablet) 8.dp else 0.dp),
+          text = if (isTablet) {
+            "Set DeviceId"
+          } else {
+            "Set"
+          }
         )
       }
       // Device ID Section
       if (isTablet) {
         Row(
-          modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
+          modifier = Modifier.padding(top = 8.dp, end = 24.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
           deviceIdWithCurrentText()
           newDeviceIdTextField()
         }
+        setDeviceIdButton()
       } else {
         Row(
           modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
+          setDeviceIdButton()
           deviceIdWithCurrentText()
         }
         Row(
-          modifier = Modifier.padding(top = 8.dp),
+          modifier = Modifier.padding(top = 8.dp, end = 24.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           newDeviceIdTextField()
         }
       }
-      PrimaryButton(
-        onClick = {
-          onSetDeviceId(newDeviceId)
-          focusManager.clearFocus()
-        },
-        modifier = Modifier.padding(top = 8.dp),
-        text = "Set DeviceId"
-      )
       // Attach to Account Section
       @Composable
       fun newUsernameText() {
@@ -249,46 +265,96 @@ fun AdminScreenContent(
           fontSize = 24.sp
         )
       }
+
       @Composable
       fun newUsernameTextField() {
-        TextField(
+        StyledTextField(
           value = newUsername,
           onValueChange = { newUsername = it },
-          modifier = Modifier.weight(1f)
+          modifier = Modifier.weight(1f),
+          fontSize = 24.sp,
         )
       }
-      Column(modifier = Modifier.padding(top = 24.dp)) {
-        if (isTablet) {
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            newUsernameText()
-            newUsernameTextField()
+
+      @Composable
+      fun adminPasswordText() {
+        Text("Admin Password:", fontSize = 24.sp)
+      }
+
+      @Composable
+      fun adminPasswordTextField() {
+        StyledTextField(
+          value = adminPassword,
+          onValueChange = { adminPassword = it },
+          visualTransformation = PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+          modifier = Modifier.weight(1f),
+          fontSize = 24.sp,
+        )
+      }
+
+      @Composable
+      fun attachToAccountButton() {
+        PrimaryButton(
+          onClick = {
+            isAttaching = true
+            focusManager.clearFocus()
+            onAttachToAccount(newUsername, adminPassword) { success, errorMessage ->
+              isAttaching = false
+              if (success) {
+                onBackClick()
+              } else {
+                dialogTitle = "Failed"
+                dialogMessage = errorMessage ?: "Failed to Create account for \"$newUsername\"."
+                showResultDialog = true
+              }
+            }
+          },
+          enabled = !isAttaching,
+          modifier = Modifier.padding(top = 8.dp),
+          text = if (isAttaching) {
+            "Loading..."
+          } else {
+            if (isTablet) {
+              "Set Username"
+            } else {
+              "Set"
+            }
           }
-        } else {
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            newUsernameText()
-          }
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            newUsernameTextField()
-          }
-        }
-        @Composable
-        fun adminPasswordText() {
-          Text("Admin Password:", fontSize = 24.sp)
-        }
-        @Composable
-        fun adminPasswordTextField() {
-          TextField(
-            value = adminPassword,
-            onValueChange = { adminPassword = it },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.weight(1f)
-          )
-        }
+        )
+      }
+
+      Column(modifier = Modifier.padding(top = 24.dp, end = 24.dp)) {
         if (isTablet) {
           Row(
             modifier = Modifier.padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            newUsernameText()
+            newUsernameTextField()
+          }
+          attachToAccountButton()
+        } else {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            attachToAccountButton()
+            newUsernameText()
+          }
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            newUsernameTextField()
+          }
+        }
+        if (isTablet) {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
           ) {
             adminPasswordText()
             adminPasswordTextField()
@@ -296,38 +362,21 @@ fun AdminScreenContent(
         } else {
           Row(
             modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
           ) {
             adminPasswordText()
           }
           Row(
             modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
           ) {
             adminPasswordTextField()
           }
         }
       }
 
-      PrimaryButton(
-        onClick = {
-          isAttaching = true
-          focusManager.clearFocus()
-          onAttachToAccount(newUsername, adminPassword) { success, errorMessage ->
-            isAttaching = false
-            if (success) {
-              onBackClick()
-            } else {
-              dialogTitle = "Failed"
-              dialogMessage = errorMessage ?: "Failed to Create account for \"$newUsername\"."
-              showResultDialog = true
-            }
-          }
-        },
-        enabled = !isAttaching,
-        modifier = Modifier.padding(top = 8.dp),
-        text = if (isAttaching) "Attaching to account..." else "Set Username"
-      )
 
       SecondaryButton(
         onClick = onDownloadApk,
