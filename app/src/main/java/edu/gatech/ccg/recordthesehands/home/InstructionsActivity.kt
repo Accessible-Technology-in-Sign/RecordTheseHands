@@ -6,6 +6,7 @@ import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,6 +20,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
@@ -114,6 +116,7 @@ fun InstructionsScreen(
   val metadata = promptState?.promptsCollection?.sections?.get(sectionName)?.metadata
   var videoViewInstance by remember { mutableStateOf<VideoView?>(null) }
   var isPlaying by remember { mutableStateOf(true) }
+  var isMinimized by remember { mutableStateOf(false) }
   val configuration = LocalConfiguration.current
   val screenHeight = configuration.screenHeightDp.dp
 
@@ -122,7 +125,7 @@ fun InstructionsScreen(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton) = createRefs()
+    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton, expandButton) = createRefs()
 
     Text(
       text = stringResource(R.string.instructions_for_section, sectionName),
@@ -149,6 +152,11 @@ fun InstructionsScreen(
             end.linkTo(parent.end, margin = 16.dp)
             bottom.linkTo(continueButton.top, margin = 16.dp)
             height = Dimension.fillToConstraints
+          }
+          .clickable {
+            isMinimized = true
+            videoViewInstance?.pause()
+            isPlaying = false
           }
           .verticalScroll(scrollState)
           .fillMaxWidth()
@@ -208,11 +216,30 @@ fun InstructionsScreen(
             end.linkTo(parent.end, margin = 16.dp)
           }
           .fillMaxWidth()
-          .heightIn(max = screenHeight / 2),
+          .heightIn(max = if (isMinimized) 100.dp else screenHeight / 2),
         videoViewRef = { videoViewInstance = it },
         onVideoStarted = { isPlaying = true },
         onVideoCompleted = { isPlaying = false }
       )
+    }
+
+    if (isMinimized) {
+      videoViewInstance?.let {
+        IconButton(
+          onClick = { isMinimized = false },
+          modifier = Modifier
+            .constrainAs(expandButton) {
+              top.linkTo(videoPlayer.top)
+              start.linkTo(videoPlayer.start)
+            }
+            .background(
+              color = Color.White.copy(alpha = 0.5f),
+              shape = CircleShape
+            )
+        ) {
+          Icon(Icons.Default.Fullscreen, contentDescription = "Expand Video")
+        }
+      }
     }
 
     videoViewInstance?.let { videoView ->
