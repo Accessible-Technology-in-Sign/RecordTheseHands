@@ -31,6 +31,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,12 +50,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import kotlinx.coroutines.launch
@@ -127,6 +130,7 @@ fun PromptSelectScreenContent(
       .background(Color.White)
   ) {
     val (backButton, header, toggleTutorialButton, sectionsList) = createRefs()
+    val topBarrier = createBottomBarrier(backButton, header, toggleTutorialButton)
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -150,11 +154,10 @@ fun PromptSelectScreenContent(
       }
     )
 
-    edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton(
+    SecondaryButton(
       onClick = onToggleTutorialMode,
       modifier = Modifier.constrainAs(toggleTutorialButton) {
-        top.linkTo(header.top)
-        bottom.linkTo(header.bottom)
+        top.linkTo(parent.top, margin = 16.dp)
         end.linkTo(parent.end, margin = 16.dp)
       },
       text = if (promptState?.tutorialMode == true) {
@@ -167,30 +170,32 @@ fun PromptSelectScreenContent(
     LazyColumn(
       modifier = Modifier
         .constrainAs(sectionsList) {
-          top.linkTo(header.bottom, margin = 16.dp)
+          top.linkTo(topBarrier, margin = 16.dp)
           start.linkTo(parent.start, margin = 16.dp)
           end.linkTo(parent.end, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 16.dp)
+          height = Dimension.fillToConstraints
         }
         .fillMaxWidth()
     ) {
       val sections = promptState?.promptsCollection?.sections?.keys?.sorted() ?: emptyList()
-      items(sections) { sectionName ->
+      val twice = sections.flatMap { listOf(it, it) }  // DO NOT SUBMIT
+      items(twice) { sectionName ->
         val section = promptState?.promptsCollection?.sections?.get(sectionName)!!
         val prompts = section.mainPrompts
         val total = prompts.array.size
         val sectionProgress = promptState?.promptProgress?.get(sectionName)
         val completed = sectionProgress?.get("mainIndex") ?: 0
-        val isCompleted = total > 0 && completed >= total
+        val isCompleted = total <= 0 || completed >= total
 
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton(
+          SecondaryButton(
             onClick = { onSectionClick(sectionName) },
             enabled = !isCompleted || promptState?.tutorialMode == true,
             text = sectionName
