@@ -66,7 +66,8 @@ fun VideoPlayer(
   videoPath: String,
   modifier: Modifier = Modifier,
   videoViewRef: (VideoView) -> Unit = {},
-  onVideoStarted: () -> Unit = {}
+  onVideoStarted: () -> Unit = {},
+  onVideoCompleted: () -> Unit = {}
 ) {
   val context = LocalContext.current
   var aspectRatio by remember { mutableStateOf<Float?>(null) }
@@ -93,6 +94,9 @@ fun VideoPlayer(
           }
           start()
           onVideoStarted()
+        }
+        setOnCompletionListener {
+          onVideoCompleted()
         }
         videoViewRef(this) // Pass the VideoView instance back
       }
@@ -206,7 +210,8 @@ fun InstructionsScreen(
           .fillMaxWidth()
           .heightIn(max = screenHeight / 2),
         videoViewRef = { videoViewInstance = it },
-        onVideoStarted = { isPlaying = true }
+        onVideoStarted = { isPlaying = true },
+        onVideoCompleted = { isPlaying = false }
       )
     }
 
