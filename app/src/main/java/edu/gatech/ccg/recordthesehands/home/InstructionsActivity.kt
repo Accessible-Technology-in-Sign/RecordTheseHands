@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -153,10 +154,13 @@ fun InstructionsScreen(
             bottom.linkTo(continueButton.top, margin = 16.dp)
             height = Dimension.fillToConstraints
           }
-          .clickable {
-            isMinimized = true
-            videoViewInstance?.pause()
-            isPlaying = false
+          .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+          ) {
+              isMinimized = true
+              videoViewInstance?.pause()
+              isPlaying = false
           }
           .verticalScroll(scrollState)
           .fillMaxWidth()
