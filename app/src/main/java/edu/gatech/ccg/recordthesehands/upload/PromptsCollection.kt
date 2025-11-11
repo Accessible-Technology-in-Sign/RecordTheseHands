@@ -21,7 +21,8 @@ class PromptsCollection(val context: Context) {
       // Create metadata object
       val metadata = PromptsSectionMetadata(
         dataCollectionId = metadataJson.opt("dataCollectionId") as? String,
-        useCorrectionsPage = metadataJson.optBoolean("useCorrectionsPage", false)
+        instructionsText = metadataJson.opt("instructionsText") as? String,
+        instructionsVideo = metadataJson.opt("instructionsVideo") as? String,
       )
 
       // Create and populate Prompts objects
@@ -63,12 +64,18 @@ class PromptsCollection(val context: Context) {
 
 data class PromptsSectionMetadata(
   val dataCollectionId: String?,
-  val useCorrectionsPage: Boolean
+  val instructionsText: String?,
+  val instructionsVideo: String?,
 ) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("dataCollectionId", dataCollectionId)
-    json.put("useCorrectionsPage", useCorrectionsPage)
+    if (instructionsText != null) {
+      json.put("instructionsText", instructionsText)
+    }
+    if (instructionsVideo != null) {
+      json.put("instructionsVideo", instructionsVideo)
+    }
     return json
   }
 }

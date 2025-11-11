@@ -2048,6 +2048,9 @@ class DataManager private constructor(val context: Context) {
     Log.i(TAG, "ensureResources for promptsCollection")
     val resourcePaths = ArrayList<String>()
     for (section in promptsCollection.sections.values) {
+      if (section.metadata.instructionsVideo != null) {
+        resourcePaths.add(section.metadata.instructionsVideo)
+      }
       resourcePaths.addAll(section.mainPrompts.array.mapNotNull { it.resourcePath })
       resourcePaths.addAll(section.tutorialPrompts.array.mapNotNull { it.resourcePath })
     }
