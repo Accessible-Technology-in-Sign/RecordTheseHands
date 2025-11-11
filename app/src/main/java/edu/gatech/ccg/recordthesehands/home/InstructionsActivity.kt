@@ -12,16 +12,19 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,34 +59,40 @@ class InstructionsActivity : ComponentActivity() {
 }
 
 @Composable
-fun VideoPlayer(videoPath: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    var aspectRatio by remember { mutableStateOf<Float?>(null) }
+fun VideoPlayer(
+  videoPath: String,
+  modifier: Modifier = Modifier,
+  videoViewRef: (VideoView) -> Unit = {}
+) {
+  val context = LocalContext.current
+  var aspectRatio by remember { mutableStateOf<Float?>(null) }
+  val videoViewInstance = remember { VideoView(context) }
 
-    AndroidView(
-        modifier = modifier.then(
-            if (aspectRatio != null) {
-                Modifier.aspectRatio(aspectRatio!!, matchHeightConstraintsFirst = true)
-            } else {
-                Modifier
-            }
-        ),
-        factory = {
-            VideoView(context).apply {
-                val videoFile = File(context.filesDir, videoPath)
-                setVideoURI(Uri.fromFile(videoFile))
-                setOnPreparedListener { mp ->
-                    mp.isLooping = true
-                    val videoWidth = mp.videoWidth
-                    val videoHeight = mp.videoHeight
-                    if (videoHeight > 0) {
-                        aspectRatio = videoWidth.toFloat() / videoHeight.toFloat()
-                    }
-                    start()
-                }
-            }
+  AndroidView(
+    modifier = modifier.then(
+      if (aspectRatio != null) {
+        Modifier.aspectRatio(aspectRatio!!, matchHeightConstraintsFirst = true)
+      } else {
+        Modifier
+      }
+    ),
+    factory = {
+      videoViewInstance.apply {
+        val videoFile = File(context.filesDir, videoPath)
+        setVideoURI(Uri.fromFile(videoFile))
+        setOnPreparedListener { mp ->
+          mp.isLooping = true
+          val videoWidth = mp.videoWidth
+          val videoHeight = mp.videoHeight
+          if (videoHeight > 0) {
+            aspectRatio = videoWidth.toFloat() / videoHeight.toFloat()
+          }
+          start()
         }
-    )
+        videoViewRef(this) // Pass the VideoView instance back
+      }
+    }
+  )
 }
 
 @Composable
@@ -94,7 +103,7 @@ fun InstructionsScreen(
   val dataManager = DataManager.getInstance(LocalContext.current.applicationContext)
   val promptState by dataManager.promptState.observeAsState()
   val metadata = promptState?.promptsCollection?.sections?.get(sectionName)?.metadata
-
+  var videoViewInstance by remember { mutableStateOf<VideoView?>(null) }
   val configuration = LocalConfiguration.current
   val screenHeight = configuration.screenHeightDp.dp
 
@@ -103,7 +112,7 @@ fun InstructionsScreen(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton) = createRefs()
+    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton) = createRefs()
 
     Text(
       text = stringResource(R.string.instructions_for_section, sectionName),
@@ -188,8 +197,26 @@ fun InstructionsScreen(
             start.linkTo(parent.start, margin = 16.dp)
             end.linkTo(parent.end, margin = 16.dp)
           }
+          .fillMaxWidth()
           .heightIn(max = screenHeight / 2)
-      )
+      ) {
+        videoViewInstance = it
+      }
+    }
+
+    videoViewInstance?.let { videoView ->
+      IconButton(
+        onClick = {
+          videoView.seekTo(0)
+          videoView.start()
+        },
+        modifier = Modifier.constrainAs(restartButton) {
+          bottom.linkTo(videoPlayer.bottom)
+          end.linkTo(videoPlayer.end)
+        }
+      ) {
+        Icon(Icons.Default.RestartAlt, contentDescription = "Restart Video")
+      }
     }
 
     PrimaryButton(
