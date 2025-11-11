@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -210,10 +211,15 @@ fun InstructionsScreen(
           videoView.seekTo(0)
           videoView.start()
         },
-        modifier = Modifier.constrainAs(restartButton) {
-          bottom.linkTo(videoPlayer.bottom)
-          end.linkTo(videoPlayer.end)
-        }
+        modifier = Modifier
+          .constrainAs(restartButton) {
+            bottom.linkTo(videoPlayer.bottom)
+            end.linkTo(videoPlayer.end)
+          }
+          .background(
+            color = Color.White.copy(alpha = 0.5f),
+            shape = CircleShape
+          )
       ) {
         Icon(Icons.Default.RestartAlt, contentDescription = "Restart Video")
       }
