@@ -1144,6 +1144,7 @@ class DataManager private constructor(val context: Context) {
         Log.e(TAG, "Failed to reload prompts from server.")
         return Pair(false, "Failed to reload prompts from server.")
       }
+      setTutorialModeUnderLock(true)
       return Pair(true, null)
     }
   }
