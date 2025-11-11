@@ -28,6 +28,7 @@ import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,9 +41,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
-import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,7 @@ class AdminActivity : ComponentActivity() {
 
   private lateinit var dataManager: DataManager
   private var windowInsetsController: WindowInsetsControllerCompat? = null
+  private val adminViewModel: AdminViewModel by viewModels()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -103,19 +105,15 @@ class AdminActivity : ComponentActivity() {
     setContent {
       AdminScreenContent(
         dataManager = dataManager,
+        adminViewModel = adminViewModel,
         onBackClick = { finish() },
         onSetDeviceId = { newDeviceId ->
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setDeviceId(newDeviceId)
           }
         },
-        onAttachToAccount = { username, password, onResult ->
-          lifecycleScope.launch(Dispatchers.IO) {
-            val (success, errorMessage) = dataManager.attachToAccount(username, password)
-            runOnUiThread {
-              onResult(success, errorMessage)
-            }
-          }
+        onAttachToAccount = {
+          adminViewModel.attachToAccount(dataManager)
         },
         onDownloadApk = {
           val serverAddress = dataManager.getServer()
@@ -143,23 +141,32 @@ class AdminActivity : ComponentActivity() {
 @Composable
 fun AdminScreenContent(
   dataManager: DataManager,
+  adminViewModel: AdminViewModel,
   onBackClick: () -> Unit,
   onSetDeviceId: (String) -> Unit,
-  onAttachToAccount: (String, String, (Boolean, String?) -> Unit) -> Unit,
+  onAttachToAccount: () -> Unit,
   onDownloadApk: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val deviceId = promptState?.deviceId ?: "Unknown Device Id"
   val username = promptState?.username ?: stringResource(R.string.unknown_username)
 
-  var newDeviceId by remember { mutableStateOf("") }
-  var newUsername by remember { mutableStateOf("") }
-  var adminPassword by remember { mutableStateOf("") }
-  var isAttaching by remember { mutableStateOf(false) }
-
   var showResultDialog by remember { mutableStateOf(false) }
   var dialogTitle by remember { mutableStateOf("") }
   var dialogMessage by remember { mutableStateOf("") }
+
+  LaunchedEffect(Unit) {
+    adminViewModel.attachResultFlow.collect { (success, errorMessage) ->
+      if (success) {
+        onBackClick()
+      } else {
+        dialogTitle = "Failed"
+        dialogMessage =
+          errorMessage ?: "Failed to create account for \"${adminViewModel.newUsername}\"."
+        showResultDialog = true
+      }
+    }
+  }
 
   val focusManager = LocalFocusManager.current
 
@@ -219,8 +226,8 @@ fun AdminScreenContent(
       @Composable
       fun newDeviceIdTextField() {
         StyledTextField(
-          value = newDeviceId,
-          onValueChange = { newDeviceId = it },
+          value = adminViewModel.newDeviceId,
+          onValueChange = { adminViewModel.newDeviceId = it },
           modifier = Modifier.weight(1f),
           fontSize = 24.sp,
         )
@@ -230,7 +237,7 @@ fun AdminScreenContent(
       fun setDeviceIdButton() {
         PrimaryButton(
           onClick = {
-            onSetDeviceId(newDeviceId)
+            onSetDeviceId(adminViewModel.newDeviceId)
             focusManager.clearFocus()
           },
           modifier = Modifier.padding(top = if (isTablet) 8.dp else 0.dp),
@@ -280,8 +287,8 @@ fun AdminScreenContent(
       @Composable
       fun newUsernameTextField() {
         StyledTextField(
-          value = newUsername,
-          onValueChange = { newUsername = it },
+          value = adminViewModel.newUsername,
+          onValueChange = { adminViewModel.newUsername = it },
           modifier = Modifier.weight(1f),
           fontSize = 24.sp,
         )
@@ -295,8 +302,8 @@ fun AdminScreenContent(
       @Composable
       fun adminPasswordTextField() {
         StyledTextField(
-          value = adminPassword,
-          onValueChange = { adminPassword = it },
+          value = adminViewModel.adminPassword,
+          onValueChange = { adminViewModel.adminPassword = it },
           visualTransformation = PasswordVisualTransformation(),
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
           modifier = Modifier.weight(1f),
@@ -308,22 +315,12 @@ fun AdminScreenContent(
       fun attachToAccountButton() {
         PrimaryButton(
           onClick = {
-            isAttaching = true
             focusManager.clearFocus()
-            onAttachToAccount(newUsername, adminPassword) { success, errorMessage ->
-              isAttaching = false
-              if (success) {
-                onBackClick()
-              } else {
-                dialogTitle = "Failed"
-                dialogMessage = errorMessage ?: "Failed to Create account for \"$newUsername\"."
-                showResultDialog = true
-              }
-            }
+            onAttachToAccount()
           },
-          enabled = !isAttaching,
+          enabled = !adminViewModel.isAttaching,
           modifier = Modifier.padding(top = 8.dp),
-          text = if (isAttaching) {
+          text = if (adminViewModel.isAttaching) {
             "Loading..."
           } else {
             if (isTablet) {
@@ -399,11 +396,13 @@ fun AdminScreenContent(
         title = { Text(dialogTitle) },
         text = { Text(dialogMessage) },
         confirmButton = {
-          Button(onClick = {
-            showResultDialog = false
-          }) {
-            Text("OK")
-          }
+          PrimaryButton(
+            text = "OK",
+            modifier = Modifier.padding(16.dp),
+            onClick = {
+              showResultDialog = false
+            }
+          )
         }
       )
     }
