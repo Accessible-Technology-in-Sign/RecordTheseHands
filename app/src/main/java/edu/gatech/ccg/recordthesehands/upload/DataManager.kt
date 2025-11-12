@@ -172,10 +172,12 @@ class DataManager private constructor(val context: Context) {
   val serverStatus: LiveData<ServerState> get() = dataManagerData.serverStatus
   val promptState: LiveData<PromptState> get() = dataManagerData.promptState
   val uploadState: LiveData<UploadState> get() = dataManagerData.uploadState
+  val appSettings: LiveData<AppSettings> get() = dataManagerData.appSettings
 
   init {
     initializeData()
   }
+
 
   /**
    * Initializes the data manager's state from persistent storage.
@@ -261,7 +263,17 @@ class DataManager private constructor(val context: Context) {
       deviceId = deviceId,
     )
     updatePromptStateAndPost(initialState)
+    val appSettings = getAppSettingsFromPrefStore()
+    dataManagerData._appSettings.postValue(appSettings)
     dataManagerData.initializationLatch.countDown()
+  }
+
+  private suspend fun getAppSettingsFromPrefStore(): AppSettings {
+    val enableDismissCountdownCircleKey = booleanPreferencesKey("enableDismissCountdownCircle")
+    val enableDismissCountdownCircle = context.prefStore.data.map {
+      it[enableDismissCountdownCircleKey]
+    }.firstOrNull() ?: false
+    return AppSettings(enableDismissCountdownCircle = enableDismissCountdownCircle)
   }
 
   /**
@@ -765,6 +777,18 @@ class DataManager private constructor(val context: Context) {
     val keyObject = booleanPreferencesKey("tutorialMode")
     context.prefStore.edit {
       it[keyObject] = mode
+    }
+  }
+
+  suspend fun setEnableDismissCountdownCircle(enabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.appSettings.value ?: AppSettings()
+      val newSettings = currentSettings.copy(enableDismissCountdownCircle = enabled)
+      dataManagerData._appSettings.postValue(newSettings)
+      val keyObject = booleanPreferencesKey("enableDismissCountdownCircle")
+      context.prefStore.edit {
+        it[keyObject] = enabled
+      }
     }
   }
 

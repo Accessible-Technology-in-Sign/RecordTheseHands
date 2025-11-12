@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,11 +24,13 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import edu.gatech.ccg.recordthesehands.upload.DataManager
 import kotlin.math.ceil
 
 @Composable
 fun CountdownCircle(
   modifier: Modifier = Modifier,
+  dataManager: DataManager,
   durationMs: Int = 20000,
   key: Any? = Unit,
   componentSize: Dp = 100.dp,
@@ -37,6 +40,7 @@ fun CountdownCircle(
 ) {
   val animatable = remember { Animatable(0f) }
   var clickCount by remember { mutableStateOf(0) }
+  val appSettings by dataManager.appSettings.observeAsState()
 
   LaunchedEffect(key) {
     animatable.snapTo(0f)
@@ -52,16 +56,22 @@ fun CountdownCircle(
   Canvas(
     modifier = modifier
       .size(componentSize)
-      .pointerInput(Unit) {
-        detectTapGestures(
-          onTap = {
-            clickCount++
-            if (clickCount >= 3) {
-              onFinished()
-            }
+      .then(
+        if (appSettings?.enableDismissCountdownCircle == true) {
+          Modifier.pointerInput(Unit) {
+            detectTapGestures(
+              onTap = {
+                clickCount++
+                if (clickCount >= 1) {
+                  onFinished()
+                }
+              }
+            )
           }
-        )
-      }
+        } else {
+          Modifier
+        }
+      )
   ) {
     val strokeWidth = size.minDimension * strokeWidthProportion
     val diameter = size.minDimension - strokeWidth

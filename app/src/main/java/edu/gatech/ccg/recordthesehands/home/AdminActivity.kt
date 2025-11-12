@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -121,6 +122,11 @@ class AdminActivity : ComponentActivity() {
           val intent = Intent(Intent.ACTION_VIEW)
           intent.data = apkUrl.toUri()
           startActivity(intent)
+        },
+        onDisableDismissCountdownCircle = {
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setEnableDismissCountdownCircle(false)
+          }
         }
       )
     }
@@ -145,15 +151,19 @@ fun AdminScreenContent(
   onBackClick: () -> Unit,
   onSetDeviceId: (String) -> Unit,
   onAttachToAccount: () -> Unit,
-  onDownloadApk: () -> Unit
+  onDownloadApk: () -> Unit,
+  onDisableDismissCountdownCircle: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
+  val appSettings by dataManager.appSettings.observeAsState()
   val deviceId = promptState?.deviceId ?: "Unknown Device Id"
   val username = promptState?.username ?: stringResource(R.string.unknown_username)
 
   var showResultDialog by remember { mutableStateOf(false) }
   var dialogTitle by remember { mutableStateOf("") }
   var dialogMessage by remember { mutableStateOf("") }
+  var numTitleClicks by remember { mutableStateOf(0) }
+  val scope = rememberCoroutineScope()
 
   LaunchedEffect(Unit) {
     adminViewModel.attachResultFlow.collect { (success, errorMessage) ->
@@ -180,7 +190,7 @@ fun AdminScreenContent(
         focusManager.clearFocus()
       }
   ) {
-    val (backButton, content, headerText, downloadButton) = createRefs()
+    val (backButton, content, headerText, downloadButton, disableDismissCountdownCircleButton) = createRefs()
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -197,12 +207,22 @@ fun AdminScreenContent(
       text = "Admin Interface",
       fontSize = 32.sp,
       fontWeight = FontWeight.Bold,
-      modifier = Modifier.constrainAs(headerText) {
-        top.linkTo(backButton.top)
-        bottom.linkTo(backButton.bottom)
-        start.linkTo(backButton.end, margin = 16.dp)
-        end.linkTo(parent.end, margin = 16.dp)
-      }
+      modifier = Modifier
+        .constrainAs(headerText) {
+          top.linkTo(backButton.top)
+          bottom.linkTo(backButton.bottom)
+          start.linkTo(backButton.end, margin = 16.dp)
+          end.linkTo(parent.end, margin = 16.dp)
+        }
+        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+          numTitleClicks++
+          if (numTitleClicks == 5) {
+            numTitleClicks = 0
+            scope.launch(Dispatchers.IO) {
+              dataManager.setEnableDismissCountdownCircle(true)
+            }
+          }
+        }
     )
 
     Column(
@@ -381,6 +401,16 @@ fun AdminScreenContent(
           }
         }
       }
+    }
+    if (appSettings?.enableDismissCountdownCircle ?: false) {
+      SecondaryButton(
+        onClick = onDisableDismissCountdownCircle,
+        modifier = Modifier.constrainAs(disableDismissCountdownCircleButton) {
+          bottom.linkTo(downloadButton.top, margin = 32.dp)
+          start.linkTo(downloadButton.start)
+        },
+        text = "Disable Dismiss Circle"
+      )
     }
     SecondaryButton(
       onClick = onDownloadApk,

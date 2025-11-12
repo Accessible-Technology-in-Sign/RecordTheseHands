@@ -973,6 +973,7 @@ class RecordingActivity : FragmentActivity() {
                 modifier = Modifier.padding(top = 10.dp, bottom = 30.dp)
               )
               CountdownCircle(
+                dataManager = dataManager,
                 durationMs = readCountdownDuration,
                 componentSize = 200.dp,
                 strokeWidthProportion = 0.3f,
@@ -986,6 +987,7 @@ class RecordingActivity : FragmentActivity() {
 
         if (isRecordingTimerActive) {
           CountdownCircle(
+            dataManager = dataManager,
             modifier = Modifier.constrainAs(readTimer) {
               top.linkTo(recordButtons.top)
               bottom.linkTo(recordButtons.bottom)
@@ -1004,6 +1006,7 @@ class RecordingActivity : FragmentActivity() {
 
         if (isExplainTimerActive) {
           CountdownCircle(
+            dataManager = dataManager,
             modifier = Modifier.constrainAs(readTimer) {
               bottom.linkTo(recordButtons.bottom)
               start.linkTo(recordButtons.end)
@@ -1572,6 +1575,7 @@ class RecordingActivity : FragmentActivity() {
               val extraContent = if (isReadTimerActive) {
                 @Composable {
                   CountdownCircle(
+                    dataManager = dataManager,
                     modifier = Modifier.padding(start = 10.dp),
                     durationMs = readCountdownDuration,
                     componentSize = countdownCircleSize,
