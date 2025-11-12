@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
@@ -62,6 +61,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -180,7 +180,7 @@ fun AdminScreenContent(
         focusManager.clearFocus()
       }
   ) {
-    val (backButton, content, headerText) = createRefs()
+    val (backButton, content, headerText, downloadButton) = createRefs()
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -208,12 +208,11 @@ fun AdminScreenContent(
     Column(
       modifier = Modifier
         .constrainAs(content) {
-          start.linkTo(backButton.end, margin = 20.dp)
-          end.linkTo(parent.end, margin = 32.dp)
+          start.linkTo(parent.start, margin = if (isTablet) 32.dp else 16.dp)
+          end.linkTo(parent.end, margin = if (isTablet) 32.dp else 16.dp)
           top.linkTo(backButton.bottom, margin = 6.dp)
+          width = Dimension.fillToConstraints
         }
-        .fillMaxWidth()
-        .padding(end = 24.dp)
     ) {
       @Composable
       fun deviceIdWithCurrentText() {
@@ -251,7 +250,7 @@ fun AdminScreenContent(
       // Device ID Section
       if (isTablet) {
         Row(
-          modifier = Modifier.padding(top = 8.dp, end = 24.dp),
+          modifier = Modifier.padding(top = 8.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -269,7 +268,7 @@ fun AdminScreenContent(
           deviceIdWithCurrentText()
         }
         Row(
-          modifier = Modifier.padding(top = 8.dp, end = 24.dp),
+          modifier = Modifier.padding(top = 8.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           newDeviceIdTextField()
@@ -332,7 +331,7 @@ fun AdminScreenContent(
         )
       }
 
-      Column(modifier = Modifier.padding(top = 24.dp, end = 24.dp)) {
+      Column(modifier = Modifier.padding(top = 24.dp)) {
         if (isTablet) {
           Row(
             modifier = Modifier.padding(top = 8.dp),
@@ -382,23 +381,38 @@ fun AdminScreenContent(
           }
         }
       }
-
-      SecondaryButton(
-        onClick = onDownloadApk,
-        modifier = Modifier.padding(top = 16.dp),
-        text = "Download APK"
-      )
     }
+    SecondaryButton(
+      onClick = onDownloadApk,
+      modifier = Modifier.constrainAs(downloadButton) {
+        bottom.linkTo(parent.bottom, margin = 32.dp)
+        start.linkTo(parent.start, margin = if (isTablet) 32.dp else 16.dp)
+      },
+      text = "Download APK"
+    )
 
     if (showResultDialog) {
       AlertDialog(
         onDismissRequest = { showResultDialog = false },
-        title = { Text(dialogTitle) },
-        text = { Text(dialogMessage) },
+        title = {
+          Text(
+            dialogTitle,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+          )
+        },
+        text = {
+          Text(
+            dialogMessage,
+            fontSize = 18.sp,
+            color = Color.Black,
+          )
+        },
         confirmButton = {
           PrimaryButton(
             text = "OK",
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(bottom = 16.dp, end = 16.dp),
             onClick = {
               showResultDialog = false
             }
