@@ -134,6 +134,8 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:$composeVersion"
     debugImplementation "androidx.compose.ui:ui-tooling:$composeVersion"
 
+    implementation "io.github.oleksandrbalan:textflow:1.2.1"
+
     def work_version = '2.11.0'
     implementation "androidx.work:work-runtime-ktx:$work_version"
 }

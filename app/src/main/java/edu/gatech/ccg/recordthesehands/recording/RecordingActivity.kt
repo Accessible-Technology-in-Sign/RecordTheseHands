@@ -89,6 +89,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -140,6 +141,8 @@ import edu.gatech.ccg.recordthesehands.upload.Prompts
 import edu.gatech.ccg.recordthesehands.upload.PromptsSectionMetadata
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import edu.gatech.ccg.recordthesehands.upload.UploadWorkManager
+import eu.wewox.textflow.TextFlow
+import eu.wewox.textflow.TextFlowObstacleAlignment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1767,26 +1770,21 @@ fun ConfirmPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 fun PromptView(prompt: Prompt, modifier: Modifier = Modifier) {
+  val isTablet = thisDeviceIsATablet(LocalContext.current)
   Box(
     modifier = modifier
       .fillMaxWidth()
-      .padding(12.dp)
+      .padding(if (isTablet) 12.dp else 0.dp)
       .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
       .background(Color.White, shape = RoundedCornerShape(8.dp))
-      .padding(12.dp)
+      .padding(if (isTablet) 12.dp else 8.dp)
   ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-      Text(
-        text = prompt.prompt ?: "",
-        color = Color.Black,
-        fontSize = 30.sp,
-        modifier = Modifier.weight(1f)
-      )
+      var imageBitmap: ImageBitmap? = null
       if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
         Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
-        Spacer(modifier = Modifier.width(16.dp))
         val context = LocalContext.current
-        val imageBitmap = remember(prompt.resourcePath) {
+        imageBitmap = remember(prompt.resourcePath) {
           val file = File(context.filesDir, prompt.resourcePath)
           if (file.exists()) {
             BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
@@ -1794,8 +1792,32 @@ fun PromptView(prompt: Prompt, modifier: Modifier = Modifier) {
             null
           }
         }
+      }
+      if (imageBitmap != null && !isTablet) {
+        TextFlow(
+          text = prompt.prompt ?: "",
+          color = Color.Black,
+          fontSize = 24.sp,
+          modifier = Modifier.weight(1f),
+          obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
+        ) {
+          Image(
+            bitmap = imageBitmap,
+            contentDescription = null,
+            modifier = Modifier
+              .width(180.dp)
+              .clip(RoundedCornerShape(8.dp))
+          )
+        }
+      } else {
+        Text(
+          text = prompt.prompt ?: "",
+          color = Color.Black,
+          fontSize = if (isTablet) 30.sp else 24.sp,
+          modifier = Modifier.weight(1f)
+        )
         if (imageBitmap != null) {
-          // TODO When clicking on the image, enlarge it with an animation.
+          Spacer(modifier = Modifier.width(16.dp))
           Image(
             bitmap = imageBitmap,
             contentDescription = null,
