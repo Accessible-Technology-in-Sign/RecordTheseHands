@@ -9,6 +9,7 @@ import java.io.File
 
 class PromptsCollection(val context: Context) {
   var sections = mutableMapOf<String, PromptsSection>()
+  lateinit var collectionMetadata: PromptsCollectionMetadata
 
   companion object {
     private val TAG = PromptsCollection::class.simpleName
@@ -24,7 +25,14 @@ class PromptsCollection(val context: Context) {
       Log.e(TAG, "Failed to parse prompts file: $e")
       return false
     }
-    val data = json.getJSONObject("data")
+    val collectionMetadataJson = json.optJSONObject("metadata") ?: JSONObject()
+    collectionMetadata = PromptsCollectionMetadata(
+      defaultSection = collectionMetadataJson.opt("defaultSection") as? String,
+    )
+    val data = json.optJSONObject("data") ?: run {
+      Log.e(TAG, "Prompts file did not include \"data\" section")
+      return false
+    }
     data.keys().forEach { sectionName ->
       val sectionJson = data.getJSONObject(sectionName)
       val metadataJson = sectionJson.optJSONObject("metadata") ?: JSONObject()
@@ -69,6 +77,19 @@ class PromptsCollection(val context: Context) {
       sectionsJson.put(key, value.toJson())
     }
     json.put("sections", sectionsJson)
+    json.put("metadata", collectionMetadata.toJson())
+    return json
+  }
+}
+
+data class PromptsCollectionMetadata(
+  val defaultSection: String?,
+) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    if (defaultSection != null) {
+      json.put("defaultSection", defaultSection)
+    }
     return json
   }
 }

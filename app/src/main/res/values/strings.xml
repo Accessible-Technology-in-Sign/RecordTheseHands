@@ -115,5 +115,5 @@
     <string name="perm_alert_message">In order to record your data, we will need access to the camera and write functionality.</string>
     <string name="ok">OK</string>
     <string name="words_signed">Words signed</string>
-    <string name="no_more_prompts">Cannot start, prompts completed.</string>
+    <string name="no_more_prompts">Tasks completed</string>
 </resources>

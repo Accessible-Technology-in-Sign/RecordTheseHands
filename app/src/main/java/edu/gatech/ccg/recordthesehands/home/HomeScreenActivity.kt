@@ -130,11 +130,6 @@ class HomeScreenActivity : ComponentActivity() {
   private var emailing: Boolean = true
 
   /**
-   * Whether or not we have already asked the user for permissions.
-   */
-  private var permissionRequestedPreviously: Boolean = false
-
-  /**
    * The total number of recordings the user has done in the current session (i.e., since they
    * last cold-booted the app). After this value reaches [Constants.MAX_RECORDINGS_IN_SITTING],
    * we ask the user to fully close and relaunch the app. This is in place as a quick-hack
@@ -665,7 +660,7 @@ fun HomeScreenContent(
     ) {
       // Section Name Text
       Text(
-        text = promptState?.currentSectionName ?: "",
+        text = promptState?.currentSectionName ?: "<NO SECTION>",
         fontSize = 18.sp,
       )
 
@@ -699,7 +694,7 @@ fun HomeScreenContent(
     // Total Progress Count Text
     Text(
       // TODO replace with stringResource.
-      text = "${totalCompleted}/${totalPrompts}",
+      text = "${totalCompleted} / ${totalPrompts}",
       fontSize = 18.sp,
       modifier = Modifier
         .constrainAs(totalProgressCountText) {
@@ -891,28 +886,32 @@ fun HomeScreenContent(
     val startButtonText: String
     val startRecordingShouldSwitchPrompts: Boolean
 
-    if (promptState != null && promptState!!.currentPrompts != null && promptState!!.username != null) {
-      if ((promptState!!.currentPromptIndex ?: 0) < (promptState!!.totalPromptsInCurrentSection
-          ?: 0)
-      ) {
-        startButtonEnabled = true
-        startRecordingShouldSwitchPrompts = false
-        startButtonText = stringResource(id = R.string.start_button)
-      } else {
-        if (totalCompleted >= totalPrompts) {
-          startButtonEnabled = false
-          startRecordingShouldSwitchPrompts = false
-          startButtonText = stringResource(id = R.string.no_more_prompts)
-        } else {
-          startButtonEnabled = true
-          startRecordingShouldSwitchPrompts = true
-          startButtonText = stringResource(id = R.string.switch_prompts)
-        }
-      }
-    } else {
+    if (promptState == null || promptState!!.username == null) {
       startButtonEnabled = false
       startRecordingShouldSwitchPrompts = false
       startButtonText = stringResource(id = R.string.start_disabled)
+    } else if (promptState!!.currentSectionName == null) {
+      startButtonEnabled = true
+      startRecordingShouldSwitchPrompts = true
+      startButtonText = stringResource(id = R.string.switch_prompts)
+    } else if (promptState!!.currentPrompts == null) {
+      startButtonEnabled = false
+      startRecordingShouldSwitchPrompts = false
+      startButtonText = stringResource(id = R.string.start_disabled)
+    } else if (
+      (promptState!!.currentPromptIndex ?: 0) < (promptState!!.totalPromptsInCurrentSection ?: 0)
+    ) {
+      startButtonEnabled = true
+      startRecordingShouldSwitchPrompts = false
+      startButtonText = stringResource(id = R.string.start_button)
+    } else if (totalCompleted >= totalPrompts) {
+      startButtonEnabled = false
+      startRecordingShouldSwitchPrompts = false
+      startButtonText = stringResource(id = R.string.no_more_prompts)
+    } else {
+      startButtonEnabled = true
+      startRecordingShouldSwitchPrompts = true
+      startButtonText = stringResource(id = R.string.switch_prompts)
     }
 
     PrimaryButton(

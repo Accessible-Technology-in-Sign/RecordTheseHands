@@ -234,8 +234,22 @@ class DataManager private constructor(val context: Context) {
     }
 
     if (currentSectionName == null && promptsCollection != null && promptsCollection.sections.isNotEmpty()) {
-      currentSectionName = promptsCollection.sections.values.first().name
-      setCurrentSectionPrefStoreUnderLock(currentSectionName)
+      promptsCollection.collectionMetadata.defaultSection?.let {
+        // if default is not null...
+        Log.i(TAG, "defaultSection == ${it}")
+        if (promptsCollection.sections.containsKey(it)) {
+          // If it is valid, set it to that section.
+          currentSectionName = it
+        }
+        // If it is not valid, leave it as null.
+      } ?: run {
+        // If default is null, set to the first section.
+        currentSectionName = promptsCollection.sections.values.first().name
+      }
+      if (currentSectionName != null) {
+        Log.i(TAG, "Setting current section from null to $currentSectionName")
+        setCurrentSectionPrefStoreUnderLock(currentSectionName)
+      }
     }
 
     val initialState = PromptState(
@@ -803,7 +817,7 @@ class DataManager private constructor(val context: Context) {
    *
    * @param sectionName The name of the section to set as current.
    */
-  suspend fun setCurrentSection(sectionName: String) {
+  suspend fun setCurrentSection(sectionName: String?) {
     dataManagerData.lock.withLock {
       setCurrentSectionUnderLock(sectionName)
     }
@@ -820,17 +834,21 @@ class DataManager private constructor(val context: Context) {
    * @param sectionName The name of the section to set as current.
    * @throws IllegalStateException if the prompt state has not been initialized.
    */
-  private suspend fun setCurrentSectionUnderLock(sectionName: String) {
+  private suspend fun setCurrentSectionUnderLock(sectionName: String?) {
     val currentState = dataManagerData.promptStateContainer
       ?: throw IllegalStateException("Attempted to set current section before prompt state was initialized.")
     updatePromptStateAndPost(currentState.copy(currentSectionName = sectionName))
     setCurrentSectionPrefStoreUnderLock(sectionName)
   }
 
-  private suspend fun setCurrentSectionPrefStoreUnderLock(sectionName: String) {
+  private suspend fun setCurrentSectionPrefStoreUnderLock(sectionName: String?) {
     val keyObject = stringPreferencesKey("currentSectionName")
     context.prefStore.edit {
-      it[keyObject] = sectionName
+      if (sectionName != null) {
+        it[keyObject] = sectionName
+      } else {
+        it.remove(keyObject)
+      }
     }
   }
 
