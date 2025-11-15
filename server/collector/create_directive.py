@@ -140,6 +140,7 @@ def main():
     print(
         '  operations:',
         '    noop',
+        '    listUsers',
         '    printDirectives',
         '    setPassword [PASSWORD]',
         '    setVersionRange MIN_APP_VERSION MAX_APP_VERSION',
@@ -163,6 +164,11 @@ def main():
 
   elif sys.argv[2] == 'printDirectives':
     print_directives(sys.argv[1])
+  elif sys.argv[2] == 'listUsers':
+    db = firestore.Client()
+    doc_ref = db.document(f'collector/users')
+    for c_ref in doc_ref.collections():
+      print(c_ref.id)
   elif sys.argv[2] == 'setPassword':
     if (len(sys.argv) >= 5):
       password = sys.argv[4]
