@@ -142,6 +142,7 @@ def main():
         '    noop',
         '    printDirectives',
         '    setPassword [PASSWORD]',
+        '    setVersionRange MIN_APP_VERSION MAX_APP_VERSION',
         '    changeUser NEW_USERNAME NEW_PASSWORD',
         '    setPrompts PROMPT_FILE_PATH',
         '    setPromptsNoUpload PROMPT_FILE_PATH',
@@ -216,6 +217,25 @@ def main():
     )
     doc_ref.set(prompts_data)
     print('THIS WILL NOT RELOAD THE PROMPTS, USE reloadPrompts FOR THAT.')
+  elif sys.argv[2] == 'setVersionRange':
+    min_version = sys.argv[3]
+    max_version = sys.argv[4]
+    if min_version.lower() == 'none':
+      min_version = None
+    if max_version.lower() == 'none':
+      max_version = None
+
+    version_constraints = dict()
+
+    if min_version:
+      version_constraints['min_version'] = min_version
+    if max_version:
+      version_constraints['max_version'] = max_version
+
+    db = firestore.Client()
+    doc_ref = db.document(
+        f'collector/users/{username}/data/prompts/version_constraints')
+    doc_ref.set(version_constraints)
   elif sys.argv[2] == 'reloadPrompts':
     create_directive(sys.argv[1], sys.argv[2], '{}')
   elif sys.argv[2] == 'deleteFile':

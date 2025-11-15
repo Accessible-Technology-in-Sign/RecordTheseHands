@@ -23,6 +23,6 @@
  */
 package edu.gatech.ccg.recordthesehands.upload
 
-data class AppSettings(
-  val enableDismissCountdownCircle: Boolean = false
+data class AppStatus(
+  val checkVersion: Boolean = false
 )

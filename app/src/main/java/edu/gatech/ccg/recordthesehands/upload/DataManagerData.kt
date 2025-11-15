@@ -50,7 +50,10 @@ object DataManagerData {
   internal val _uploadState = MutableLiveData<UploadState>()
   val uploadState: LiveData<UploadState> get() = _uploadState
 
-  internal val _appSettings = MutableLiveData<AppSettings>()
-  val appSettings: LiveData<AppSettings> get() = _appSettings
+  internal val _userSettings = MutableLiveData<UserSettings>()
+  val userSettings: LiveData<UserSettings> get() = _userSettings
+
+  internal val _appStatus = MutableLiveData<AppStatus>()
+  val appStatus: LiveData<AppStatus> get() = _appStatus
 }
 

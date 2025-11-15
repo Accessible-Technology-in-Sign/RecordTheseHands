@@ -40,7 +40,7 @@ fun CountdownCircle(
 ) {
   val animatable = remember { Animatable(0f) }
   var clickCount by remember { mutableStateOf(0) }
-  val appSettings by dataManager.appSettings.observeAsState()
+  val userSettings by dataManager.userSettings.observeAsState()
 
   LaunchedEffect(key) {
     animatable.snapTo(0f)
@@ -57,12 +57,15 @@ fun CountdownCircle(
     modifier = modifier
       .size(componentSize)
       .then(
-        if (appSettings?.enableDismissCountdownCircle == true) {
+        if (userSettings?.enableDismissCountdownCircle == true) {
           Modifier.pointerInput(Unit) {
             detectTapGestures(
               onTap = {
                 clickCount++
                 if (clickCount >= 1) {
+                  dataManager.logToServer(
+                    "CountdownCircle dismissed by tapping ${clickCount} times."
+                  )
                   onFinished()
                 }
               }

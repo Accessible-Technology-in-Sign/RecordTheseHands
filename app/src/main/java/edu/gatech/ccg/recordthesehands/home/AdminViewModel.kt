@@ -24,6 +24,8 @@ class AdminViewModel : ViewModel() {
     viewModelScope.launch(Dispatchers.IO) {
       isAttaching = true
       val result = dataManager.attachToAccount(newUsername, adminPassword)
+      dataManager.setCheckVersion(false)
+      dataManager.checkServerConnection()
       _attachResultFlow.emit(result)
       isAttaching = false
     }

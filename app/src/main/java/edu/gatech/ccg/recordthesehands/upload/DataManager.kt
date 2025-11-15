@@ -172,7 +172,8 @@ class DataManager private constructor(val context: Context) {
   val serverStatus: LiveData<ServerState> get() = dataManagerData.serverStatus
   val promptState: LiveData<PromptState> get() = dataManagerData.promptState
   val uploadState: LiveData<UploadState> get() = dataManagerData.uploadState
-  val appSettings: LiveData<AppSettings> get() = dataManagerData.appSettings
+  val userSettings: LiveData<UserSettings> get() = dataManagerData.userSettings
+  val appStatus: LiveData<AppStatus> get() = dataManagerData.appStatus
 
   init {
     initializeData()
@@ -263,17 +264,27 @@ class DataManager private constructor(val context: Context) {
       deviceId = deviceId,
     )
     updatePromptStateAndPost(initialState)
-    val appSettings = getAppSettingsFromPrefStore()
-    dataManagerData._appSettings.postValue(appSettings)
+    val appStatus = getAppStatusFromPrefStore()
+    dataManagerData._appStatus.postValue(appStatus)
+    val userSettings = getUserSettingsFromPrefStore()
+    dataManagerData._userSettings.postValue(userSettings)
     dataManagerData.initializationLatch.countDown()
   }
 
-  private suspend fun getAppSettingsFromPrefStore(): AppSettings {
+  private suspend fun getUserSettingsFromPrefStore(): UserSettings {
     val enableDismissCountdownCircleKey = booleanPreferencesKey("enableDismissCountdownCircle")
     val enableDismissCountdownCircle = context.prefStore.data.map {
       it[enableDismissCountdownCircleKey]
     }.firstOrNull() ?: false
-    return AppSettings(enableDismissCountdownCircle = enableDismissCountdownCircle)
+    return UserSettings(enableDismissCountdownCircle = enableDismissCountdownCircle)
+  }
+
+  private suspend fun getAppStatusFromPrefStore(): AppStatus {
+    val checkVersionKey = booleanPreferencesKey("checkVersion")
+    val checkVersion = context.prefStore.data.map {
+      it[checkVersionKey]
+    }.firstOrNull() ?: false
+    return AppStatus(checkVersion = checkVersion)
   }
 
   /**
@@ -782,12 +793,26 @@ class DataManager private constructor(val context: Context) {
 
   suspend fun setEnableDismissCountdownCircle(enabled: Boolean) {
     dataManagerData.lock.withLock {
-      val currentSettings = dataManagerData.appSettings.value ?: AppSettings()
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
       val newSettings = currentSettings.copy(enableDismissCountdownCircle = enabled)
-      dataManagerData._appSettings.postValue(newSettings)
+      dataManagerData._userSettings.postValue(newSettings)
+      // TODO use a json object instead (this is better for multiple values).
       val keyObject = booleanPreferencesKey("enableDismissCountdownCircle")
       context.prefStore.edit {
         it[keyObject] = enabled
+      }
+    }
+  }
+
+  suspend fun setCheckVersion(checkVersion: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.appStatus.value ?: AppStatus()
+      val newSettings = currentSettings.copy(checkVersion = checkVersion)
+      dataManagerData._appStatus.postValue(newSettings)
+      // TODO use a json object instead (this is better for multiple values).
+      val keyObject = booleanPreferencesKey("checkVersion")
+      context.prefStore.edit {
+        it[keyObject] = checkVersion
       }
     }
   }
@@ -2419,10 +2444,10 @@ class DataManager private constructor(val context: Context) {
    *
    * @return `true` if the server is active, `false` otherwise.
    */
-  private fun pingServer(): Boolean {
-    val url = URL(getServer() + "/is_authenticated")
+  private suspend fun pingServer(): Boolean {
+    val url = URL(getServer() + "/check_version")
     Log.d(TAG, "Pinging server for login state: $url")
-    val (code, _) =
+    val (code, result) =
       serverFormPostRequest(
         url,
         mapOf(
@@ -2432,6 +2457,10 @@ class DataManager private constructor(val context: Context) {
         connectTimeout = 5000,
         readTimeout = 5000
       )
-    return code >= 200 && code < 400
+    if (code == 200) {
+      setCheckVersion(!(result?.startsWith("OUT_OF_RANGE:") ?: false))
+      return true
+    }
+    return code in 200..<400
   }
 }

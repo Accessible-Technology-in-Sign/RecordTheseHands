@@ -320,11 +320,68 @@ def home_page():
 
 @app.route('/is_authenticated', methods=['GET', 'POST'])
 def is_authenticated_page():
-  """The homepage."""
-  if flask_login.current_user.is_authenticated:
-    username = flask_login.current_user.id
+  """Check if the user is authenticated."""
+  if not flask_login.current_user.is_authenticated:
+    return 'Authentication Failed', 401
+  username = flask_login.current_user.id
+  return f'You are logged in as {username!r}', 200
+
+
+def version_parts_from_string(version_string):
+  if not version_string:
+    return None
+  m = re.fullmatch(r'^[vV]?(\d+(?:.\d+)*)?$', version_string.strip())
+  if not m:
+    return None
+  return m.group(1).split('.')
+
+
+@app.route('/check_version', methods=['POST'])
+def check_version_page():
+  """Check if the user is using an allowed version."""
+  if not flask_login.current_user.is_authenticated:
+    return 'Authentication Failed', 401
+  username = flask_login.current_user.id
+  app_version = flask.request.values.get('app_version')
+  app_version_parts = version_parts_from_string(app_version)
+  if not app_version_parts:
+    return f'OUT_OF_RANGE: App version {app_version!r} is malformed.', 200
+
+  db = firestore.Client()
+  doc_ref = db.document(
+      f'collector/users/{username}/data/prompts/version_constraints')
+  doc_data = doc_ref.get()
+  if not doc_data.exists:
     return f'You are logged in as {username!r}', 200
-  return 'Authentication Failed', 401
+  doc_dict = doc_data.to_dict()
+  min_version_parts = version_parts_from_string(doc_dict.get('min_version'))
+  max_version_parts = version_parts_from_string(doc_dict.get('max_version'))
+
+  # Extend versions with zeros.
+  max_version_length = max(
+    len(app_version_parts),
+    len(min_version_parts) if min_version_parts else 0,
+    len(max_version_parts) if max_version_parts else 0,
+  )
+  app_version_parts = app_version_parts + [0]*(
+      max_version_length - len(app_version_parts))
+
+  if min_version_parts:
+    min_version_parts = min_version_parts + [0]*(
+        max_version_length - len(min_version_parts))
+    if app_version_parts < min_version_parts:
+      return (f'OUT_OF_RANGE: App version {app_version!r} is below the '
+              f'minimum of {'.'.join(min_version_parts)!r}.'), 200
+
+  if max_version_parts:
+    max_version_parts = max_version_parts + [0]*(
+        max_version_length - len(max_version_parts))
+    print(f'checking app_version_parts > max_version_parts which is {app_version_parts > max_version_parts}')
+    if app_version_parts > max_version_parts:
+      return (f'OUT_OF_RANGE: App version {app_version!r} is above the '
+              f'maximum of {'.'.join(max_version_parts)!r}.'), 200
+
+  return f'You are logged in as {username!r}', 200
 
 
 @app.route('/apk', methods=['GET'])

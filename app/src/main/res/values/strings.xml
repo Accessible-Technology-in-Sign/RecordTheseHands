@@ -32,6 +32,7 @@
     <!-- Main Page -->
     <!-- Information -->
     <string name="loading">Loading App Data…</string>
+    <string name="check_version_failed">App Version is incompatible with Prompts</string>
     <string name="id_error">Device ID not set</string>
     <string name="username_error">Username not set</string>
     <!-- Status Information -->

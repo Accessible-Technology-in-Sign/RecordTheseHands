@@ -155,7 +155,7 @@ fun AdminScreenContent(
   onDisableDismissCountdownCircle: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
-  val appSettings by dataManager.appSettings.observeAsState()
+  val userSettings by dataManager.userSettings.observeAsState()
   val deviceId = promptState?.deviceId ?: "Unknown Device Id"
   val username = promptState?.username ?: stringResource(R.string.unknown_username)
 
@@ -402,7 +402,7 @@ fun AdminScreenContent(
         }
       }
     }
-    if (appSettings?.enableDismissCountdownCircle ?: false) {
+    if (userSettings?.enableDismissCountdownCircle ?: false) {
       SecondaryButton(
         onClick = onDisableDismissCountdownCircle,
         modifier = Modifier.constrainAs(disableDismissCountdownCircleButton) {

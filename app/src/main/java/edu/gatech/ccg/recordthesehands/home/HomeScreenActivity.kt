@@ -378,9 +378,17 @@ fun HomeScreenContent(
   val promptState by dataManager.promptState.observeAsState()
   val serverStatus by dataManager.serverStatus.observeAsState()
   val uploadState by dataManager.uploadState.observeAsState()
+  val appStatus by dataManager.appStatus.observeAsState()
   var numTitleClicks by remember { mutableStateOf(0) }
   var showUploadStatus by remember { mutableStateOf(false) }
   var uploadStatusMessage by remember { mutableStateOf(null as String?) }
+
+  val lifetimeRecordingCount by LocalContext.current.applicationContext.prefStore.data
+    .map { it[intPreferencesKey("lifetimeRecordingCount")] ?: 0 }
+    .collectAsState(initial = 0)
+  val lifetimeRecordingMs by LocalContext.current.applicationContext.prefStore.data
+    .map { it[longPreferencesKey("lifetimeRecordingMs")] ?: 0L }
+    .collectAsState(initial = 0L)
 
   val context = LocalContext.current
   val isTablet = thisDeviceIsATablet(context)
@@ -450,13 +458,6 @@ fun HomeScreenContent(
     }
   }
 
-  val lifetimeRecordingCount by LocalContext.current.applicationContext.prefStore.data
-    .map { it[intPreferencesKey("lifetimeRecordingCount")] ?: 0 }
-    .collectAsState(initial = 0)
-  val lifetimeRecordingMs by LocalContext.current.applicationContext.prefStore.data
-    .map { it[longPreferencesKey("lifetimeRecordingMs")] ?: 0L }
-    .collectAsState(initial = 0L)
-
   ConstraintLayout(
     modifier = Modifier
       .fillMaxSize()
@@ -510,21 +511,6 @@ fun HomeScreenContent(
           }
         }
     )
-
-    // 4. Loading Text (TextView)
-    if (promptState?.promptsCollection == null) {
-      Text(
-        text = stringResource(id = R.string.loading),
-        fontSize = 30.sp,
-        modifier = Modifier
-          .constrainAs(loadingText) {
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-            top.linkTo(header.bottom, margin = 32.dp)
-          }
-      )
-      return@ConstraintLayout
-    }
 
     val (deviceIdLabelText, deviceIdText, usernameLabelText, usernameText, internetStatusText) = createRefs()
     // 6. Session Information (LinearLayout)
@@ -618,6 +604,34 @@ fun HomeScreenContent(
           end.linkTo(parent.end)
         }
     )
+
+    if (promptState?.promptsCollection == null) {
+      Text(
+        text = stringResource(id = R.string.loading),
+        fontSize = 30.sp,
+        modifier = Modifier
+          .constrainAs(loadingText) {
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            top.linkTo(internetStatusText.bottom, margin = 32.dp)
+          }
+      )
+      return@ConstraintLayout
+    }
+
+    if ((appStatus?.checkVersion ?: false) == false) {
+      Text(
+        text = stringResource(id = R.string.check_version_failed),
+        fontSize = 30.sp,
+        modifier = Modifier
+          .constrainAs(loadingText) {
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+            top.linkTo(internetStatusText.bottom, margin = 32.dp)
+          }
+      )
+      return@ConstraintLayout
+    }
 
     // 9. Statistics Header (TextView)
     Text(
