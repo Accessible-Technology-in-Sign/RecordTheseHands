@@ -371,7 +371,7 @@ def check_version_page():
         max_version_length - len(min_version_parts))
     if app_version_parts < min_version_parts:
       return (f'OUT_OF_RANGE: App version {app_version!r} is below the '
-              f'minimum of {'.'.join(min_version_parts)!r}.'), 200
+              f'minimum of {".".join(min_version_parts)!r}.'), 200
 
   if max_version_parts:
     max_version_parts = max_version_parts + [0]*(
@@ -379,7 +379,7 @@ def check_version_page():
     print(f'checking app_version_parts > max_version_parts which is {app_version_parts > max_version_parts}')
     if app_version_parts > max_version_parts:
       return (f'OUT_OF_RANGE: App version {app_version!r} is above the '
-              f'maximum of {'.'.join(max_version_parts)!r}.'), 200
+              f'maximum of {".".join(max_version_parts)!r}.'), 200
 
   return f'You are logged in as {username!r}', 200
 
@@ -408,6 +408,8 @@ def apk_page():
 
   if not latest_apk_blob:
     return 'No valid APK file found in the storage bucket.', 404
+
+  print(f'Found apk file: {latest_apk_blob.name}')
 
   latest_apk_filename = os.path.basename(latest_apk_blob.name)
   query_parameters = {
