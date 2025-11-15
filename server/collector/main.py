@@ -349,7 +349,8 @@ def check_version_page():
 
   db = firestore.Client()
   doc_ref = db.document(
-      f'collector/users/{username}/data/prompts/version_constraints')
+      f'collector/users/{username}/data/prompts/version_constraints'
+  )
   doc_data = doc_ref.get()
   if not doc_data.exists:
     return f'You are logged in as {username!r}', 200
@@ -359,27 +360,36 @@ def check_version_page():
 
   # Extend versions with zeros.
   max_version_length = max(
-    len(app_version_parts),
-    len(min_version_parts) if min_version_parts else 0,
-    len(max_version_parts) if max_version_parts else 0,
+      len(app_version_parts),
+      len(min_version_parts) if min_version_parts else 0,
+      len(max_version_parts) if max_version_parts else 0,
   )
-  app_version_parts = app_version_parts + [0]*(
-      max_version_length - len(app_version_parts))
+  app_version_parts = app_version_parts + [0] * (
+      max_version_length - len(app_version_parts)
+  )
 
   if min_version_parts:
-    min_version_parts = min_version_parts + [0]*(
-        max_version_length - len(min_version_parts))
+    min_version_parts = min_version_parts + [0] * (
+        max_version_length - len(min_version_parts)
+    )
     if app_version_parts < min_version_parts:
-      return (f'OUT_OF_RANGE: App version {app_version!r} is below the '
-              f'minimum of {".".join(min_version_parts)!r}.'), 200
+      return (
+          f'OUT_OF_RANGE: App version {app_version!r} is below the '
+          f'minimum of {".".join(min_version_parts)!r}.'
+      ), 200
 
   if max_version_parts:
-    max_version_parts = max_version_parts + [0]*(
-        max_version_length - len(max_version_parts))
-    print(f'checking app_version_parts > max_version_parts which is {app_version_parts > max_version_parts}')
+    max_version_parts = max_version_parts + [0] * (
+        max_version_length - len(max_version_parts)
+    )
+    print(
+        f'checking app_version_parts > max_version_parts which is {app_version_parts > max_version_parts}'
+    )
     if app_version_parts > max_version_parts:
-      return (f'OUT_OF_RANGE: App version {app_version!r} is above the '
-              f'maximum of {".".join(max_version_parts)!r}.'), 200
+      return (
+          f'OUT_OF_RANGE: App version {app_version!r} is above the '
+          f'maximum of {".".join(max_version_parts)!r}.'
+      ), 200
 
   return f'You are logged in as {username!r}', 200
 
@@ -859,7 +869,9 @@ def register_login():
   login_token = flask.request.values.get('login_token', '')
   admin_token = flask.request.values.get('admin_token', '')
   allow_webapp_access = flask.request.values.get('allow_webapp_access', '')
-  must_have_prompts_file = flask.request.values.get('must_have_prompts_file', '')
+  must_have_prompts_file = flask.request.values.get(
+      'must_have_prompts_file', ''
+  )
 
   admin_token_hash = get_secret('admin_token_hash')
   if admin_token_hash != token_maker.get_login_hash('admin', admin_token):
@@ -891,8 +903,10 @@ def register_login():
     doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
     doc_data = doc_ref.get()
     if not doc_data.exists:
-      return (f'Refusing to set login token for {username!r} because '
-              f'it does not have an associated prompts file.'), 400
+      return (
+          f'Refusing to set login token for {username!r} because '
+          f'it does not have an associated prompts file.'
+      ), 400
 
   data = {
       'login_hash': token_maker.get_login_hash(username, login_token),

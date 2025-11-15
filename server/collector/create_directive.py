@@ -170,7 +170,7 @@ def main():
     for c_ref in doc_ref.collections():
       print(c_ref.id)
   elif sys.argv[2] == 'setPassword':
-    if (len(sys.argv) >= 5):
+    if len(sys.argv) >= 5:
       password = sys.argv[4]
     else:
       password = secrets.token_hex(16)
@@ -183,7 +183,7 @@ def main():
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'changeUser':
     new_username = sys.argv[3]
-    if (len(sys.argv) >= 5):
+    if len(sys.argv) >= 5:
       password = sys.argv[4]
     else:
       password = secrets.token_hex(16)
@@ -240,7 +240,8 @@ def main():
 
     db = firestore.Client()
     doc_ref = db.document(
-        f'collector/users/{username}/data/prompts/version_constraints')
+        f'collector/users/{username}/data/prompts/version_constraints'
+    )
     doc_ref.set(version_constraints)
   elif sys.argv[2] == 'reloadPrompts':
     create_directive(sys.argv[1], sys.argv[2], '{}')
