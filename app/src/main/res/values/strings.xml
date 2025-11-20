@@ -92,6 +92,8 @@
     <string name="switch_to_normal_prompts">Exit Tutorial Mode</string>
     <string name="prompts_completed_progress">%1$d / %2$d prompts completed</string>
     <string name="prompts_completed_progress_compact">%1$d / %2$d</string>
+    <string name="show_overview_instructions">Overview Instructions</string>
+    <string name="overview_instructions_title">Overview</string>
 
     <!-- InstructionsActivity -->
     <string name="instructions_for_section">Instructions for %1$s</string>

@@ -770,6 +770,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  suspend fun getOverviewInstructionsShown(): Boolean {
+    val key = booleanPreferencesKey("overviewInstructionsShown")
+    return context.prefStore.data.map { it[key] }.firstOrNull() ?: false
+  }
+
+  suspend fun setOverviewInstructionsShown(shown: Boolean) {
+    val key = booleanPreferencesKey("overviewInstructionsShown")
+    context.prefStore.edit { it[key] = shown }
+  }
+
   /**
    * Sets the tutorial mode.
    * This function updates the tutorial mode in both the in-memory state and the persistent
@@ -2110,6 +2120,10 @@ class DataManager private constructor(val context: Context) {
   suspend fun ensureResources(promptsCollection: PromptsCollection): Boolean {
     Log.i(TAG, "ensureResources for promptsCollection")
     val resourcePaths = ArrayList<String>()
+
+    promptsCollection.collectionMetadata.instructions?.instructionsVideo?.let {
+      resourcePaths.add(it)
+    }
     for (section in promptsCollection.sections.values) {
       section.metadata.instructions?.instructionsVideo?.let {
         resourcePaths.add(it)

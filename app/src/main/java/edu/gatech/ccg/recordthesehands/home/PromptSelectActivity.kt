@@ -90,9 +90,31 @@ class PromptSelectActivity : ComponentActivity() {
       }
     dataManager = DataManager.getInstance(applicationContext)
 
-    // TODO If the overview instructions are available and haven't been shown yet
-    // Start an InstructionsActivity to show it.  Make this a function call, so
-    // that it can be reused for the button that will also trigger it.
+    fun startOverviewInstructions() {
+      val metadata = dataManager.promptState.value?.promptsCollection?.collectionMetadata
+      val instructions = metadata?.instructions
+      if (instructions != null) {
+        val intent = Intent(this, InstructionsActivity::class.java)
+        intent.putExtra("title", getString(R.string.overview_instructions_title))
+        intent.putExtra("instructionsData", instructions)
+        startActivity(intent)
+      }
+    }
+
+    lifecycleScope.launch {
+      // Wait for promptState to be populated
+      dataManager.promptState.observe(this@PromptSelectActivity) { state ->
+        val metadata = state?.promptsCollection?.collectionMetadata
+        if (metadata?.instructions != null) {
+          lifecycleScope.launch {
+            if (!dataManager.getOverviewInstructionsShown()) {
+              startOverviewInstructions()
+              dataManager.setOverviewInstructionsShown(true)
+            }
+          }
+        }
+      }
+    }
 
     setContent {
       PromptSelectScreenContent(
@@ -104,6 +126,7 @@ class PromptSelectActivity : ComponentActivity() {
             finish()
           }
         },
+        onOverviewInstructionsClick = { startOverviewInstructions() },
         onSectionClick = { sectionName ->
           lifecycleScope.launch {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
@@ -146,6 +169,7 @@ fun PromptSelectScreenContent(
   dataManager: DataManager,
   onBackClick: () -> Unit,
   onToggleTutorialMode: () -> Unit,
+  onOverviewInstructionsClick: () -> Unit,
   onSectionClick: (String) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
@@ -156,8 +180,8 @@ fun PromptSelectScreenContent(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (backButton, header, toggleTutorialButton, sectionsList, sectionsListTopFade, sectionsListBottomFade) = createRefs()
-    val topBarrier = createBottomBarrier(backButton, header, toggleTutorialButton)
+    val (backButton, header, toggleTutorialButton, overviewInstructionsButton, sectionsList, sectionsListTopFade, sectionsListBottomFade) = createRefs()
+    val topBarrier = createBottomBarrier(backButton, toggleTutorialButton, overviewInstructionsButton)
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -175,7 +199,11 @@ fun PromptSelectScreenContent(
       fontSize = 48.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
-        top.linkTo(backButton.bottom, margin = 16.dp)
+        if (isTablet) {
+          top.linkTo(parent.top, margin = 16.dp)
+        } else {
+          top.linkTo(topBarrier, margin = 0.dp)
+        }
         start.linkTo(parent.start)
         end.linkTo(parent.end)
       }
@@ -194,14 +222,25 @@ fun PromptSelectScreenContent(
       }
     )
 
-    // TODO If overview instructions are available, create a button to start the
-    // InstructionsActivity to show it.
+    val overviewInstructions = promptState?.promptsCollection?.collectionMetadata?.instructions
+    val showOverviewButton = overviewInstructions != null
+
+    if (showOverviewButton) {
+      SecondaryButton(
+        onClick = onOverviewInstructionsClick,
+        modifier = Modifier.constrainAs(overviewInstructionsButton) {
+          top.linkTo(toggleTutorialButton.bottom, margin = 16.dp)
+          end.linkTo(toggleTutorialButton.end)
+        },
+        text = stringResource(R.string.show_overview_instructions)
+      )
+    }
 
     val scrollState = androidx.compose.foundation.rememberScrollState()
     Box(
       modifier = Modifier
         .constrainAs(sectionsList) {
-          top.linkTo(topBarrier, margin = 0.dp)
+          top.linkTo(header.bottom, margin = 16.dp)
           start.linkTo(parent.start, margin = 16.dp)
           end.linkTo(parent.end, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 0.dp)
@@ -220,7 +259,7 @@ fun PromptSelectScreenContent(
         val buttonRefs = sections.map { createRef() }
         val textRefs = sections.map { createRef() }
         val guideline = if (isTablet) {
-          createGuidelineFromStart(0.5f)
+          createGuidelineFromStart(0.45f)
         } else {
           createStartBarrier(*textRefs.toTypedArray())
         }

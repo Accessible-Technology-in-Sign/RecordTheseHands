@@ -32,8 +32,12 @@ data class PromptsCollection(
 
     fun fromJson(json: JSONObject): PromptsCollection? {
       val collectionMetadataJson = json.optJSONObject("metadata") ?: JSONObject()
+      val instructions = collectionMetadataJson.opt("instructions")?.let {
+        InstructionsData.fromJson(it as JSONObject)
+      }
       val collectionMetadata = PromptsCollectionMetadata(
         defaultSection = collectionMetadataJson.opt("defaultSection") as? String,
+        instructions = instructions,
       )
       val sections = mutableMapOf<String, PromptsSection>()
       val data = json.optJSONObject("data") ?: run {
@@ -87,11 +91,15 @@ data class PromptsCollection(
 
 data class PromptsCollectionMetadata(
   val defaultSection: String?,
+  val instructions: InstructionsData?,
 ) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     if (defaultSection != null) {
       json.put("defaultSection", defaultSection)
+    }
+    if (instructions != null) {
+      json.put("instructions", instructions.toJson())
     }
     return json
   }
