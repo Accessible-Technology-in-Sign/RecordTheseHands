@@ -1,15 +1,19 @@
 package edu.gatech.ccg.recordthesehands.upload
 
 import android.content.Context
+import android.os.Parcelable
 import android.util.Log
+import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-enum class PromptType {
+@Parcelize
+enum class PromptType : Parcelable {
   TEXT, IMAGE, VIDEO
 }
 
+@Parcelize
 class Prompt(
   val index: Int,
   val promptId: String,
@@ -18,7 +22,7 @@ class Prompt(
   val resourcePath: String?,
   val readMinMs: Int?,
   val recordMinMs: Int?
-) {
+) : Parcelable {
 
   companion object {
     fun fromJson(index: Int, json: JSONObject): Prompt {

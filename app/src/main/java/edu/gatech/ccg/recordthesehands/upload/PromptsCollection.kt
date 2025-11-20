@@ -1,8 +1,10 @@
 package edu.gatech.ccg.recordthesehands.upload
 
 import android.content.Context
+import android.os.Parcelable
 import android.util.Log
 import edu.gatech.ccg.recordthesehands.Constants
+import kotlinx.parcelize.Parcelize
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
@@ -123,11 +125,12 @@ data class PromptsSectionMetadata(
   }
 }
 
+@Parcelize
 data class InstructionsData(
   val instructionsText: String?,
   val instructionsVideo: String?,
   val examplePrompt: Prompt?,
-) {
+) : Parcelable {
 
   companion object {
     fun fromJson(json: JSONObject): InstructionsData {

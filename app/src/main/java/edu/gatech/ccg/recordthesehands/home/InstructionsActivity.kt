@@ -54,6 +54,7 @@ import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.upload.DataManager
+import edu.gatech.ccg.recordthesehands.upload.InstructionsData
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import java.io.File
 
