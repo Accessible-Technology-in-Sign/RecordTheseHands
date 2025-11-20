@@ -1,6 +1,5 @@
 package edu.gatech.ccg.recordthesehands.upload
 
-import android.content.Context
 import android.os.Parcelable
 import android.util.Log
 import kotlinx.parcelize.Parcelize

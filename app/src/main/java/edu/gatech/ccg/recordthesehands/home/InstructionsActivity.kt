@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,7 +52,6 @@ import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
-import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.InstructionsData
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import java.io.File
@@ -78,13 +76,23 @@ class InstructionsActivity : ComponentActivity() {
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
 
-    val sectionName = intent.getStringExtra("sectionName") ?: return finish()
-    // TODO change this to receive an entire InstructionsData, so we don't need
-    // to differentiate between the overview instructions and section instructions.
+    val title = intent.getStringExtra("title") ?: return finish()
+    val instructionsData: InstructionsData? =
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        intent.getParcelableExtra("instructionsData", InstructionsData::class.java)
+      } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableExtra("instructionsData")
+      }
+
+    if (instructionsData == null) {
+      return finish()
+    }
 
     setContent {
       InstructionsScreen(
-        sectionName = sectionName,
+        title = title,
+        instructionsData = instructionsData,
         onContinueClick = { finish() }
       )
     }
@@ -147,12 +155,10 @@ fun VideoPlayer(
 
 @Composable
 fun InstructionsScreen(
-  sectionName: String,
+  title: String,
+  instructionsData: InstructionsData,
   onContinueClick: () -> Unit
 ) {
-  val dataManager = DataManager.getInstance(LocalContext.current.applicationContext)
-  val promptState by dataManager.promptState.observeAsState()
-  val metadata = promptState?.promptsCollection?.sections?.get(sectionName)?.metadata
   var videoViewInstance by remember { mutableStateOf<VideoView?>(null) }
   var isPlaying by remember { mutableStateOf(true) }
   var isMinimized by remember { mutableStateOf(false) }
@@ -167,7 +173,7 @@ fun InstructionsScreen(
     val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton, expandButton) = createRefs()
 
     Text(
-      text = stringResource(R.string.instructions_for_section, sectionName),
+      text = stringResource(R.string.instructions_for_section, title),
       fontSize = 32.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
@@ -178,10 +184,10 @@ fun InstructionsScreen(
       textAlign = TextAlign.Center,
     )
 
-    val hasVideo = metadata?.instructions?.instructionsVideo != null
-    val hasText = metadata?.instructions?.instructionsText != null
+    val hasVideo = instructionsData.instructionsVideo != null
+    val hasText = instructionsData.instructionsText != null
 
-    metadata?.instructions?.instructionsText?.let { instructions ->
+    instructionsData.instructionsText?.let { instructions ->
       val scrollState = rememberScrollState()
       Column(
         modifier = Modifier
@@ -245,7 +251,7 @@ fun InstructionsScreen(
       }
     }
 
-    metadata?.instructions?.instructionsVideo?.let { instructionsVideoPath ->
+    instructionsData.instructionsVideo?.let { instructionsVideoPath ->
       VideoPlayer(
         videoPath = instructionsVideoPath,
         modifier = Modifier

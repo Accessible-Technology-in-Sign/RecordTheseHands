@@ -8,7 +8,6 @@ import kotlinx.parcelize.Parcelize
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
-import kotlin.collections.set
 
 data class PromptsCollection(
   val sections: Map<String, PromptsSection>,
