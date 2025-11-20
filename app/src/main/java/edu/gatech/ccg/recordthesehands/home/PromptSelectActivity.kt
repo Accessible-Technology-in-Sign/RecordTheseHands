@@ -188,7 +188,8 @@ fun PromptSelectScreenContent(
       .background(Color.White)
   ) {
     val (backButton, header, toggleTutorialButton, overviewInstructionsButton, sectionsList, sectionsListTopFade, sectionsListBottomFade) = createRefs()
-    val topBarrier = createBottomBarrier(backButton, toggleTutorialButton, overviewInstructionsButton)
+    val topBarrier =
+      createBottomBarrier(backButton, toggleTutorialButton, overviewInstructionsButton)
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
