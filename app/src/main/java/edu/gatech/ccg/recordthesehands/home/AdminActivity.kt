@@ -26,6 +26,7 @@ package edu.gatech.ccg.recordthesehands.home
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -127,6 +128,11 @@ class AdminActivity : ComponentActivity() {
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setEnableDismissCountdownCircle(false)
           }
+        },
+        onResetOverviewInstructions = {
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setOverviewInstructionsShown(false)
+          }
         }
       )
     }
@@ -152,7 +158,8 @@ fun AdminScreenContent(
   onSetDeviceId: (String) -> Unit,
   onAttachToAccount: () -> Unit,
   onDownloadApk: () -> Unit,
-  onDisableDismissCountdownCircle: () -> Unit
+  onDisableDismissCountdownCircle: () -> Unit,
+  onResetOverviewInstructions: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
@@ -190,7 +197,7 @@ fun AdminScreenContent(
         focusManager.clearFocus()
       }
   ) {
-    val (backButton, content, headerText, downloadButton, disableDismissCountdownCircleButton) = createRefs()
+    val (backButton, content, headerText, downloadButton, disableDismissCountdownCircleButton, resetOverviewInstructionsButton) = createRefs()
 
     Image(
       painter = painterResource(id = R.drawable.back_arrow),
@@ -402,16 +409,7 @@ fun AdminScreenContent(
         }
       }
     }
-    if (userSettings?.enableDismissCountdownCircle ?: false) {
-      SecondaryButton(
-        onClick = onDisableDismissCountdownCircle,
-        modifier = Modifier.constrainAs(disableDismissCountdownCircleButton) {
-          bottom.linkTo(downloadButton.top, margin = 32.dp)
-          start.linkTo(downloadButton.start)
-        },
-        text = "Disable Dismiss Circle"
-      )
-    }
+
     SecondaryButton(
       onClick = onDownloadApk,
       modifier = Modifier.constrainAs(downloadButton) {
@@ -420,6 +418,34 @@ fun AdminScreenContent(
       },
       text = "Download APK"
     )
+
+    val showDisableDismissCountdownCircleButton = userSettings?.enableDismissCountdownCircle ?: false
+    if (showDisableDismissCountdownCircleButton) {
+      SecondaryButton(
+        onClick = onDisableDismissCountdownCircle,
+        modifier = Modifier.constrainAs(disableDismissCountdownCircleButton) {
+          bottom.linkTo(downloadButton.top, margin = 48.dp)
+          start.linkTo(downloadButton.start)
+        },
+        text = "Disable Dismiss Circle"
+      )
+    }
+
+    if (userSettings?.overviewInstructionsShown == true) {
+      SecondaryButton(
+        onClick = onResetOverviewInstructions,
+        modifier = Modifier.constrainAs(resetOverviewInstructionsButton) {
+          if (showDisableDismissCountdownCircleButton) {
+            bottom.linkTo(disableDismissCountdownCircleButton.top, margin = 16.dp)
+            start.linkTo(disableDismissCountdownCircleButton.start)
+          } else {
+            bottom.linkTo(downloadButton.top, margin = 16.dp)
+            start.linkTo(downloadButton.start)
+          }
+        },
+        text = "Reset Overview Instructions"
+      )
+    }
 
     if (showResultDialog) {
       AlertDialog(

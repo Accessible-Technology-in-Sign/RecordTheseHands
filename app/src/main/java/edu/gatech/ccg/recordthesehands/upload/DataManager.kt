@@ -272,11 +272,25 @@ class DataManager private constructor(val context: Context) {
   }
 
   private suspend fun getUserSettingsFromPrefStore(): UserSettings {
-    val enableDismissCountdownCircleKey = booleanPreferencesKey("enableDismissCountdownCircle")
-    val enableDismissCountdownCircle = context.prefStore.data.map {
-      it[enableDismissCountdownCircleKey]
-    }.firstOrNull() ?: false
-    return UserSettings(enableDismissCountdownCircle = enableDismissCountdownCircle)
+    val userSettingsKey = stringPreferencesKey("userSettings")
+    val jsonString = context.prefStore.data.map {
+      it[userSettingsKey]
+    }.firstOrNull()
+    return jsonString?.let {UserSettings.fromJson(JSONObject(it))} ?: UserSettings()
+  }
+
+  suspend fun setUserSettings(newSettings: UserSettings) {
+    dataManagerData.lock.withLock {
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
+  private suspend fun setUserSettingsUnderLock(newSettings: UserSettings) {
+    dataManagerData._userSettings.postValue(newSettings)
+    val userSettingsKey = stringPreferencesKey("userSettings")
+    context.prefStore.edit { preferences ->
+      preferences[userSettingsKey] = newSettings.toJson().toString()
+    }
   }
 
   private suspend fun getAppStatusFromPrefStore(): AppStatus {
@@ -770,14 +784,12 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
-  suspend fun getOverviewInstructionsShown(): Boolean {
-    val key = booleanPreferencesKey("overviewInstructionsShown")
-    return context.prefStore.data.map { it[key] }.firstOrNull() ?: false
-  }
-
   suspend fun setOverviewInstructionsShown(shown: Boolean) {
-    val key = booleanPreferencesKey("overviewInstructionsShown")
-    context.prefStore.edit { it[key] = shown }
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(overviewInstructionsShown = shown)
+      setUserSettingsUnderLock(newSettings)
+    }
   }
 
   /**
@@ -805,12 +817,7 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.withLock {
       val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
       val newSettings = currentSettings.copy(enableDismissCountdownCircle = enabled)
-      dataManagerData._userSettings.postValue(newSettings)
-      // TODO use a json object instead (this is better for multiple values).
-      val keyObject = booleanPreferencesKey("enableDismissCountdownCircle")
-      context.prefStore.edit {
-        it[keyObject] = enabled
-      }
+      setUserSettingsUnderLock(newSettings)
     }
   }
 

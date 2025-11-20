@@ -99,6 +99,9 @@ class PromptSelectActivity : ComponentActivity() {
         intent.putExtra("instructionsData", instructions)
         startActivity(intent)
       }
+      lifecycleScope.launch {
+        dataManager.setOverviewInstructionsShown(true)
+      }
     }
 
     lifecycleScope.launch {
@@ -107,9 +110,8 @@ class PromptSelectActivity : ComponentActivity() {
         val metadata = state?.promptsCollection?.collectionMetadata
         if (metadata?.instructions != null) {
           lifecycleScope.launch {
-            if (!dataManager.getOverviewInstructionsShown()) {
+            if (!(dataManager.userSettings.value?.overviewInstructionsShown ?: false)) {
               startOverviewInstructions()
-              dataManager.setOverviewInstructionsShown(true)
             }
           }
         }
@@ -131,22 +133,23 @@ class PromptSelectActivity : ComponentActivity() {
           lifecycleScope.launch {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             dataManager.resetToSection(sectionName)
-            dataManager.getPromptsCollection()?.sections?.get(sectionName)?.metadata?.let { metadata ->
-              metadata.instructions?.let { instructions ->
-                if (instructions.instructionsText != null ||
-                  instructions.instructionsVideo != null
-                ) {
-                  val intent = Intent(
-                    this@PromptSelectActivity, InstructionsActivity::class.java
-                  )
-                  intent.putExtra("title", sectionName)
-                  intent.putExtra("instructionsData", instructions)
-                  startActivity(intent)
-                }
+            dataManager.getPromptsCollection()?.sections?.get(sectionName)?.metadata?.instructions?.let { instructions ->
+              if (instructions.instructionsText != null ||
+                instructions.instructionsVideo != null
+              ) {
+                val intent = Intent(
+                  this@PromptSelectActivity, InstructionsActivity::class.java
+                )
+                intent.putExtra(
+                  "title",
+                  getString(R.string.instructions_for_section, sectionName)
+                )
+                intent.putExtra("instructionsData", instructions)
+                startActivity(intent)
               }
             }
-            finish()
           }
+          finish()
         }
       )
     }
@@ -194,21 +197,6 @@ fun PromptSelectScreenContent(
         .clickable(onClick = onBackClick)
     )
 
-    Text(
-      text = stringResource(R.string.prompt_select_title),
-      fontSize = 48.sp,
-      fontWeight = FontWeight.Bold,
-      modifier = Modifier.constrainAs(header) {
-        if (isTablet) {
-          top.linkTo(parent.top, margin = 16.dp)
-        } else {
-          top.linkTo(topBarrier, margin = 0.dp)
-        }
-        start.linkTo(parent.start)
-        end.linkTo(parent.end)
-      }
-    )
-
     SecondaryButton(
       onClick = onToggleTutorialMode,
       modifier = Modifier.constrainAs(toggleTutorialButton) {
@@ -232,15 +220,30 @@ fun PromptSelectScreenContent(
           top.linkTo(toggleTutorialButton.bottom, margin = 16.dp)
           end.linkTo(toggleTutorialButton.end)
         },
-        text = stringResource(R.string.show_overview_instructions)
+        text = stringResource(R.string.overview_button)
       )
     }
+
+    Text(
+      text = stringResource(R.string.prompt_select_title),
+      fontSize = 48.sp,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.constrainAs(header) {
+        if (isTablet) {
+          top.linkTo(parent.top, margin = 16.dp)
+        } else {
+          top.linkTo(topBarrier, margin = 16.dp)
+        }
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
+      }
+    )
 
     val scrollState = androidx.compose.foundation.rememberScrollState()
     Box(
       modifier = Modifier
         .constrainAs(sectionsList) {
-          top.linkTo(header.bottom, margin = 16.dp)
+          top.linkTo(header.bottom, margin = 0.dp)
           start.linkTo(parent.start, margin = 16.dp)
           end.linkTo(parent.end, margin = 16.dp)
           bottom.linkTo(parent.bottom, margin = 0.dp)

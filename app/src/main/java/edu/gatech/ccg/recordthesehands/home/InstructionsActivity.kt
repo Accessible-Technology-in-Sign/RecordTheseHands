@@ -173,7 +173,7 @@ fun InstructionsScreen(
     val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton, expandButton) = createRefs()
 
     Text(
-      text = stringResource(R.string.instructions_for_section, title),
+      text = title,
       fontSize = 32.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
