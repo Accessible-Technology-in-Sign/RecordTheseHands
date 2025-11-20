@@ -175,10 +175,10 @@ fun InstructionsScreen(
       textAlign = TextAlign.Center,
     )
 
-    val hasVideo = metadata?.instructionsVideo != null
-    val hasText = metadata?.instructionsText != null
+    val hasVideo = metadata?.instructions?.instructionsVideo != null
+    val hasText = metadata?.instructions?.instructionsText != null
 
-    metadata?.instructionsText?.let { instructions ->
+    metadata?.instructions?.instructionsText?.let { instructions ->
       val scrollState = rememberScrollState()
       Column(
         modifier = Modifier
@@ -242,7 +242,7 @@ fun InstructionsScreen(
       }
     }
 
-    metadata?.instructionsVideo?.let { instructionsVideoPath ->
+    metadata?.instructions?.instructionsVideo?.let { instructionsVideoPath ->
       VideoPlayer(
         videoPath = instructionsVideoPath,
         modifier = Modifier

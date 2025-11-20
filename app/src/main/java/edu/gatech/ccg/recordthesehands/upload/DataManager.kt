@@ -236,18 +236,18 @@ class DataManager private constructor(val context: Context) {
       }
     }
 
-    if (currentSectionName == null && promptsCollection != null && promptsCollection.sections.isNotEmpty()) {
-      promptsCollection.collectionMetadata.defaultSection?.let {
-        // if default is not null...
-        Log.i(TAG, "defaultSection == ${it}")
-        if (promptsCollection.sections.containsKey(it)) {
+    if (currentSectionName == null) {
+      val defaultSection = promptsCollection?.collectionMetadata?.defaultSection
+      if (defaultSection != null) {
+        Log.i(TAG, "defaultSection == $defaultSection")
+        if (promptsCollection.sections.containsKey(defaultSection)) {
           // If it is valid, set it to that section.
-          currentSectionName = it
+          currentSectionName = defaultSection
         }
-        // If it is not valid, leave it as null.
-      } ?: run {
+        // If the defaultSection is not valid, leave the current section as null.
+      } else {
         // If default is null, set to the first section.
-        currentSectionName = promptsCollection.sections.values.first().name
+        currentSectionName = promptsCollection?.sections?.values?.first()?.name
       }
       if (currentSectionName != null) {
         Log.i(TAG, "Setting current section from null to $currentSectionName")
@@ -2092,11 +2092,7 @@ class DataManager private constructor(val context: Context) {
    * read or if a required resource cannot be downloaded.
    */
   private suspend fun getPromptsCollectionFromDisk(): PromptsCollection? {
-    val newPromptsCollection = PromptsCollection(context)
-    if (!newPromptsCollection.initialize()) {
-      return null
-    }
-    return newPromptsCollection
+    return PromptsCollection.fromPromptsFile(context)
   }
 
   /**
@@ -2115,8 +2111,8 @@ class DataManager private constructor(val context: Context) {
     Log.i(TAG, "ensureResources for promptsCollection")
     val resourcePaths = ArrayList<String>()
     for (section in promptsCollection.sections.values) {
-      if (section.metadata.instructionsVideo != null) {
-        resourcePaths.add(section.metadata.instructionsVideo)
+      section.metadata.instructions?.instructionsVideo?.let {
+        resourcePaths.add(it)
       }
       resourcePaths.addAll(section.mainPrompts.array.mapNotNull { it.resourcePath })
       resourcePaths.addAll(section.tutorialPrompts.array.mapNotNull { it.resourcePath })

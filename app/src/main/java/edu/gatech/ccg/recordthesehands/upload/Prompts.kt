@@ -19,6 +19,34 @@ class Prompt(
   val readMinMs: Int?,
   val recordMinMs: Int?
 ) {
+
+  companion object {
+    fun fromJson(index: Int, json: JSONObject): Prompt {
+      val promptId: String = if (json.has("promptId")) {
+        json.getString("promptId")
+      } else {
+        json.opt("key") as? String ?: throw IllegalStateException("promptId not specified")
+      }
+      var promptType = PromptType.TEXT
+      if (json.has("promptType")) {
+        promptType = PromptType.valueOf(json.getString("promptType").uppercase())
+      }
+      val prompt: String? = json.opt("prompt") as? String
+      val resourcePath: String? = json.opt("resourcePath") as? String
+      val readMinMs: Int? = json.opt("readMinMs") as? Int
+      val recordMinMs: Int? = json.opt("recordMinMs") as? Int
+      return Prompt(
+        index,
+        promptId,
+        promptType,
+        prompt,
+        resourcePath,
+        readMinMs,
+        recordMinMs
+      )
+    }
+  }
+
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("index", index)
@@ -45,7 +73,7 @@ class Prompt(
  * A class which encapsulates the raw prompts data obtained from the server.
  * No mutable state such as which index is being used is contained within this class.
  */
-class Prompts(val context: Context) {
+class Prompts() {
   companion object {
     private val TAG = Prompts::class.simpleName
   }
@@ -57,31 +85,7 @@ class Prompts(val context: Context) {
     try {
       array.ensureCapacity(promptsJsonArray.length())
       for (i in 0 until promptsJsonArray.length()) {
-        val data = promptsJsonArray.getJSONObject(i)
-        val promptId: String = if (data.has("promptId")) {
-          data.getString("promptId")
-        } else {
-          data.opt("key") as? String ?: throw IllegalStateException("promptId not specified")
-        }
-        var promptType = PromptType.TEXT
-        if (data.has("promptType")) {
-          promptType = PromptType.valueOf(data.getString("promptType").uppercase())
-        }
-        val prompt: String? = data.opt("prompt") as? String
-        val resourcePath: String? = data.opt("resourcePath") as? String
-        val readMinMs: Int? = data.opt("readMinMs") as? Int
-        val recordMinMs: Int? = data.opt("recordMinMs") as? Int
-        array.add(
-          Prompt(
-            i,
-            promptId,
-            promptType,
-            prompt,
-            resourcePath,
-            readMinMs,
-            recordMinMs
-          )
-        )
+        array.add(Prompt.fromJson(i, promptsJsonArray.getJSONObject(i)))
       }
     } catch (e: JSONException) {
       Log.e(TAG, "failed to parse prompts, encountered JSONException $e")

@@ -105,8 +105,12 @@ class PromptSelectActivity : ComponentActivity() {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
             dataManager.resetToSection(sectionName)
             dataManager.getPromptsCollection()?.sections?.get(sectionName)?.metadata?.let { metadata ->
-              if (metadata.instructionsText != null || metadata.instructionsVideo != null) {
-                val intent = Intent(this@PromptSelectActivity, InstructionsActivity::class.java)
+              if (metadata.instructions?.instructionsText != null ||
+                metadata.instructions?.instructionsVideo != null
+              ) {
+                val intent = Intent(
+                  this@PromptSelectActivity, InstructionsActivity::class.java
+                )
                 intent.putExtra("sectionName", sectionName)
                 startActivity(intent)
               }

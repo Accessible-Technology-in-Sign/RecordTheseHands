@@ -6,68 +6,70 @@ import edu.gatech.ccg.recordthesehands.Constants
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
+import kotlin.collections.set
 
-class PromptsCollection(val context: Context) {
-  var sections = mutableMapOf<String, PromptsSection>()
-  lateinit var collectionMetadata: PromptsCollectionMetadata
+data class PromptsCollection(
+  val sections: Map<String, PromptsSection>,
+  val collectionMetadata: PromptsCollectionMetadata,
+) {
 
   companion object {
     private val TAG = PromptsCollection::class.simpleName
-  }
 
-  suspend fun initialize(): Boolean {
-    val promptsFile = File(context.filesDir, Constants.PROMPTS_FILENAME)
-    if (!promptsFile.exists()) return false
+    fun fromPromptsFile(context: Context): PromptsCollection? {
+      val promptsFile = File(context.filesDir, Constants.PROMPTS_FILENAME)
+      if (!promptsFile.exists()) return null
 
-    val json = try {
-      JSONObject(promptsFile.readText())
-    } catch (e: JSONException) {
-      Log.e(TAG, "Failed to parse prompts file: $e")
-      return false
+      val json = try {
+        JSONObject(promptsFile.readText())
+      } catch (e: JSONException) {
+        Log.e(TAG, "Failed to parse prompts file: $e")
+        return null
+      }
+      return fromJson(json)
     }
-    val collectionMetadataJson = json.optJSONObject("metadata") ?: JSONObject()
-    collectionMetadata = PromptsCollectionMetadata(
-      defaultSection = collectionMetadataJson.opt("defaultSection") as? String,
-    )
-    val data = json.optJSONObject("data") ?: run {
-      Log.e(TAG, "Prompts file did not include \"data\" section")
-      return false
-    }
-    data.keys().forEach { sectionName ->
-      val sectionJson = data.getJSONObject(sectionName)
-      val metadataJson = sectionJson.optJSONObject("metadata") ?: JSONObject()
 
-      // Create metadata object
-      val metadata = PromptsSectionMetadata(
-        dataCollectionId = metadataJson.opt("dataCollectionId") as? String,
-        instructionsText = metadataJson.opt("instructionsText") as? String,
-        instructionsVideo = metadataJson.opt("instructionsVideo") as? String,
+    fun fromJson(json: JSONObject): PromptsCollection? {
+      val collectionMetadataJson = json.optJSONObject("metadata") ?: JSONObject()
+      val collectionMetadata = PromptsCollectionMetadata(
+        defaultSection = collectionMetadataJson.opt("defaultSection") as? String,
       )
-
-      // Create and populate Prompts objects
-      val mainPrompts = Prompts(context).apply {
-        populateFrom(sectionJson.getJSONArray("main"))
+      val sections = mutableMapOf<String, PromptsSection>()
+      val data = json.optJSONObject("data") ?: run {
+        Log.e(TAG, "Prompts file did not include \"data\" section")
+        return null
       }
-      val tutorialPrompts = Prompts(context).apply {
-        // Check if a dedicated tutorial prompt set exists.
-        val tutorialJsonArray = sectionJson.optJSONArray("tutorial")
-        if (tutorialJsonArray != null) {
-          // If it exists, use it.
-          populateFrom(tutorialJsonArray)
-        } else {
-          // Otherwise, use the first 5 prompts from the main set as the tutorial.
-          val mainJsonArray = sectionJson.getJSONArray("main")
-          val newTutorialArray = org.json.JSONArray()
-          for (i in 0 until minOf(5, mainJsonArray.length())) {
-            newTutorialArray.put(mainJsonArray.getJSONObject(i))
-          }
-          populateFrom(newTutorialArray)
+      data.keys().forEach { sectionName ->
+        val sectionJson = data.getJSONObject(sectionName)
+        val metadataJson = sectionJson.optJSONObject("metadata") ?: JSONObject()
+        // Create metadata object
+        val metadata = PromptsSectionMetadata.fromJson(metadataJson)
+
+        // Create and populate Prompts objects
+        val mainPrompts = Prompts().apply {
+          populateFrom(sectionJson.getJSONArray("main"))
         }
-      }
+        val tutorialPrompts = Prompts().apply {
+          // Check if a dedicated tutorial prompt set exists.
+          val tutorialJsonArray = sectionJson.optJSONArray("tutorial")
+          if (tutorialJsonArray != null) {
+            // If it exists, use it.
+            populateFrom(tutorialJsonArray)
+          } else {
+            // Otherwise, use the first 5 prompts from the main set as the tutorial.
+            val mainJsonArray = sectionJson.getJSONArray("main")
+            val newTutorialArray = org.json.JSONArray()
+            for (i in 0 until minOf(5, mainJsonArray.length())) {
+              newTutorialArray.put(mainJsonArray.getJSONObject(i))
+            }
+            populateFrom(newTutorialArray)
+          }
+        }
 
-      sections[sectionName] = PromptsSection(sectionName, metadata, mainPrompts, tutorialPrompts)
+        sections[sectionName] = PromptsSection(sectionName, metadata, mainPrompts, tutorialPrompts)
+      }
+      return PromptsCollection(sections, collectionMetadata)
     }
-    return true
   }
 
   fun toJson(): JSONObject {
@@ -96,17 +98,60 @@ data class PromptsCollectionMetadata(
 
 data class PromptsSectionMetadata(
   val dataCollectionId: String?,
-  val instructionsText: String?,
-  val instructionsVideo: String?,
+  val instructions: InstructionsData?,
 ) {
+
+  companion object {
+    fun fromJson(json: JSONObject): PromptsSectionMetadata {
+      val instructions = json.opt("instructions")?.let {
+        InstructionsData.fromJson(it as JSONObject)
+      }
+      return PromptsSectionMetadata(
+        dataCollectionId = json.opt("dataCollectionId") as? String,
+        instructions = instructions,
+      )
+    }
+  }
+
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("dataCollectionId", dataCollectionId)
+    if (instructions != null) {
+      json.put("instructions", instructions.toJson())
+    }
+    return json
+  }
+}
+
+data class InstructionsData(
+  val instructionsText: String?,
+  val instructionsVideo: String?,
+  val examplePrompt: Prompt?,
+) {
+
+  companion object {
+    fun fromJson(json: JSONObject): InstructionsData {
+      val examplePrompt = json.opt("examplePrompt")?.let {
+        Prompt.fromJson(0, it as JSONObject)
+      }
+      return InstructionsData(
+        instructionsText = json.opt("instructionsText") as? String,
+        instructionsVideo = json.opt("instructionsVideo") as? String,
+        examplePrompt = examplePrompt,
+      )
+    }
+  }
+
+  fun toJson(): JSONObject {
+    val json = JSONObject()
     if (instructionsText != null) {
       json.put("instructionsText", instructionsText)
     }
     if (instructionsVideo != null) {
       json.put("instructionsVideo", instructionsVideo)
+    }
+    if (examplePrompt != null) {
+      json.put("examplePrompt", examplePrompt)
     }
     return json
   }
