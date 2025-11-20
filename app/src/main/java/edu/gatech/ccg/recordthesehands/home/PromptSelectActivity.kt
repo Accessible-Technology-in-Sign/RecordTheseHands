@@ -230,6 +230,7 @@ fun PromptSelectScreenContent(
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
         if (isTablet) {
+          // TODO if the tablet is in portrait mode then use topBarrier.
           top.linkTo(parent.top, margin = 16.dp)
         } else {
           top.linkTo(topBarrier, margin = 16.dp)

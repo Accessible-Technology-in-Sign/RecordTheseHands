@@ -439,7 +439,7 @@ fun AdminScreenContent(
             bottom.linkTo(disableDismissCountdownCircleButton.top, margin = 16.dp)
             start.linkTo(disableDismissCountdownCircleButton.start)
           } else {
-            bottom.linkTo(downloadButton.top, margin = 16.dp)
+            bottom.linkTo(downloadButton.top, margin = 48.dp)
             start.linkTo(downloadButton.start)
           }
         },

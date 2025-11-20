@@ -2128,12 +2128,22 @@ class DataManager private constructor(val context: Context) {
     Log.i(TAG, "ensureResources for promptsCollection")
     val resourcePaths = ArrayList<String>()
 
-    promptsCollection.collectionMetadata.instructions?.instructionsVideo?.let {
-      resourcePaths.add(it)
+    fun addInstructionsResources(instructions: InstructionsData) {
+      instructions.instructionsVideo?.let {
+        resourcePaths.add(it)
+      }
+      instructions.examplePrompt?.let { prompt ->
+        prompt.resourcePath?.let { exampleResourcePath ->
+          resourcePaths.add(exampleResourcePath)
+        }
+      }
+    }
+    promptsCollection.collectionMetadata.instructions?.let {
+      addInstructionsResources(it)
     }
     for (section in promptsCollection.sections.values) {
-      section.metadata.instructions?.instructionsVideo?.let {
-        resourcePaths.add(it)
+      section.metadata.instructions?.let {
+        addInstructionsResources(it)
       }
       resourcePaths.addAll(section.mainPrompts.array.mapNotNull { it.resourcePath })
       resourcePaths.addAll(section.tutorialPrompts.array.mapNotNull { it.resourcePath })

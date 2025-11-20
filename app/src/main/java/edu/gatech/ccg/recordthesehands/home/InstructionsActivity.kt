@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.core.view.WindowCompat
@@ -273,9 +274,12 @@ fun InstructionsScreen(
     }
 
     if (showExamplePrompt && instructionsData.examplePrompt != null) {
-      Dialog(onDismissRequest = {
-        showExamplePrompt = false
-      }) {
+      Dialog(
+        onDismissRequest = {
+          showExamplePrompt = false
+        },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+      ) {
         PromptView(prompt = instructionsData.examplePrompt, modifier = Modifier.fillMaxWidth())
       }
     }
