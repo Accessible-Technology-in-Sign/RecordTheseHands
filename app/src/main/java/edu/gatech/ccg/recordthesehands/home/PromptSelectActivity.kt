@@ -25,6 +25,7 @@ package edu.gatech.ccg.recordthesehands.home
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -43,6 +44,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -177,6 +179,8 @@ fun PromptSelectScreenContent(
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val isTablet = thisDeviceIsATablet(LocalContext.current)
+  val configuration = LocalConfiguration.current
+  val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
   ConstraintLayout(
     modifier = Modifier
@@ -229,8 +233,7 @@ fun PromptSelectScreenContent(
       fontSize = 48.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier.constrainAs(header) {
-        if (isTablet) {
-          // TODO if the tablet is in portrait mode then use topBarrier.
+        if (isTablet && !isPortrait) {
           top.linkTo(parent.top, margin = 16.dp)
         } else {
           top.linkTo(topBarrier, margin = 16.dp)
