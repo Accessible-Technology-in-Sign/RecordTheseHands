@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.core.view.WindowCompat
@@ -50,8 +52,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.recording.PromptView
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
+import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.upload.InstructionsData
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import java.io.File
@@ -162,6 +166,7 @@ fun InstructionsScreen(
   var videoViewInstance by remember { mutableStateOf<VideoView?>(null) }
   var isPlaying by remember { mutableStateOf(true) }
   var isMinimized by remember { mutableStateOf(false) }
+  var showExamplePrompt by remember { mutableStateOf(false) }
   val configuration = LocalConfiguration.current
   val screenHeight = configuration.screenHeightDp.dp
 
@@ -170,7 +175,7 @@ fun InstructionsScreen(
       .fillMaxSize()
       .background(Color.White)
   ) {
-    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton, expandButton) = createRefs()
+    val (header, videoPlayer, instructionsText, instructionsTextTopFade, instructionsTextBottomFade, continueButton, restartButton, playPauseButton, expandButton, exampleButton) = createRefs()
 
     Text(
       text = title,
@@ -186,8 +191,9 @@ fun InstructionsScreen(
 
     val hasVideo = instructionsData.instructionsVideo != null
     val hasText = instructionsData.instructionsText != null
+    val hasExample = instructionsData.examplePrompt != null
 
-    instructionsData.instructionsText?.let { instructions ->
+    if (hasExample || hasText) {
       val scrollState = rememberScrollState()
       Column(
         modifier = Modifier
@@ -209,11 +215,26 @@ fun InstructionsScreen(
           .verticalScroll(scrollState)
           .fillMaxWidth()
       ) {
-        Text(
-          text = instructions,
-          fontSize = 24.sp,
-          modifier = Modifier.padding(start = 16.dp, end = 16.dp)
-        )
+        if (hasExample) {
+          SecondaryButton(
+            text = "Example",
+            onClick = {
+              showExamplePrompt = true
+              videoViewInstance?.pause()
+              isPlaying = false
+            },
+            modifier = Modifier
+              .padding(bottom = 16.dp, end = 16.dp)
+              .align(Alignment.End)
+          )
+        }
+        instructionsData.instructionsText?.let { instructions ->
+          Text(
+            text = instructions,
+            fontSize = 24.sp,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp)
+          )
+        }
       }
       if (scrollState.canScrollBackward) {
         Box(
@@ -248,6 +269,14 @@ fun InstructionsScreen(
               )
             )
         ) {}
+      }
+    }
+
+    if (showExamplePrompt && instructionsData.examplePrompt != null) {
+      Dialog(onDismissRequest = {
+        showExamplePrompt = false
+      }) {
+        PromptView(prompt = instructionsData.examplePrompt, modifier = Modifier.fillMaxWidth())
       }
     }
 
