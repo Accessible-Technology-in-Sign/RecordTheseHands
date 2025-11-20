@@ -84,11 +84,15 @@ class PromptSelectActivity : ComponentActivity() {
     }
 
     windowInsetsController =
-      WindowCompat.getInsetsController(window, window.decorView)?.also {
+      WindowCompat.getInsetsController(window, window.decorView).also {
         it.systemBarsBehavior =
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }
     dataManager = DataManager.getInstance(applicationContext)
+
+    // TODO If the overview instructions are available and haven't been shown yet
+    // Start an InstructionsActivity to show it.  Make this a function call, so
+    // that it can be reused for the button that will also trigger it.
 
     setContent {
       PromptSelectScreenContent(
@@ -186,6 +190,9 @@ fun PromptSelectScreenContent(
         stringResource(R.string.switch_to_tutorial_prompts)
       }
     )
+
+    // TODO If overview instructions are available, create a button to start the
+    // InstructionsActivity to show it.
 
     val scrollState = androidx.compose.foundation.rememberScrollState()
     Box(

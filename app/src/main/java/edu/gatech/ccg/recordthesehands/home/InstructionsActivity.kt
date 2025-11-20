@@ -78,6 +78,8 @@ class InstructionsActivity : ComponentActivity() {
       }
 
     val sectionName = intent.getStringExtra("sectionName") ?: return finish()
+    // TODO change this to receive an entire InstructionsData, so we don't need
+    // to differentiate between the overview instructions and section instructions.
 
     setContent {
       InstructionsScreen(
