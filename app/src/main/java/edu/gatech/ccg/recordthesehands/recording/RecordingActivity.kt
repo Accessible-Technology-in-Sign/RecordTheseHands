@@ -1129,6 +1129,7 @@ class RecordingActivity : FragmentActivity() {
             dataManager.logToServer("selected confirm page (promptIndex ${promptIndex})")
             title = getString(R.string.confirm_session_finished_title)
             viewModel.setButtonState(recordVisible = false, restartVisible = false)
+            skipButtonVisible = false
           }
         }
       }
