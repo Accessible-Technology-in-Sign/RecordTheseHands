@@ -166,3 +166,19 @@
 
 - **Login Token Output:** The `create_directive.py` script now prints the
   generated login token in a structured JSON format.
+
+# Release Notes - v2.3.2.1
+
+## UI/UX Improvements
+
+- **Countdown Dismissal:** Reduced the number of taps required to dismiss the
+  countdown circle from 5 to 3.
+
+## Technical Changes
+
+- **State Persistence:** Updated `DataManager` to ensure a default section is
+  selected if one is not already set, and to guarantee that changes to the
+  selected section are immediately saved to user preferences.
+- **Code Refactoring:** Extracted `ServerStatus` and `ServerState` into a
+  dedicated file (`ServerState.kt`) and removed unused imports in
+  `HomeScreenActivity`.
