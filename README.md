@@ -7,12 +7,14 @@ in Sign (GT-CATS) / Google LLC<br> Licensed under the MIT license.
 
 Principal authors:
 
-- Sahir Shahryar (`sahirshahryar@gmail.com`)
 - Manfred Georg (`mgeorg@google.com`)
+- Sahir Shahryar (`sahirshahryar@gmail.com`)
 - Matthew So (`matthew.so@gatech.edu`)
 
 Instruction videos provided by the
 [Deaf Professional Arts Network (DPAN)](https://dpan.tv).
+
+[Release Notes][release_notes.md]
 
 ## About
 
