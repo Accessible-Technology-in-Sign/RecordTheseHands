@@ -32,7 +32,15 @@ class Prompt(
       }
       var promptType = PromptType.TEXT
       if (json.has("promptType")) {
-        promptType = PromptType.valueOf(json.getString("promptType").uppercase())
+        try {
+          promptType = PromptType.valueOf(json.getString("promptType").uppercase())
+        } catch (e: IllegalArgumentException) {
+          Log.e(
+            "Prompt",
+            "Unknown prompt type: ${json.getString("promptType")}, defaulting to TEXT"
+          )
+          promptType = PromptType.TEXT
+        }
       }
       val prompt: String? = json.opt("prompt") as? String
       val resourcePath: String? = json.opt("resourcePath") as? String
