@@ -14,7 +14,7 @@ Principal authors:
 Instruction videos provided by the
 [Deaf Professional Arts Network (DPAN)](https://dpan.tv).
 
-[Release Notes][release_notes.md]
+[Release Notes](release_notes.md)
 
 ## About
 
