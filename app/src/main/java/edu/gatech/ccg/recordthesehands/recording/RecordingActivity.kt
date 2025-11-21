@@ -1112,7 +1112,8 @@ class RecordingActivity : FragmentActivity() {
 
           if (promptIndex < sessionLimit) {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-            title = getString(R.string.prompt_count_title, currentPromptIndex + 1, prompts.array.size)
+            title =
+              getString(R.string.prompt_count_title, currentPromptIndex + 1, prompts.array.size)
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
             skipButtonText = R.string.bad_prompt
             skipButtonEnabled = true

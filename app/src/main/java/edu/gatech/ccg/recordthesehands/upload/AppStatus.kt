@@ -23,6 +23,22 @@
  */
 package edu.gatech.ccg.recordthesehands.upload
 
+import org.json.JSONObject
+
 data class AppStatus(
   val checkVersion: Boolean = false
-)
+) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("checkVersion", checkVersion)
+    return json
+  }
+
+  companion object {
+    fun fromJson(json: JSONObject): AppStatus {
+      return AppStatus(
+        checkVersion = json.optBoolean("checkVersion", false)
+      )
+    }
+  }
+}

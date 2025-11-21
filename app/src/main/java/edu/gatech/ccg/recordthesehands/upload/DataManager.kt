@@ -301,6 +301,18 @@ class DataManager private constructor(val context: Context) {
   }
 
   private suspend fun getAppStatusFromPrefStore(): AppStatus {
+    val appStatusKey = stringPreferencesKey("appStatus")
+    val jsonString = context.prefStore.data.map {
+      it[appStatusKey]
+    }.firstOrNull()
+
+    if (jsonString != null) {
+      try {
+        return AppStatus.fromJson(JSONObject(jsonString))
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to parse app status", e)
+      }
+    }
     val checkVersionKey = booleanPreferencesKey("checkVersion")
     val checkVersion = context.prefStore.data.map {
       it[checkVersionKey]
@@ -832,12 +844,15 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.withLock {
       val currentSettings = dataManagerData.appStatus.value ?: AppStatus()
       val newSettings = currentSettings.copy(checkVersion = checkVersion)
-      dataManagerData._appStatus.postValue(newSettings)
-      // TODO use a json object instead (this is better for multiple values).
-      val keyObject = booleanPreferencesKey("checkVersion")
-      context.prefStore.edit {
-        it[keyObject] = checkVersion
-      }
+      setAppStatusUnderLock(newSettings)
+    }
+  }
+
+  private suspend fun setAppStatusUnderLock(newStatus: AppStatus) {
+    dataManagerData._appStatus.postValue(newStatus)
+    val appStatusKey = stringPreferencesKey("appStatus")
+    context.prefStore.edit { preferences ->
+      preferences[appStatusKey] = newStatus.toJson().toString()
     }
   }
 
