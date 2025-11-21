@@ -80,11 +80,15 @@
     <string name="upload_complete">Upload Complete</string>
     <string name="upload_interrupted">Upload Interrupted</string>
     <string name="upload_failed">Upload Failed</string>
-    <string name="section_not_set">&lt;Section Not Set&gt;</string>
     <string name="switch_prompts">Switch Prompts</string>
     <string name="other_sections_header">Other Sections</string>
     <string name="section_status_completed">Completed</string>
     <string name="section_status_in_progress">%1$d / %2$d</string>
+    <string name="no_section_placeholder">&lt;NO SECTION&gt;</string>
+    <string name="comma_separator">,</string>
+    <string name="simple_ratio">%1$d/%2$d</string>
+    <string name="simple_ratio_spaced">%1$d / %2$d</string>
+    <string name="prompt_count_title">%1$d of %2$d</string>
 
     <!-- PromptSelectActivity -->
     <string name="prompt_select_title">Pick a Section</string>
@@ -97,6 +101,24 @@
 
     <!-- InstructionsActivity -->
     <string name="instructions_for_section">Instructions for %1$s</string>
+    <string name="example_button">Example</string>
+    <string name="expand_video_content_description">Expand Video</string>
+    <string name="restart_video_content_description">Restart Video</string>
+    <string name="pause_video_content_description">Pause Video</string>
+    <string name="play_video_content_description">Play Video</string>
+    <string name="continue_button">Continue</string>
+
+    <!-- AdminActivity -->
+    <string name="admin_interface_title">Admin Interface</string>
+    <string name="set_device_id_button">Set DeviceId</string>
+    <string name="set_button">Set</string>
+    <string name="loading_button">Loading...</string>
+    <string name="set_username_button">Set Username</string>
+    <string name="download_apk_button">Download APK</string>
+    <string name="disable_dismiss_circle_button">Disable Dismiss Circle</string>
+    <string name="ok_button">OK</string>
+    <string name="remove_device_warning">Remove previous device from this username (DANGEROUS)</string>
+    <string name="reset_overview_instructions">Reset Overview Instructions</string>
 
     <!-- Time formatting -->
     <string name="time_format_min_sec">%1$dm %2$02ds</string>
@@ -108,10 +130,13 @@
     <string name="finish">Finish</string>
     <string name="recording">Recording</string>
     <string name="time">15:00</string>
-    <string name="skip">Skip</string>
     <string name="bad_prompt">Bad Prompt</string>
     <string name="go">GO!</string>
     <string name="explain">Explain</string>
+    <string name="recording_session_concluded_title">Recording Session Concluded</string>
+    <string name="recording_session_concluded_message">Upload will occur automatically.</string>
+    <string name="end_of_prompts_title">End of Prompts</string>
+    <string name="confirm_session_finished_title">Confirm Recording Session Finished</string>
 
     <!-- Permissions -->
     <string name="perm_alert">Permissions are required to use the app</string>

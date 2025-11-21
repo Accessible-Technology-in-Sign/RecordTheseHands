@@ -947,44 +947,6 @@ class RecordingActivity : FragmentActivity() {
           }
         }
 
-        if (false && isReadTimerActive) {
-          Box(
-            modifier = Modifier
-              .constrainAs(readTimer) {
-                bottom.linkTo(parent.bottom)
-                top.linkTo(guideline)
-                end.linkTo(parent.end)
-                start.linkTo(parent.start)
-              }
-              .clip(RoundedCornerShape(20.dp))
-              .background(Color.Black.copy(alpha = 0.65f))
-              .padding(30.dp),
-            contentAlignment = Alignment.Center
-          ) {
-            Column(
-              verticalArrangement = Arrangement.Center,
-              horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-              Text(
-                text = "Read and Prepare",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.padding(top = 10.dp, bottom = 30.dp)
-              )
-              CountdownCircle(
-                dataManager = dataManager,
-                durationMs = readCountdownDuration,
-                componentSize = 200.dp,
-                strokeWidthProportion = 0.3f,
-                onFinished = {
-                  viewModel.setReadTimerActive(false)
-                }
-              )
-            }
-          }
-        }
-
         if (isRecordingTimerActive) {
           CountdownCircle(
             dataManager = dataManager,
@@ -1150,7 +1112,7 @@ class RecordingActivity : FragmentActivity() {
 
           if (promptIndex < sessionLimit) {
             dataManager.logToServer("selected page for promptIndex ${promptIndex}")
-            title = "${currentPromptIndex + 1} of ${prompts.array.size}"
+            title = getString(R.string.prompt_count_title, currentPromptIndex + 1, prompts.array.size)
             viewModel.setButtonState(recordVisible = true, restartVisible = false)
             skipButtonText = R.string.bad_prompt
             skipButtonEnabled = true
@@ -1165,7 +1127,7 @@ class RecordingActivity : FragmentActivity() {
             }
           } else if (promptIndex == sessionLimit) {
             dataManager.logToServer("selected confirm page (promptIndex ${promptIndex})")
-            title = "Confirm Recording Session Finished"
+            title = getString(R.string.confirm_session_finished_title)
             viewModel.setButtonState(recordVisible = false, restartVisible = false)
           }
         }
@@ -1251,7 +1213,7 @@ class RecordingActivity : FragmentActivity() {
     )
 
     // Set title bar text
-    title = "${currentPromptIndex + 1} of ${prompts.array.size}"
+    title = getString(R.string.prompt_count_title, currentPromptIndex + 1, prompts.array.size)
 
     setupCountdownTimer {
       viewModel.onTick(it)
@@ -1430,7 +1392,8 @@ class RecordingActivity : FragmentActivity() {
 
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     val notification = dataManager.createNotification(
-      "Recording Session Concluded", "Upload will occur automatically."
+      getString(R.string.recording_session_concluded_title),
+      getString(R.string.recording_session_concluded_message)
     )
     notificationManager.notify(UPLOAD_NOTIFICATION_ID, notification)
     concludeLatch.countDown()
@@ -1757,7 +1720,7 @@ fun ConfirmPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
       ) {
         Text(
-          text = "End of Prompts",
+          text = stringResource(R.string.end_of_prompts_title),
           fontSize = 28.sp,
           fontWeight = FontWeight.Bold,
           color = Color.Black

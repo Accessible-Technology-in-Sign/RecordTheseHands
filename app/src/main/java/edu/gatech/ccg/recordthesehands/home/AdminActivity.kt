@@ -235,7 +235,7 @@ fun AdminScreenContent(
     )
 
     Text(
-      text = "Admin Interface",
+      text = stringResource(R.string.admin_interface_title),
       fontSize = 32.sp,
       fontWeight = FontWeight.Bold,
       modifier = Modifier
@@ -292,9 +292,9 @@ fun AdminScreenContent(
           },
           modifier = Modifier.padding(top = if (isTablet) 8.dp else 0.dp),
           text = if (isTablet) {
-            "Set DeviceId"
+            stringResource(R.string.set_device_id_button)
           } else {
-            "Set"
+            stringResource(R.string.set_button)
           }
         )
       }
@@ -346,7 +346,7 @@ fun AdminScreenContent(
 
       @Composable
       fun adminPasswordText() {
-        Text("Admin Password:", fontSize = 24.sp)
+        Text(stringResource(R.string.password_label), fontSize = 24.sp)
       }
 
       @Composable
@@ -371,12 +371,12 @@ fun AdminScreenContent(
           enabled = !adminViewModel.isAttaching,
           modifier = Modifier.padding(top = 8.dp),
           text = if (adminViewModel.isAttaching) {
-            "Loading..."
+            stringResource(R.string.loading_button)
           } else {
             if (isTablet) {
-              "Set Username"
+              stringResource(R.string.set_username_button)
             } else {
-              "Set"
+              stringResource(R.string.set_button)
             }
           }
         )
@@ -405,7 +405,7 @@ fun AdminScreenContent(
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-              text = "Remove previous device from this username (DANGEROUS)",
+              text = stringResource(R.string.remove_device_warning),
               fontSize = 18.sp,
               fontWeight = FontWeight.Bold,
               color = Color.Red,
@@ -479,7 +479,7 @@ fun AdminScreenContent(
         bottom.linkTo(parent.bottom, margin = 32.dp)
         start.linkTo(parent.start, margin = if (isTablet) 32.dp else 16.dp)
       },
-      text = "Download APK"
+      text = stringResource(R.string.download_apk_button)
     )
 
     val showDisableDismissCountdownCircleButton =
@@ -491,7 +491,7 @@ fun AdminScreenContent(
           bottom.linkTo(downloadButton.top, margin = 48.dp)
           start.linkTo(downloadButton.start)
         },
-        text = "Disable Dismiss Circle"
+        text = stringResource(R.string.disable_dismiss_circle_button)
       )
     }
 
@@ -507,7 +507,7 @@ fun AdminScreenContent(
             start.linkTo(downloadButton.start)
           }
         },
-        text = "Reset Overview Instructions"
+        text = stringResource(R.string.reset_overview_instructions)
       )
     }
 
@@ -531,7 +531,7 @@ fun AdminScreenContent(
         },
         confirmButton = {
           PrimaryButton(
-            text = "OK",
+            text = stringResource(R.string.ok_button),
             modifier = Modifier.padding(bottom = 16.dp, end = 16.dp),
             onClick = {
               showResultDialog = false

@@ -674,7 +674,7 @@ fun HomeScreenContent(
     ) {
       // Section Name Text
       Text(
-        text = promptState?.currentSectionName ?: "<NO SECTION>",
+        text = promptState?.currentSectionName ?: stringResource(R.string.no_section_placeholder),
         fontSize = 18.sp,
       )
 
@@ -688,7 +688,11 @@ fun HomeScreenContent(
       } else {
         Text(
           // TODO replace with stringResource.
-          text = "${promptState?.currentPromptIndex ?: 0}/${promptState?.totalPromptsInCurrentSection ?: 0}",
+          text = stringResource(
+            R.string.simple_ratio,
+            promptState?.currentPromptIndex ?: 0,
+            promptState?.totalPromptsInCurrentSection ?: 0
+          ),
           fontSize = 18.sp,
         )
       }
@@ -708,7 +712,7 @@ fun HomeScreenContent(
     // Total Progress Count Text
     Text(
       // TODO replace with stringResource.
-      text = "${totalCompleted} / ${totalPrompts}",
+      text = stringResource(R.string.simple_ratio_spaced, totalCompleted, totalPrompts),
       fontSize = 18.sp,
       modifier = Modifier
         .constrainAs(totalProgressCountText) {
@@ -811,7 +815,7 @@ fun HomeScreenContent(
             )
             if (index < (promptState?.promptsCollection?.sections?.values?.size ?: 0) - 1) {
               Text(
-                text = ",",
+                text = stringResource(R.string.comma_separator),
                 fontSize = 18.sp,
                 color = colorResource(id = R.color.black),
               )

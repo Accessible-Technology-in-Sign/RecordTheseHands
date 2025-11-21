@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +52,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_RESUME_ON_IDLE_TIMEOUT
+import edu.gatech.ccg.recordthesehands.R
 import edu.gatech.ccg.recordthesehands.recording.PromptView
 import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
@@ -216,7 +218,7 @@ fun InstructionsScreen(
       ) {
         if (hasExample) {
           SecondaryButton(
-            text = "Example",
+            text = stringResource(R.string.example_button),
             onClick = {
               showExamplePrompt = true
               videoViewInstance?.pause()
@@ -348,7 +350,10 @@ fun InstructionsScreen(
               shape = CircleShape
             )
         ) {
-          Icon(Icons.Default.Fullscreen, contentDescription = "Expand Video")
+          Icon(
+            Icons.Default.Fullscreen,
+            contentDescription = stringResource(R.string.expand_video_content_description)
+          )
         }
       }
     }
@@ -375,7 +380,10 @@ fun InstructionsScreen(
             shape = CircleShape
           )
       ) {
-        Icon(Icons.Default.RestartAlt, contentDescription = "Restart Video")
+        Icon(
+          Icons.Default.RestartAlt,
+          contentDescription = stringResource(R.string.restart_video_content_description)
+        )
       }
     }
 
@@ -406,14 +414,16 @@ fun InstructionsScreen(
       ) {
         Icon(
           if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-          contentDescription = if (isPlaying) "Pause Video" else "Play Video"
+          contentDescription = if (isPlaying) stringResource(R.string.pause_video_content_description) else stringResource(
+            R.string.play_video_content_description
+          )
         )
       }
     }
 
     PrimaryButton(
       onClick = onContinueClick,
-      text = "Continue",
+      text = stringResource(R.string.continue_button),
       modifier = Modifier.constrainAs(continueButton) {
         bottom.linkTo(parent.bottom, margin = 16.dp)
         start.linkTo(parent.start)
