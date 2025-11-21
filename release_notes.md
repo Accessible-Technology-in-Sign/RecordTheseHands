@@ -244,3 +244,34 @@
   generating a random one for a user.
 - **Random Password Generation:** `create_directive.py` now generates a random
   password for `changeUser` if not explicitly provided.
+
+# Release Notes - v2.3.1
+
+## Android Application
+
+**New Features & User Interface**
+
+- **Skip & Explain Workflow:** Added the ability for users to skip a prompt
+  during recording.
+  - Clicking "Skip" triggers an "Explain" mode with a 15-second countdown.
+  - Users can record an explanation for why they are skipping the prompt.
+  - Added visual cues ("Explain" text overlay, countdown circle) during this
+    phase.
+- **APK Download (Admin):** Added a "Download APK" button to the "Load Data"
+  (Admin) activity for easier app distribution.
+
+**Technical Changes**
+
+- **Metadata Tracking:** Updated `ClipDetails` to include an `isSkipExplanation`
+  flag, allowing the server to distinguish between normal recordings and skip
+  explanations.
+
+## Server
+
+**New Features**
+
+- **APK Download (Web):** Added a direct "Download APK" link to the server's
+  login and home pages.
+- **Dynamic APK Serving:** The server now scans the storage bucket for APK files
+  matching the version pattern and automatically serves the latest version,
+  eliminating the need for hardcoded filenames.
