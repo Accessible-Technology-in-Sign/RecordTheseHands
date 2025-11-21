@@ -36,13 +36,19 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Checkbox
+import androidx.compose.material.CheckboxDefaults
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -75,6 +81,7 @@ import edu.gatech.ccg.recordthesehands.thisDeviceIsATablet
 import edu.gatech.ccg.recordthesehands.ui.components.PrimaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.SecondaryButton
 import edu.gatech.ccg.recordthesehands.ui.components.StyledTextField
+import edu.gatech.ccg.recordthesehands.ui.theme.LightBlue
 import edu.gatech.ccg.recordthesehands.upload.DataManager
 import edu.gatech.ccg.recordthesehands.upload.UploadPauseManager
 import kotlinx.coroutines.Dispatchers
@@ -150,6 +157,7 @@ class AdminActivity : ComponentActivity() {
   }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun AdminScreenContent(
   dataManager: DataManager,
@@ -381,14 +389,21 @@ fun AdminScreenContent(
             modifier = Modifier.padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            Checkbox(
-              checked = removePreviousDeviceChecked,
-              onCheckedChange = {
-                if (!adminViewModel.isAttaching) {
-                  removePreviousDeviceChecked = it
-                }
-              }
-            )
+            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+              Checkbox(
+                checked = removePreviousDeviceChecked,
+                onCheckedChange = {
+                  if (!adminViewModel.isAttaching) {
+                    removePreviousDeviceChecked = it
+                  }
+                },
+                colors = CheckboxDefaults.colors(
+                  checkedColor = LightBlue,
+                  uncheckedColor = Color.Black
+                )
+              )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
               text = "Remove previous device from this username (DANGEROUS)",
               fontSize = 18.sp,
