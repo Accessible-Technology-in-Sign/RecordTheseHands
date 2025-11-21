@@ -182,3 +182,65 @@
 - **Code Refactoring:** Extracted `ServerStatus` and `ServerState` into a
   dedicated file (`ServerState.kt`) and removed unused imports in
   `HomeScreenActivity`.
+
+# Release Notes - v2.3.2
+
+## Android Application
+
+**New Features & User Interface**
+
+- **Redesigned Home Screen:** The home screen (`HomeScreenActivity`) has been
+  completely refactored to use Jetpack Compose, offering a modern and more
+  maintainable UI. This includes dynamic display of upload status and a more
+  streamlined layout.
+- **Configurable Countdown Circle:** The `CountdownCircle` now supports an
+  option to hide the countdown text.
+
+**Improvements & Internal Changes**
+
+- **Dependency Updates:**
+  - Updated `protobuf-javalite` to `4.33.0`.
+  - Upgraded Compose UI version to `1.9.4`.
+  - Updated WorkManager to `2.11.0`.
+  - Added `androidx.lifecycle:lifecycle-viewmodel-compose` and
+    `androidx.compose.runtime:runtime-livedata` for better Compose integration.
+  - Updated Kotlin version to `2.2.21`.
+  - Updated CameraX version to `1.5.1`.
+- **Enhanced Server Communication and Error Handling:**
+  - `DataManager` now checks for active network connectivity before making
+    server requests.
+  - Introduced a new `ServerState` class to provide more granular server
+    connection status (e.g., `NO_INTERNET`, `NO_SERVER`, `SERVER_ERROR`,
+    `NO_LOGIN`, `ACTIVE`).
+  - Improved the `pingServer` logic to use the `/is_authenticated` endpoint for
+    a more robust connection check.
+  - Standardized error handling for server response codes across various
+    `DataManager` network operations.
+- **Button Enhancements:** The `PrimaryButton` composable now supports an
+  optional `extraContent` slot, allowing for embedded UI elements like the
+  countdown circle.
+- **String Resource Updates:** Added new string resources for more detailed
+  server status messages, upload progress, and updated existing messages in
+  various languages.
+- **Color Resource:** Added `very_light_gray` to colors.
+- **Skip Button Text:** Changed the default text for the skip button from "Skip"
+  to "Bad Prompt" in `RecordingActivity`.
+
+## Server
+
+**API Changes & Improvements**
+
+- **Authentication Endpoint:** Added a new `/is_authenticated` endpoint for
+  clients to check server connectivity and authentication status.
+- **Standardized Unauthorized Responses:** Several API endpoints (`/prompts`,
+  `/upload`, `/verify`, `/save`, `/save_state`, `/directives`,
+  `/directive_completed`) now consistently return `401 Unauthorized` for invalid
+  login tokens, instead of `400 Bad Request`.
+
+**Developer Tools**
+
+- **Password Management:** The `create_directive.py` script now includes a
+  `setPassword` operation, allowing for setting a specific password or
+  generating a random one for a user.
+- **Random Password Generation:** `create_directive.py` now generates a random
+  password for `changeUser` if not explicitly provided.
