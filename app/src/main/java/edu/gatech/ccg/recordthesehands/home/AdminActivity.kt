@@ -171,6 +171,7 @@ fun AdminScreenContent(
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
+  val appStatus by dataManager.appStatus.observeAsState()
   val deviceId = promptState?.deviceId ?: "Unknown Device Id"
   val username = promptState?.username ?: stringResource(R.string.unknown_username)
 
@@ -495,7 +496,7 @@ fun AdminScreenContent(
       )
     }
 
-    if (userSettings?.overviewInstructionsShown == true) {
+    if (appStatus?.overviewInstructionsShown == true) {
       SecondaryButton(
         onClick = onResetOverviewInstructions,
         modifier = Modifier.constrainAs(resetOverviewInstructionsButton) {

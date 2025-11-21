@@ -805,9 +805,9 @@ class DataManager private constructor(val context: Context) {
 
   suspend fun setOverviewInstructionsShown(shown: Boolean) {
     dataManagerData.lock.withLock {
-      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
-      val newSettings = currentSettings.copy(overviewInstructionsShown = shown)
-      setUserSettingsUnderLock(newSettings)
+      val currentStatus = dataManagerData.appStatus.value ?: AppStatus()
+      val newStatus = currentStatus.copy(overviewInstructionsShown = shown)
+      setAppStatusUnderLock(newStatus)
     }
   }
 

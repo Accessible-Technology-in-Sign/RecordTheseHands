@@ -112,7 +112,7 @@ class PromptSelectActivity : ComponentActivity() {
         val metadata = state?.promptsCollection?.collectionMetadata
         if (metadata?.instructions != null) {
           lifecycleScope.launch {
-            if (!(dataManager.userSettings.value?.overviewInstructionsShown ?: false)) {
+            if (!(dataManager.appStatus.value?.overviewInstructionsShown ?: false)) {
               startOverviewInstructions()
             }
           }

@@ -26,21 +26,18 @@ package edu.gatech.ccg.recordthesehands.upload
 import org.json.JSONObject
 
 data class UserSettings(
-  val enableDismissCountdownCircle: Boolean = false,
-  val overviewInstructionsShown: Boolean = false
+  val enableDismissCountdownCircle: Boolean = false
 ) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("enableDismissCountdownCircle", enableDismissCountdownCircle)
-    json.put("overviewInstructionsShown", overviewInstructionsShown)
     return json
   }
 
   companion object {
     fun fromJson(json: JSONObject): UserSettings {
       return UserSettings(
-        enableDismissCountdownCircle = json.optBoolean("enableDismissCountdownCircle", false),
-        overviewInstructionsShown = json.optBoolean("overviewInstructionsShown", false)
+        enableDismissCountdownCircle = json.optBoolean("enableDismissCountdownCircle", false)
       )
     }
   }
