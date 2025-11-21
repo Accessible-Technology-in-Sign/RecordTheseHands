@@ -84,3 +84,22 @@
 - **Settings Architecture:** Refactored Android `AppSettings` into
   `UserSettings` (for preferences) and `AppStatus` (for system state) to better
   organize application data.
+
+# Release Notes - v2.3.4
+
+## New Features
+
+- **Countdown Dismissal:** Implemented a new feature to allow users to dismiss
+  the countdown timer by tapping the circle. This feature is disabled by
+  default.
+- **Admin Controls:**
+  - Added a hidden mechanism (tapping the "Admin Interface" header 5 times) to
+    enable the countdown dismissal feature.
+  - Added a "Disable Dismiss Circle" button to the Admin Interface to revert
+    this setting.
+
+## Technical Changes
+
+- **Settings Architecture:** Introduced `AppSettings` to manage local
+  app-specific settings, distinct from user prompts or global state.
+- **Cleanup:** Removed unused XML layout resources (`activity_load_data.xml`).
