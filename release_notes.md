@@ -103,3 +103,66 @@
 - **Settings Architecture:** Introduced `AppSettings` to manage local
   app-specific settings, distinct from user prompts or global state.
 - **Cleanup:** Removed unused XML layout resources (`activity_load_data.xml`).
+
+# Release Notes - v2.3.3
+
+## Android Application
+
+**New Features & User Interface**
+
+- **Admin Interface Rework:** The Admin interface has been completely rebuilt
+  using Jetpack Compose for a modern look and improved tablet/phone layouts. It
+  is now accessible via 3 taps on the app title in the Home Screen.
+  - Device ID and Username settings are now managed through dedicated input
+    fields and buttons.
+- **Section Instructions:** Introduced a new `InstructionsActivity` to display
+  section-specific instructions, which can include both text and video.
+- **Prompt Selection Screen Redesign:** The prompt selection screen has been
+  redesigned with Jetpack Compose, featuring a cleaner interface and better
+  handling of scrollable content for various screen sizes.
+- **Tablet Layout Enhancements:** Improved adaptive layouts across the app for a
+  better experience on tablet devices, including dynamic orientation settings
+  and optimized component arrangements.
+- **Image Prompts with Text Flow:** Integrated `TextFlow` library to
+  intelligently wrap text around images in prompts, especially for smaller
+  screens.
+
+**Improvements & Internal Changes**
+
+- **Dependency Updates:**
+  - Added `androidx.compose.material:material-icons-extended:1.7.8` for
+    additional UI icons.
+  - Integrated `io.github.oleksandrbalan:textflow:1.2.1` for advanced text
+    layout capabilities.
+- **Data Manager Enhancements:**
+  - `DataManager` now supports a `defaultSection` in
+    `PromptsCollectionMetadata`, allowing for pre-selection of a starting
+    section.
+  - `attachToAccount` now provides detailed error messages and automatically
+    enables tutorial mode upon successful account attachment.
+  - Improved robustness of prompt reloading and resource management, including
+    parallel downloading of resources for efficiency.
+- **Upload Reliability:** Introduced an `INTERRUPTED` status for uploads to
+  better manage and communicate temporary upload failures.
+- **Codebase Refactoring:**
+  - Moved `LoadDataActivity`, `HomeScreenActivity`, and `PromptSelectActivity`
+    to the `home` package, reflecting their updated roles.
+  - Introduced `AdminViewModel` for better separation of concerns in the Admin
+    interface logic.
+  - Removed outdated XML layout files.
+- **Copyright Update:** Updated copyright year to 2025.
+
+## Server
+
+**API Changes & Improvements**
+
+- **Prompt File Requirement for Registration:** The `/register_login` endpoint
+  now supports a `must_have_prompts_file` parameter, ensuring that new users
+  have an associated prompts file before their login token is set.
+- **User Authentication Feedback:** The `is_authenticated_page` endpoint now
+  returns the authenticated username for clearer status reporting.
+
+**Developer Tools**
+
+- **Login Token Output:** The `create_directive.py` script now prints the
+  generated login token in a structured JSON format.
