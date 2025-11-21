@@ -21,58 +21,84 @@
 # SOFTWARE.
 """Applies instructions from one json file to another."""
 
+import argparse
 import json
+import logging
 import pathlib
 import sys
 
+logging.basicConfig(
+    level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
 
 def main() -> int:
-  if len(sys.argv) < 4:
-    print(
-        'USAGE: instructions_json base_json output_json',
-        file=sys.stderr,
-    )
+  parser = argparse.ArgumentParser(
+      description='Applies instructions from one json file to another.'
+  )
+  parser.add_argument(
+      'instructions_json', type=pathlib.Path, help='Path to instructions JSON file'
+  )
+  parser.add_argument(
+      'base_json', type=pathlib.Path, help='Path to base prompts JSON file'
+  )
+  parser.add_argument(
+      'output_json', type=pathlib.Path, help='Path to output JSON file'
+  )
+  parser.add_argument(
+      '--force',
+      action='store_true',
+      help='Overwrite output file if it exists',
+  )
+
+  args = parser.parse_args()
+
+  if args.output_json.exists() and not args.force:
+    logging.error(f'Refusing to overwrite {args.output_json}. Use --force to overwrite.')
     return 1
-  instructions_json_filename = sys.argv[1]
-  base_json_filename = sys.argv[2]
-  output_filename = sys.argv[3]
 
-  output_path = pathlib.Path(output_filename)
-  if output_path.exists():
-    print(f'Refusing to overwrite {output_path}')
+  try:
+    with open(args.instructions_json, 'r') as f:
+      instructions = json.load(f)
+    with open(args.base_json, 'r') as f:
+      base = json.load(f)
+  except (json.JSONDecodeError, IOError) as e:
+    logging.error(f'Error reading input files: {e}')
     return 1
 
-  with open(instructions_json_filename, 'r') as f:
-    instructions = json.loads(f.read())
-
-  with open(base_json_filename, 'r') as f:
-    base = json.loads(f.read())
-
-  # Merge global instructions.
+  # Merge overview instructions.
   instructions_metadata = instructions.get('metadata')
   if instructions_metadata:
-    global_instructions = instructions_metadata.get('instructions')
-    if global_instructions:
+    overview_instructions = instructions_metadata.get('instructions')
+    if overview_instructions:
       if 'metadata' not in base:
         base['metadata'] = {}
-      base['metadata']['instructions'] = global_instructions
+      base['metadata']['instructions'] = overview_instructions
+      logging.info('Applied overview instructions.')
 
   # Merge section-specific instructions.
-  for section_name, section in base['data'].items():
-    instructions_section = instructions['data'].get(section_name)
-    if not instructions_section:
-      continue
-    instructions_metadata = instructions_section.get('metadata')
-    if instructions_metadata:
-      global_instructions = instructions_metadata.get('instructions')
-      if global_instructions:
-        if 'metadata' not in section:
-          section['metadata'] = {}
-        section['metadata']['instructions'] = global_instructions
+  if 'data' in instructions:
+      for section_name, section in base.get('data', {}).items():
+        instructions_section = instructions['data'].get(section_name)
+        if not instructions_section:
+          continue
+        instructions_metadata = instructions_section.get('metadata')
+        if instructions_metadata:
+          overview_instructions = instructions_metadata.get('instructions')
+          if overview_instructions:
+            if 'metadata' not in section:
+              section['metadata'] = {}
+            section['metadata']['instructions'] = overview_instructions
+            logging.info(f'Applied instructions for section: {section_name}')
 
-  with open(output_filename, 'w') as f:
-    f.write(json.dumps(base, indent=2))
-    f.write('\n')
+  try:
+    with open(args.output_json, 'w') as f:
+      json.dump(base, f, indent=2)
+      f.write('\n')
+    logging.info(f'Successfully wrote to {args.output_json}')
+  except IOError as e:
+    logging.error(f'Error writing output file: {e}')
+    return 1
 
   return 0
 
