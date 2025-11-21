@@ -130,7 +130,9 @@ class PromptSelectActivity : ComponentActivity() {
             finish()
           }
         },
-        onOverviewInstructionsClick = { startOverviewInstructions() },
+        onOverviewInstructionsClick = {
+          startOverviewInstructions()
+        },
         onSectionClick = { sectionName ->
           lifecycleScope.launch {
             UploadPauseManager.pauseUploadTimeout(UPLOAD_RESUME_ON_IDLE_TIMEOUT)
@@ -214,20 +216,6 @@ fun PromptSelectScreenContent(
         stringResource(R.string.switch_to_tutorial_prompts)
       }
     )
-
-    val overviewInstructions = promptState?.promptsCollection?.collectionMetadata?.instructions
-    val showOverviewButton = overviewInstructions != null
-
-    if (showOverviewButton) {
-      SecondaryButton(
-        onClick = onOverviewInstructionsClick,
-        modifier = Modifier.constrainAs(overviewInstructionsButton) {
-          top.linkTo(toggleTutorialButton.bottom, margin = 16.dp)
-          end.linkTo(toggleTutorialButton.end)
-        },
-        text = stringResource(R.string.overview_button)
-      )
-    }
 
     Text(
       text = stringResource(R.string.prompt_select_title),
@@ -348,5 +336,22 @@ fun PromptSelectScreenContent(
           )
       ) {}
     }
+
+    // Place the overview button after the sections list so that it receives
+    // click events first.
+    val overviewInstructions = promptState?.promptsCollection?.collectionMetadata?.instructions
+    val showOverviewButton = overviewInstructions != null
+
+    if (showOverviewButton) {
+      SecondaryButton(
+        onClick = onOverviewInstructionsClick,
+        modifier = Modifier.constrainAs(overviewInstructionsButton) {
+          top.linkTo(toggleTutorialButton.bottom, margin = 16.dp)
+          end.linkTo(toggleTutorialButton.end)
+        },
+        text = stringResource(R.string.overview_button)
+      )
+    }
+
   }
 }
