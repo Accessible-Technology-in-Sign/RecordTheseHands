@@ -300,7 +300,18 @@ fun InstructionsScreen(
             interactionSource = remember { MutableInteractionSource() },
             indication = null
           ) {
-            isMinimized = false
+            if (isMinimized) {
+              isMinimized = false
+              return@clickable
+            }
+            videoViewInstance?.let { videoView ->
+              if (isPlaying) {
+                videoView.pause()
+              } else {
+                videoView.start()
+              }
+              isPlaying = !isPlaying
+            }
           },
         videoViewRef = { videoViewInstance = it },
         onVideoStarted = { isPlaying = true },
