@@ -275,3 +275,64 @@
 - **Dynamic APK Serving:** The server now scans the storage bucket for APK files
   matching the version pattern and automatically serves the latest version,
   eliminating the need for hardcoded filenames.
+
+# Release Notes - v2.3.0
+
+## Android Application
+
+**New Features & User Interface**
+
+- **Major UI Refactor to Jetpack Compose:** The `RecordingActivity` and
+  `HomeScreenActivity` have been completely rewritten using Jetpack Compose.
+- **Structured Prompt Management:** Introduced `PromptsCollection` and related
+  classes to better organize main and tutorial prompts.
+- **ViewModel Integration:** Implemented `RecordingViewModel` to manage UI state
+  and logic for `RecordingActivity`.
+- **Composable UI Elements:** Created reusable UI components for buttons,
+  indicators, and timers to ensure consistency.
+- **Configurable Countdown Circle:** Updated the `CountdownCircle` component to
+  support hiding the countdown text.
+
+**Improvements & Internal Changes**
+
+- **Dependency Updates:** Updated Kotlin to `2.2.20`, Android Gradle Plugin to
+  `8.13.0`, and various libraries to their latest stable versions.
+- **Robust Background Uploads:** Replaced `UploadService` with a
+  WorkManager-based solution for more reliable background data uploads.
+- **Enhanced Data Management (`DataManager`):** Refactored `DataManager` with
+  `Mutex` for thread safety, improved persistence handling, and atomic saving
+  operations.
+- **Camera2 API Migration:** Migrated `RecordingActivity` from CameraX to the
+  Camera2 API for finer control over video recording parameters.
+- **Comprehensive String Resources:** Added extensive string resources for
+  better localization and UI clarity.
+- **Extended Color Palette:** Added new color definitions for a richer UI
+  design.
+- **Layout Cleanup:** Removed manual constraint adjustments, leveraging Jetpack
+  Compose for dynamic resizing.
+- **Copyright Update:** Updated copyright notice to 2025.
+
+## Server
+
+**API Changes & Improvements**
+
+- **Dynamic APK Serving:** The `/apk` endpoint now dynamically serves the latest
+  APK version found in the GCS bucket.
+- **Simplified Prompt Directives:** Consolidated prompt downloading into a
+  single `setPrompts` directive and added `reloadPrompts` to refresh client
+  data.
+- **App Engine Scaling:** Optimized `app.yaml` to use `F1` instances with
+  automatic scaling.
+
+**Developer Tools**
+
+- **Video Post-processing Pipeline:** Added `local_video_pipeline.py` to
+  automate metadata dumping, downloading, and clip generation.
+- **Enhanced Video Clipping:** Updated `clip_video.py` to use `ffprobe` for
+  accurate keyframe identification and parallel processing.
+- **Improved Video Downloading:** Updated `download_videos.py` to use concurrent
+  downloads and MD5 validation.
+- **Metadata Dumping:** Refined `dump_clips.py` logic for extracting video
+  metadata into CSV and JSON formats.
+- **Environment Setup:** Updated `setup_local_env.sh` to include
+  `google-cloud-cli` and `pyink` installation.
