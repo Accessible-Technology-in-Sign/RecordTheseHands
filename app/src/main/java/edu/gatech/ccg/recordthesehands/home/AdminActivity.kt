@@ -206,7 +206,16 @@ fun AdminScreenContent(
           start.linkTo(parent.start, margin = 16.dp)
           top.linkTo(parent.top, margin = 16.dp)
         }
-        .clickable(onClick = onBackClick)
+        .clickable(onClick = {
+          if (adminViewModel.isAttaching) {
+            scope.launch {
+              dataManager.waitForDataLock()
+              onBackClick()
+            }
+          } else {
+            onBackClick()
+          }
+        })
     )
 
     Text(
