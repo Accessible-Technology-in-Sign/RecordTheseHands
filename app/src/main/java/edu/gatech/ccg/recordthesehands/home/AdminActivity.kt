@@ -113,8 +113,8 @@ class AdminActivity : ComponentActivity() {
             dataManager.setDeviceId(newDeviceId)
           }
         },
-        onAttachToAccount = {
-          adminViewModel.attachToAccount(dataManager)
+        onAttachToAccount = { mustMatchDeviceId ->
+          adminViewModel.attachToAccount(dataManager, mustMatchDeviceId)
         },
         onDownloadApk = {
           val serverAddress = dataManager.getServer()
@@ -155,7 +155,7 @@ fun AdminScreenContent(
   adminViewModel: AdminViewModel,
   onBackClick: () -> Unit,
   onSetDeviceId: (String) -> Unit,
-  onAttachToAccount: () -> Unit,
+  onAttachToAccount: (Boolean) -> Unit,
   onDownloadApk: () -> Unit,
   onDisableDismissCountdownCircle: () -> Unit,
   onResetOverviewInstructions: () -> Unit
@@ -350,7 +350,7 @@ fun AdminScreenContent(
         PrimaryButton(
           onClick = {
             focusManager.clearFocus()
-            onAttachToAccount()
+            onAttachToAccount(true)
           },
           enabled = !adminViewModel.isAttaching,
           modifier = Modifier.padding(top = 8.dp),

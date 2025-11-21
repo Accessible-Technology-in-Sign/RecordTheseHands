@@ -1176,7 +1176,7 @@ class DataManager private constructor(val context: Context) {
    * @param adminPassword The admin password required to authorize account creation on the server.
    * @return `true` if the account was created successfully, `false` otherwise.
    */
-  suspend fun attachToAccount(username: String, adminPassword: String): Pair<Boolean, String?> {
+  suspend fun attachToAccount(username: String, adminPassword: String, mustMatchDeviceId: Boolean): Pair<Boolean, String?> {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
       logToServer("attachToAccount: username \"$username\" is invalid")
       val errorMessage =
@@ -1204,9 +1204,11 @@ class DataManager private constructor(val context: Context) {
           url,
           mapOf(
             "app_version" to APP_VERSION,
+            "device_id" to getDeviceIdUnderLock(),
             "admin_token" to adminToken,
             "login_token" to newLoginToken,
-            "must_have_prompts_file" to "true"
+            "must_have_prompts_file" to "true",
+            "must_match_device_id" to if (mustMatchDeviceId) "true" else "",
           )
         )
       if (code < 200 || code >= 300) {

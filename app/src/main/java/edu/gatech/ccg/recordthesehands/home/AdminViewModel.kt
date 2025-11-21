@@ -20,10 +20,10 @@ class AdminViewModel : ViewModel() {
   private val _attachResultFlow = MutableSharedFlow<Pair<Boolean, String?>>()
   val attachResultFlow = _attachResultFlow.asSharedFlow()
 
-  fun attachToAccount(dataManager: DataManager) {
+  fun attachToAccount(dataManager: DataManager, mustMatchDeviceId: Boolean) {
     viewModelScope.launch(Dispatchers.IO) {
       isAttaching = true
-      val result = dataManager.attachToAccount(newUsername, adminPassword)
+      val result = dataManager.attachToAccount(newUsername, adminPassword, mustMatchDeviceId)
       dataManager.setCheckVersion(false)
       dataManager.checkServerConnection()
       _attachResultFlow.emit(result)

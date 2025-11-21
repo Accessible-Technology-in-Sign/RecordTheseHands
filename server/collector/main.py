@@ -866,12 +866,18 @@ def video_page():
 @app.route('/register_login', methods=['POST'])
 def register_login():
   """Create an authentication token for login."""
+  device_id = flask.request.values.get('device_id', '').strip()
   login_token = flask.request.values.get('login_token', '')
   admin_token = flask.request.values.get('admin_token', '')
-  allow_webapp_access = flask.request.values.get('allow_webapp_access', '')
+  allow_webapp_access = flask.request.values.get(
+      'allow_webapp_access', ''
+  ).strip()
   must_have_prompts_file = flask.request.values.get(
       'must_have_prompts_file', ''
-  )
+  ).strip()
+  must_match_device_id = flask.request.values.get(
+      'must_match_device_id', ''
+  ).strip()
 
   admin_token_hash = get_secret('admin_token_hash')
   if admin_token_hash != token_maker.get_login_hash('admin', admin_token):
@@ -908,10 +914,29 @@ def register_login():
           f'it does not have an associated prompts file.'
       ), 400
 
+  if must_match_device_id:
+    if not device_id:
+      return (
+          f'Refusing to set login token for {username!r} because '
+          f'device id was not provided but must_match_device_id was true.'
+      ), 400
+    doc_ref = db.document(f'collector/users/{username}/login_hash')
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      doc_dict = doc_data.to_dict()
+      old_device_id = doc_dict.get('device_id')
+      if old_device_id and device_id != old_device_id:
+        return (
+            f'Refusing to set login token for {username!r} because '
+            f'device id does not match old device id.'
+        ), 400
+
   data = {
       'login_hash': token_maker.get_login_hash(username, login_token),
       'allow_webapp_access': allow_webapp_access == 'true',
   }
+  if device_id:
+    data['device_id'] = device_id
   db.document(f'collector/users/{username}/login_hash').set(data)
 
   return flask.render_template(
