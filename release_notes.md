@@ -64,3 +64,23 @@
 - **Instruction Management:** Added `apply_instructions_to_prompts.py`, a
   utility script to merge instruction data (including global overview and
   section-specific instructions) into prompt JSON files.
+
+# Release Notes - v2.3.5
+
+## New Features
+
+- **App Version Enforcement:** Implemented a mechanism to validate if the
+  current app version is compatible with assigned prompts. The app now checks
+  against server-side constraints and displays an incompatibility message if
+  needed.
+- **Countdown Circle Logging:** Dismissing the countdown circle now logs an
+  event to the server for better tracking of user behavior.
+- **Directive Management:** Added `setVersionRange` and `listUsers` commands to
+  the server's `create_directive.py` tool to manage user version requirements
+  and list registered users.
+
+## Technical Changes
+
+- **Settings Architecture:** Refactored Android `AppSettings` into
+  `UserSettings` (for preferences) and `AppStatus` (for system state) to better
+  organize application data.
