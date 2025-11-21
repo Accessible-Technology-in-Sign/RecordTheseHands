@@ -37,7 +37,9 @@ def main() -> int:
       description='Applies instructions from one json file to another.'
   )
   parser.add_argument(
-      'instructions_json', type=pathlib.Path, help='Path to instructions JSON file'
+      'instructions_json',
+      type=pathlib.Path,
+      help='Path to instructions JSON file',
   )
   parser.add_argument(
       'base_json', type=pathlib.Path, help='Path to base prompts JSON file'
@@ -54,7 +56,9 @@ def main() -> int:
   args = parser.parse_args()
 
   if args.output_json.exists() and not args.force:
-    logging.error(f'Refusing to overwrite {args.output_json}. Use --force to overwrite.')
+    logging.error(
+        f'Refusing to overwrite {args.output_json}. Use --force to overwrite.'
+    )
     return 1
 
   try:
@@ -78,18 +82,18 @@ def main() -> int:
 
   # Merge section-specific instructions.
   if 'data' in instructions:
-      for section_name, section in base.get('data', {}).items():
-        instructions_section = instructions['data'].get(section_name)
-        if not instructions_section:
-          continue
-        instructions_metadata = instructions_section.get('metadata')
-        if instructions_metadata:
-          overview_instructions = instructions_metadata.get('instructions')
-          if overview_instructions:
-            if 'metadata' not in section:
-              section['metadata'] = {}
-            section['metadata']['instructions'] = overview_instructions
-            logging.info(f'Applied instructions for section: {section_name}')
+    for section_name, section in base.get('data', {}).items():
+      instructions_section = instructions['data'].get(section_name)
+      if not instructions_section:
+        continue
+      instructions_metadata = instructions_section.get('metadata')
+      if instructions_metadata:
+        overview_instructions = instructions_metadata.get('instructions')
+        if overview_instructions:
+          if 'metadata' not in section:
+            section['metadata'] = {}
+          section['metadata']['instructions'] = overview_instructions
+          logging.info(f'Applied instructions for section: {section_name}')
 
   try:
     with open(args.output_json, 'w') as f:
