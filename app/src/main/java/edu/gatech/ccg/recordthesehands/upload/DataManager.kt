@@ -276,7 +276,14 @@ class DataManager private constructor(val context: Context) {
     val jsonString = context.prefStore.data.map {
       it[userSettingsKey]
     }.firstOrNull()
-    return jsonString?.let { UserSettings.fromJson(JSONObject(it)) } ?: UserSettings()
+    return jsonString?.let {
+      try {
+        UserSettings.fromJson(JSONObject(it))
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to parse user settings", e)
+        null
+      }
+    } ?: UserSettings()
   }
 
   suspend fun setUserSettings(newSettings: UserSettings) {

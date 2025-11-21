@@ -32,8 +32,8 @@ data class PromptsCollection(
 
     fun fromJson(json: JSONObject): PromptsCollection? {
       val collectionMetadataJson = json.optJSONObject("metadata") ?: JSONObject()
-      val instructions = collectionMetadataJson.opt("instructions")?.let {
-        InstructionsData.fromJson(it as JSONObject)
+      val instructions = collectionMetadataJson.optJSONObject("instructions")?.let {
+        InstructionsData.fromJson(it)
       }
       val collectionMetadata = PromptsCollectionMetadata(
         defaultSection = collectionMetadataJson.opt("defaultSection") as? String,
@@ -112,8 +112,8 @@ data class PromptsSectionMetadata(
 
   companion object {
     fun fromJson(json: JSONObject): PromptsSectionMetadata {
-      val instructions = json.opt("instructions")?.let {
-        InstructionsData.fromJson(it as JSONObject)
+      val instructions = json.optJSONObject("instructions")?.let {
+        InstructionsData.fromJson(it)
       }
       return PromptsSectionMetadata(
         dataCollectionId = json.opt("dataCollectionId") as? String,
@@ -141,8 +141,8 @@ data class InstructionsData(
 
   companion object {
     fun fromJson(json: JSONObject): InstructionsData {
-      val examplePrompt = json.opt("examplePrompt")?.let {
-        Prompt.fromJson(0, it as JSONObject)
+      val examplePrompt = json.optJSONObject("examplePrompt")?.let {
+        Prompt.fromJson(0, it)
       }
       return InstructionsData(
         instructionsText = json.opt("instructionsText") as? String,
