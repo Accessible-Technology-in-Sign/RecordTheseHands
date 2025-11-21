@@ -278,7 +278,22 @@ fun InstructionsScreen(
         },
         properties = DialogProperties(usePlatformDefaultWidth = false)
       ) {
-        PromptView(prompt = instructionsData.examplePrompt, modifier = Modifier.fillMaxWidth())
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .clickable { showExamplePrompt = false },
+          contentAlignment = Alignment.TopCenter
+        ) {
+          PromptView(
+            prompt = instructionsData.examplePrompt,
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+              ) { showExamplePrompt = false }
+          )
+        }
       }
     }
 
