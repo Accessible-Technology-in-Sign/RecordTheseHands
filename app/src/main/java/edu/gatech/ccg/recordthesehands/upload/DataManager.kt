@@ -1176,7 +1176,11 @@ class DataManager private constructor(val context: Context) {
    * @param adminPassword The admin password required to authorize account creation on the server.
    * @return `true` if the account was created successfully, `false` otherwise.
    */
-  suspend fun attachToAccount(username: String, adminPassword: String, mustMatchDeviceId: Boolean): Pair<Boolean, String?> {
+  suspend fun attachToAccount(
+    username: String,
+    adminPassword: String,
+    mustMatchDeviceId: Boolean
+  ): Pair<Boolean, String?> {
     if (!Regex("^[a-z][a-z0-9_]{2,}$").matches(username)) {
       logToServer("attachToAccount: username \"$username\" is invalid")
       val errorMessage =
