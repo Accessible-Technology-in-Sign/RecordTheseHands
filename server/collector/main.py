@@ -926,9 +926,11 @@ def register_login():
       doc_dict = doc_data.to_dict()
       old_device_id = doc_dict.get('device_id')
       if old_device_id and device_id != old_device_id:
+        # If this error message is changed, then the App must also
+        # be changed to correctly display the override checkbox.
         return (
             f'Refusing to set login token for {username!r} because '
-            f'device id does not match old device id.'
+            f'device id does not match old device id ({old_device_id!r}).'
         ), 400
 
   data = {

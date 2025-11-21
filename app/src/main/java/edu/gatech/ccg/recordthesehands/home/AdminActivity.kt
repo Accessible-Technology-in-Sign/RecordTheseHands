@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.Checkbox
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -168,6 +169,8 @@ fun AdminScreenContent(
   var showResultDialog by remember { mutableStateOf(false) }
   var dialogTitle by remember { mutableStateOf("") }
   var dialogMessage by remember { mutableStateOf("") }
+  var showRemoveDeviceCheckbox by remember { mutableStateOf(false) }
+  var removePreviousDeviceChecked by remember { mutableStateOf(false) }
   var numTitleClicks by remember { mutableStateOf(0) }
   val scope = rememberCoroutineScope()
 
@@ -179,6 +182,11 @@ fun AdminScreenContent(
         dialogTitle = "Failed"
         dialogMessage =
           errorMessage ?: "Failed to create account for \"${adminViewModel.newUsername}\"."
+        showRemoveDeviceCheckbox =
+          errorMessage?.contains("device id does not match old device id") == true
+        if (showRemoveDeviceCheckbox) {
+          removePreviousDeviceChecked = false
+        }
         showResultDialog = true
       }
     }
@@ -350,7 +358,7 @@ fun AdminScreenContent(
         PrimaryButton(
           onClick = {
             focusManager.clearFocus()
-            onAttachToAccount(true)
+            onAttachToAccount(!removePreviousDeviceChecked)
           },
           enabled = !adminViewModel.isAttaching,
           modifier = Modifier.padding(top = 8.dp),
@@ -364,6 +372,36 @@ fun AdminScreenContent(
             }
           }
         )
+      }
+
+      @Composable
+      fun removeDeviceCheckbox() {
+        if (showRemoveDeviceCheckbox) {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Checkbox(
+              checked = removePreviousDeviceChecked,
+              onCheckedChange = {
+                if (!adminViewModel.isAttaching) {
+                  removePreviousDeviceChecked = it
+                }
+              }
+            )
+            Text(
+              text = "Remove previous device from this username (DANGEROUS)",
+              fontSize = 18.sp,
+              fontWeight = FontWeight.Bold,
+              color = Color.Red,
+              modifier = Modifier.clickable {
+                if (!adminViewModel.isAttaching) {
+                  removePreviousDeviceChecked = !removePreviousDeviceChecked
+                }
+              }
+            )
+          }
+        }
       }
 
       Column(modifier = Modifier.padding(top = 24.dp)) {
@@ -384,6 +422,7 @@ fun AdminScreenContent(
             adminPasswordText()
             adminPasswordTextField()
           }
+          removeDeviceCheckbox()
           attachToAccountButton()
         } else {
           Row(
@@ -414,6 +453,7 @@ fun AdminScreenContent(
           ) {
             adminPasswordTextField()
           }
+          removeDeviceCheckbox()
         }
       }
     }
