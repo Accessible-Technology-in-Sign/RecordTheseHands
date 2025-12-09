@@ -300,24 +300,32 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Retrieves the [AppStatus] from the persistent [prefStore].
+   *
+   * This function reads the "appStatus" key from the DataStore. If the key exists,
+   * it parses the JSON string into an [AppStatus] object. If parsing fails or the key
+   * does not exist, it returns a default [AppStatus] object.
+   *
+   * This function does not acquire the data lock. It reads from [prefStore] and may block
+   * for a short time.
+   *
+   * @return The [AppStatus] object.
+   */
   private suspend fun getAppStatusFromPrefStore(): AppStatus {
     val appStatusKey = stringPreferencesKey("appStatus")
     val jsonString = context.prefStore.data.map {
       it[appStatusKey]
     }.firstOrNull()
 
-    if (jsonString != null) {
+    return jsonString?.let {
       try {
-        return AppStatus.fromJson(JSONObject(jsonString))
+        AppStatus.fromJson(JSONObject(it))
       } catch (e: Exception) {
         Log.e(TAG, "Failed to parse app status", e)
+        null
       }
-    }
-    val checkVersionKey = booleanPreferencesKey("checkVersion")
-    val checkVersion = context.prefStore.data.map {
-      it[checkVersionKey]
-    }.firstOrNull() ?: false
-    return AppStatus(checkVersion = checkVersion)
+    } ?: AppStatus()
   }
 
   /**
