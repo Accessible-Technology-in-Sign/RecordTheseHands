@@ -256,7 +256,7 @@ running list of sessions.
 After all iterations are finished, the function returns both the `clips` and
 `sessions` lists.
 
-#### Calcluating bounds
+#### Calculating bounds
 
 Calculating the timestamp bounds for a clip based on the user's button pushes
 and swipes. Since `startButtonDownTimestamp`, `startButtonUpTimestamp`,
