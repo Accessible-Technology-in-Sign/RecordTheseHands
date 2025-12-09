@@ -84,6 +84,16 @@ val Context.prefStore: DataStore<Preferences> by preferencesDataStore(
   name = "prefStore"
 )
 
+/**
+ * Generates a SHA-256 hash token from a username and password.
+ *
+ * This function creates a token by concatenating the username and password, hashing it,
+ * and then repeatedly hashing the result 1000 times (salted with the username).
+ *
+ * @param username The username to use for the token.
+ * @param password The password to use for the token.
+ * @return The generated token as a String.
+ */
 fun makeToken(username: String, password: String): String {
   val digest = MessageDigest.getInstance("SHA-256")
   var token = "$username:$password"
@@ -152,6 +162,16 @@ class DataManager private constructor(val context: Context) {
     private val LOGIN_TOKEN_RELATIVE_PATH = "config" + File.separator + "loginToken.txt"
 
     private const val TUTORIAL_MODE_DEFAULT = true
+
+    /**
+     * Returns the singleton instance of [DataManager].
+     *
+     * If the instance has not been initialized yet, this function creates it in a thread-safe
+     * manner using double-checked locking.
+     *
+     * @param context The application context.
+     * @return The singleton instance of [DataManager].
+     */
     fun getInstance(context: Context): DataManager {
       return INSTANCE ?: synchronized(this) {
         INSTANCE ?: DataManager(context.applicationContext).also {
@@ -271,6 +291,18 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.initializationLatch.countDown()
   }
 
+  /**
+   * Retrieves the [UserSettings] from the persistent [prefStore].
+   *
+   * This function reads the "userSettings" key from the DataStore. If the key exists,
+   * it parses the JSON string into a [UserSettings] object. If parsing fails or the key
+   * does not exist, it returns a default [UserSettings] object.
+   *
+   * This function does not acquire the data lock. It reads from [prefStore] and may block
+   * for a short time.
+   *
+   * @return The [UserSettings] object.
+   */
   private suspend fun getUserSettingsFromPrefStore(): UserSettings {
     val userSettingsKey = stringPreferencesKey("userSettings")
     val jsonString = context.prefStore.data.map {
@@ -286,12 +318,34 @@ class DataManager private constructor(val context: Context) {
     } ?: UserSettings()
   }
 
+  /**
+   * Updates the user settings.
+   *
+   * This function updates the [UserSettings] in both the in-memory state and the persistent
+   * [prefStore].
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to [prefStore], which can block for a short time.
+   *
+   * @param newSettings The new [UserSettings] to save.
+   */
   suspend fun setUserSettings(newSettings: UserSettings) {
     dataManagerData.lock.withLock {
       setUserSettingsUnderLock(newSettings)
     }
   }
 
+  /**
+   * Updates the user settings while holding the data lock.
+   *
+   * This function updates the [UserSettings] in the in-memory state and persists it to
+   * [prefStore].
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to [prefStore], which can block for a short time.
+   *
+   * @param newSettings The new [UserSettings] to save.
+   */
   private suspend fun setUserSettingsUnderLock(newSettings: UserSettings) {
     dataManagerData._userSettings.postValue(newSettings)
     val userSettingsKey = stringPreferencesKey("userSettings")
@@ -486,6 +540,8 @@ class DataManager private constructor(val context: Context) {
    * @param url The URL to send the request to.
    * @param data A map of key-value pairs to be form-encoded and sent as the request body.
    * @return A `Pair` containing the HTTP response code and the response body as a `String`.
+   * @param connectTimeout Optional: The maximum time in milliseconds to wait for a connection to be established.
+   * @param readTimeout Optional: The maximum time in milliseconds to wait for data to be read.
    */
   fun serverFormPostRequest(
     url: URL,
@@ -600,6 +656,8 @@ class DataManager private constructor(val context: Context) {
    *   - The HTTP response code.
    *   - The response body as a `String`.
    *   - The value of the `outputHeader` if requested, otherwise `null`.
+   * @param connectTimeout Optional: The maximum time in milliseconds to wait for a connection to be established.
+   * @param readTimeout Optional: The maximum time in milliseconds to wait for data to be read.
    */
   fun serverRequest(
     url: URL, requestMethod: String, headers: Map<String, String>, data: ByteArray,
@@ -811,6 +869,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Sets whether the overview instructions have been shown.
+   * This function updates the `overviewInstructionsShown` field in the `AppStatus` in both
+   * the in-memory state and the persistent `prefStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `prefStore`, which can block for a short time.
+   *
+   * @param shown `true` if the overview instructions have been shown, `false` otherwise.
+   */
   suspend fun setOverviewInstructionsShown(shown: Boolean) {
     dataManagerData.lock.withLock {
       val currentStatus = dataManagerData.appStatus.value ?: AppStatus()
@@ -840,6 +908,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Sets whether the dismiss countdown circle is enabled.
+   * This function updates the `enableDismissCountdownCircle` field in the `UserSettings` in both
+   * the in-memory state and the persistent `prefStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `prefStore`, which can block for a short time.
+   *
+   * @param enabled `true` to enable the dismiss countdown circle, `false` to disable it.
+   */
   suspend fun setEnableDismissCountdownCircle(enabled: Boolean) {
     dataManagerData.lock.withLock {
       val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
@@ -848,6 +926,16 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Sets whether version checking is enabled.
+   * This function updates the `checkVersion` field in the `AppStatus` in both
+   * the in-memory state and the persistent `prefStore`.
+   *
+   * This function acquires the data lock and may block if another thread is holding the lock.
+   * It also performs a write to `prefStore`, which can block for a short time.
+   *
+   * @param checkVersion `true` to enable version checking, `false` to disable it.
+   */
   suspend fun setCheckVersion(checkVersion: Boolean) {
     dataManagerData.lock.withLock {
       val currentSettings = dataManagerData.appStatus.value ?: AppStatus()
@@ -856,6 +944,15 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  /**
+   * Updates the application status while holding the data lock.
+   * This function updates the `AppStatus` in the in-memory state and persists it to `prefStore`.
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to `prefStore`, which can block for a short time.
+   *
+   * @param newStatus The new `AppStatus` to save.
+   */
   private suspend fun setAppStatusUnderLock(newStatus: AppStatus) {
     dataManagerData._appStatus.postValue(newStatus)
     val appStatusKey = stringPreferencesKey("appStatus")
@@ -937,6 +1034,17 @@ class DataManager private constructor(val context: Context) {
     setCurrentSectionPrefStoreUnderLock(sectionName)
   }
 
+  /**
+   * Sets the current active section in the persistent `prefStore` while holding the data lock.
+   *
+   * This function updates the `currentSectionName` in `prefStore`. If `sectionName` is null,
+   * the key is removed from `prefStore`.
+   *
+   * This function **must** be called while holding the data lock.
+   * It performs a write to `prefStore`, which can block for a short time.
+   *
+   * @param sectionName The name of the section to set as current, or `null` to clear.
+   */
   private suspend fun setCurrentSectionPrefStoreUnderLock(sectionName: String?) {
     val keyObject = stringPreferencesKey("currentSectionName")
     context.prefStore.edit {
@@ -2341,7 +2449,10 @@ class DataManager private constructor(val context: Context) {
   }
 
   /**
-   * Saves the session information to the staging area.
+   * Saves the session information to the staging area for eventual upload to the server.
+   *
+   * This function adds the session information to an in-memory map (`dataManagerData.keyValues`).
+   * The data is not sent to the server immediately but is held until [persistData] is called.
    *
    * This function **must** be called while holding the data lock.
    *
