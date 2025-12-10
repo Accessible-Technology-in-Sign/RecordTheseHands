@@ -27,8 +27,11 @@ import os
 import pathlib
 import secrets
 import sys
+import time
 
+from concurrent.futures import ThreadPoolExecutor
 from google.cloud import firestore
+
 import token_maker
 
 # Static globals.
@@ -36,6 +39,8 @@ PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
+
+USE_FUTURES_DEPTH = 8
 
 
 def delete_user(username):
@@ -60,22 +65,64 @@ def save_user_data(username, output_filename):
   """delete the given user."""
   db = firestore.Client()
   c_ref = db.collection(f'collector/users/{username}')
-  c_id, c_data = save_collection_recursive(c_ref, print_depth=2)
+  with ThreadPoolExecutor(max_workers=20) as tree_executor:
+    with ThreadPoolExecutor(max_workers=20) as leaf_executor:
+      c_id, c_data = save_collection_recursive(
+          c_ref,
+          print_depth=2,
+          tree_executor=tree_executor,
+          leaf_executor=leaf_executor,
+      )
+      extract_futures_collection_recursive(c_data)
   with open(output_filename, 'w') as f:
     f.write(json.dumps({'id': c_id, 'doc': c_data}, indent=2))
     f.write('\n')
 
 
-def save_database(output_filename, print_depth=6):
+def save_database(output_filename, print_depth=10):
   """delete the given user."""
   db = firestore.Client()
-  data = save_document_recursive(db, print_depth=print_depth)
+  with ThreadPoolExecutor(max_workers=20) as tree_executor:
+    with ThreadPoolExecutor(max_workers=200) as leaf_executor:
+      data = save_document_recursive(
+          db,
+          print_depth=print_depth,
+          tree_executor=tree_executor,
+          leaf_executor=leaf_executor,
+      )
+      extract_futures_document_recursive(data)
   with open(output_filename, 'w') as f:
     f.write(json.dumps(data, indent=2))
     f.write('\n')
 
 
-def save_document_recursive(doc_ref, print_depth=0, print_prefix=None):
+def get_document_data(doc_ref):
+  doc_data = doc_ref.get()
+  if doc_data.exists:
+    return doc_data.to_dict()
+
+
+def extract_futures_document_recursive(data):
+  extracted = list()
+  if 'data' in data:
+    data['data'] = data['data'].result()
+  if 'collection' in data:
+    for c_id, c_data in data['collection'].items():
+      extract_futures_collection_recursive(c_data)
+
+
+def extract_futures_collection_recursive(data):
+  for entry in data:
+    extract_futures_document_recursive(entry)
+
+
+def save_document_recursive(
+    doc_ref,
+    print_depth=0,
+    print_prefix=None,
+    tree_executor=None,
+    leaf_executor=None,
+):
   data = dict()
   if isinstance(doc_ref, firestore.Client):
     doc_id = '/'
@@ -95,25 +142,52 @@ def save_document_recursive(doc_ref, print_depth=0, print_prefix=None):
   else:
     if print_depth:
       print(f'{print_prefix}')
-    doc_data = doc_ref.get()
-    if doc_data.exists:
-      data['data'] = doc_data.to_dict()
+    data['data'] = leaf_executor.submit(get_document_data, doc_ref)
 
-  if not isinstance(doc_ref, firestore.Client):
-    doc_data = doc_ref.get()
-    if doc_data.exists:
-      data['data'] = doc_data.to_dict()
+  if USE_FUTURES_DEPTH == print_depth:
+    # Only use the tree_executor on 1 depth, otherwise deadlock will occur.
+    futures = list()
+    for c_ref in doc_ref.collections():
+      if 'collection' not in data:
+        data['collection'] = dict()
+      futures.append(
+          tree_executor.submit(
+              save_collection_recursive,
+              c_ref,
+              print_depth=max(0, print_depth - 1),
+              print_prefix=print_prefix,
+              tree_executor=tree_executor,
+              leaf_executor=leaf_executor,
+          )
+      )
+    for future in futures:
+      print('Waiting for result')
+      c_id, c_data = future.result()
+      print(f'got result for {c_id}')
+      data['collection'][c_id] = c_data
+  else:
+    for c_ref in doc_ref.collections():
+      if 'collection' not in data:
+        data['collection'] = dict()
+      c_id, c_data = save_collection_recursive(
+          c_ref,
+          print_depth=max(0, print_depth - 1),
+          print_prefix=print_prefix,
+          tree_executor=tree_executor,
+          leaf_executor=leaf_executor,
+      )
+      data['collection'][c_id] = c_data
 
-  for c_ref in doc_ref.collections():
-    if 'collection' not in data:
-      data['collection'] = dict()
-    c_id, c_data = save_collection_recursive(
-        c_ref, print_depth=max(0, print_depth-1), print_prefix=print_prefix)
-    data['collection'][c_id] = c_data
   return data
 
 
-def save_collection_recursive(c_ref, print_depth=0, print_prefix=None):
+def save_collection_recursive(
+    c_ref,
+    print_depth=0,
+    print_prefix=None,
+    tree_executor=None,
+    leaf_executor=None,
+):
   data = list()
   if print_prefix is not None:
     print_prefix = f'{print_prefix}/{c_ref.id}'
@@ -122,8 +196,15 @@ def save_collection_recursive(c_ref, print_depth=0, print_prefix=None):
   if print_depth:
     print(f'{print_prefix}')
   for doc_ref in c_ref.list_documents():
-    data.append(save_document_recursive(
-        doc_ref, print_depth=max(0, print_depth-1), print_prefix=print_prefix))
+    data.append(
+        save_document_recursive(
+            doc_ref,
+            print_depth=max(0, print_depth - 1),
+            print_prefix=print_prefix,
+            tree_executor=tree_executor,
+            leaf_executor=leaf_executor,
+        )
+    )
   return (c_ref.id, data)
 
 

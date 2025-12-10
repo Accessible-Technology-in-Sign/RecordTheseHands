@@ -773,7 +773,6 @@ def get_clip_bounds_in_video(clip_data):
   if not video_start:
     return (None, None)
 
-
   clip_start = clip_data.get('startTimestamp')
   if not clip_start:
     clip_start = clip_data.get('startButtonDownTimestamp')
