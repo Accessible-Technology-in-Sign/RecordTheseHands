@@ -773,13 +773,18 @@ def get_clip_bounds_in_video(clip_data):
   if not video_start:
     return (None, None)
 
-  clip_start = clip_data.get('startButtonDownTimestamp')
+
+  clip_start = clip_data.get('startTimestamp')
+  if not clip_start:
+    clip_start = clip_data.get('startButtonDownTimestamp')
   if not clip_start:
     clip_start = clip_data.get('startButtonUpTimestamp')
   if not clip_start:
     return (None, None)
 
-  clip_end = clip_data.get('restartButtonDownTimestamp')
+  clip_end = clip_data.get('endTimestamp')
+  if not clip_end:
+    clip_end = clip_data.get('restartButtonDownTimestamp')
   if not clip_end:
     clip_end = clip_data.get('swipeForwardTimestamp')
   if not clip_end:
@@ -819,12 +824,11 @@ def video_page():
 
   db = firestore.Client()
   c_ref = db.collection(
-      f'collector/users/{username}/{tutorial_mode_prefix}data/save'
+      f'collector/users/{username}/{tutorial_mode_prefix}data/save_clip'
   )
   num_skipped = 0
   total_clips = 0
   clip_data = list()
-  session_data = None
   for doc in c_ref.stream():
     if doc.id.startswith('clipData-'):
       doc_dict = doc.to_dict()
@@ -842,17 +846,29 @@ def video_page():
       if end_s:
         simple_clip['end_s'] = end_s
       if data.get('filename') == filename:
+        print(repr(simple_clip))
         clip_data.append(simple_clip)
       else:
         num_skipped += 1
-    elif doc.id.startswith('sessionData-'):
+
+  print(f'skipped {num_skipped} clips searching for clips in correct filename.')
+  print(f'found {len(clip_data)} clips.')
+
+  c_ref = db.collection(
+      f'collector/users/{username}/{tutorial_mode_prefix}data/save_session'
+  )
+  session_data = None
+  for doc in c_ref.stream():
+    if doc.id.startswith('sessionData-'):
       doc_dict = doc.to_dict()
       data = doc_dict.get('data')
       if data.get('filename') == filename:
         session_data = data
+        break
   clip_data.sort(key=lambda x: (x.get('clipId', ''),))
 
   download_link = get_download_link(f'upload/{username}/upload/{filename}')
+  print(f'download_link = {download_link}')
 
   return flask.render_template(
       'video.html',

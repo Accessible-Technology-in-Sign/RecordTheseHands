@@ -1,5 +1,5 @@
 <!--
-Copyright 2023 Google LLC
+Copyright 2025 Google LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,37 @@ SOFTWARE.
 <html>
 <head>
 <link href="{{favicon}}" rel="shortcut icon" type="image/x-icon" />
+<style id="previewVideoStyleSheet">
+  .preview-video {
+    width: 50%;
+  }
+  .hide-on-show-clips {
+  }
+  .show-on-show-clips {
+    display: none;
+  }
+</style>
 <script type="text/javascript">
+function showClips() {
+  const sheet = document.getElementById("previewVideoStyleSheet").sheet
+  for (const rule of sheet.cssRules) {
+    if (rule instanceof CSSStyleRule && rule.selectorText === '.hide-on-show-clips') {
+      rule.style.display = 'none';
+      break;
+    }
+  }
+  for (const rule of sheet.cssRules) {
+    if (rule instanceof CSSStyleRule && rule.selectorText === '.show-on-show-clips') {
+      rule.style.removeProperty("display");
+      break;
+    }
+  }
+  const elements = document.querySelectorAll('.preview-video');
+  elements.forEach(element => {
+    // element.src = "{{video_link}}" + element.dataset.clipBounds;
+    element.preload = "auto"
+  });
+}
 function onVideoDurationLoad(video_tag) {
   console.log('video duration loaded for' + video_tag.id)
 }
@@ -34,32 +64,44 @@ function onVideoTimeUpdate(video_tag) {
 <body>
 {{dev_header|safe}}
 
-<h1>Filename {{filename}}</h1>
+<h1><a href="{{video_link}}">{{filename}}</a></h1>
 
 <h2>Session Data</h2>
 <pre>{{ session_data | tojson_pretty }}</pre>
 
-<h2>Clips</h2>
+<h2>Clips <button onClick="showClips();" class="hide-on-show-clips">Show Clips</button></h2>
 <table>
 {% for i in range(clip_data | length) %}
   {% set clip = clip_data[i] %}
 <tr class="clip-container">
   <td>
-    {% if not clip['valid'] %}
-    <pre>ffplay "file:{{clip['filename']}}" -ss "{{clip['start_s']}}" -t "{{(clip['end_s'] - clip['start_s'])|round(6)}}" -window_title "NOT VALID: {{clip['promptText']}}"  # Marked not valid</pre>
+    {% set video_clip_bounds = '' %}
+    {% if 'start_s' in clip %}
+      {% set ss_str = '-ss "' + (clip['start_s']|string) + '" ' %}
+      {% if 'end_s' in clip %}
+        {% set t_str = '-t "' + ((clip['end_s'] - clip['start_s'])|round(6)|string) + '" ' %}
+        {% set video_clip_bounds = '#t=' + (clip['start_s']|string) + ',' + (clip['end_s']|string) %}
+      {% else %}
+        {% set t_str = '' %}
+      {% endif %}
     {% else %}
-    <pre>ffplay "file:{{clip['filename']}}" -ss "{{clip['start_s']}}" -t "{{(clip['end_s'] - clip['start_s'])|round(6)}}" -window_title "{{clip['promptText']}}"</pre>
+      {% set ss_str = '' %}
+      {% set t_str = '' %}
     {% endif %}
-    <!--
-    <pre>{{ clip | tojson_pretty }}</pre>
-    <video id="video_{{i}}" width="100%" preload="auto" controls
-           ondurationchange="onVideoDurationLoad(this);"
-           ontimeupdate="onVideoTimeUpdate(this);"
-           >
-      <source class="video_source_{{i}}" src="{{video_link}}" type="video/mp4">
-      Your browser does not support the video tag.
+    {% if not clip['valid'] %}
+    <pre class="hide-on-show-clips">ffplay "file:{{clip['filename']}}" {{ss_str}} {{t_str}} -window_title "NOT VALID: {{clip['promptText']}}"  # Marked not valid</pre>
+    {% else %}
+    <pre class="hide-on-show-clips">ffplay "file:{{clip['filename']}}" {{ss_str}}{{t_str}}-window_title "{{clip['promptText']}}"</pre>
+    {% endif %}
+    <pre class="show-on-show-clips">{{clip['promptText']}}</pre>
+    <video
+     src="{{video_link}}{{video_clip_bounds}}"
+     preload="none"
+     data-clip-bounds="{{video_clip_bounds}}"
+     class="preview-video show-on-show-clips"
+     controls>
+      No support for video tag.
     </video>
-    -->
   </td>
 </tr>
 {% endfor %}
