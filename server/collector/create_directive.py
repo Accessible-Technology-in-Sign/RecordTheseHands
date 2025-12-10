@@ -56,6 +56,77 @@ def delete_collection_recursive(c_ref):
     delete_document_recursive(doc_ref)
 
 
+def save_user_data(username, output_filename):
+  """delete the given user."""
+  db = firestore.Client()
+  c_ref = db.collection(f'collector/users/{username}')
+  c_id, c_data = save_collection_recursive(c_ref, print_depth=2)
+  with open(output_filename, 'w') as f:
+    f.write(json.dumps({'id': c_id, 'doc': c_data}, indent=2))
+    f.write('\n')
+
+
+def save_database(output_filename, print_depth=6):
+  """delete the given user."""
+  db = firestore.Client()
+  data = save_document_recursive(db, print_depth=print_depth)
+  with open(output_filename, 'w') as f:
+    f.write(json.dumps(data, indent=2))
+    f.write('\n')
+
+
+def save_document_recursive(doc_ref, print_depth=0, print_prefix=None):
+  data = dict()
+  if isinstance(doc_ref, firestore.Client):
+    doc_id = '/'
+  else:
+    doc_id = doc_ref.id
+
+  data['id'] = doc_id
+  if print_prefix is not None:
+    print_prefix = f'{print_prefix}/{doc_id}'
+  else:
+    print_prefix = doc_id
+
+  if isinstance(doc_ref, firestore.Client):
+    print_prefix = ''
+    if print_depth:
+      print('/')
+  else:
+    if print_depth:
+      print(f'{print_prefix}')
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      data['data'] = doc_data.to_dict()
+
+  if not isinstance(doc_ref, firestore.Client):
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      data['data'] = doc_data.to_dict()
+
+  for c_ref in doc_ref.collections():
+    if 'collection' not in data:
+      data['collection'] = dict()
+    c_id, c_data = save_collection_recursive(
+        c_ref, print_depth=max(0, print_depth-1), print_prefix=print_prefix)
+    data['collection'][c_id] = c_data
+  return data
+
+
+def save_collection_recursive(c_ref, print_depth=0, print_prefix=None):
+  data = list()
+  if print_prefix is not None:
+    print_prefix = f'{print_prefix}/{c_ref.id}'
+  else:
+    print_prefix = c_ref.id
+  if print_depth:
+    print(f'{print_prefix}')
+  for doc_ref in c_ref.list_documents():
+    data.append(save_document_recursive(
+        doc_ref, print_depth=max(0, print_depth-1), print_prefix=print_prefix))
+  return (c_ref.id, data)
+
+
 def print_directives(username):
   """Print all the directives for the given user."""
   db = firestore.Client()
@@ -153,6 +224,8 @@ def main():
         '    setTutorialMode [true|false]',
         '    cancel DIRECTIVE_ID',
         '    deleteUser',
+        '    userData OUTPUT_FILENAME',
+        '    saveDatabase OUTPUT_FILENAME',
         sep='\n      ',
         file=sys.stderr,
     )
@@ -263,6 +336,10 @@ def main():
     cancel_directive(sys.argv[1], directive_id)
   elif sys.argv[2] == 'deleteUser':
     delete_user(sys.argv[1])
+  elif sys.argv[2] == 'userData':
+    save_user_data(sys.argv[1], sys.argv[3])
+  elif sys.argv[2] == 'saveDatabase':
+    save_database(sys.argv[3])
   else:
     raise AssertionError(
         f'Unknown Operation {sys.argv[2]}. Full command line: '
