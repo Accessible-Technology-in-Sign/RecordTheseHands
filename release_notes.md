@@ -1,3 +1,48 @@
+# Release Notes - v2.3.8
+
+## Android Application
+
+**Technical Changes**
+
+- **Enhanced Data Persistence:** Improved `DataManager` with thread-safe
+  singleton initialization and locking for user settings and application status
+  updates.
+- **State Management:** Refactored `AppStatus` and `UserSettings` retrieval to
+  ensure reliable JSON parsing and consistent state synchronization with the
+  persistent store.
+
+## Server
+
+**New Features & User Interface**
+
+- **Video Review Enhancements:** The `/video` page now includes a "Show Clips"
+  toggle, allowing administrators to preview individual clips directly in the
+  browser with "Go to start/end" controls, or generate `ffplay` commands for
+  local playback.
+- **User Management Dashboard:** Improved the `/users` page with color-coded
+  heartbeat indicators (green for recent, blue for hours, purple for days, red
+  for longer) to quickly assess user activity.
+- **Registration Access:** Added a direct "Register" link to the login page for
+  easier account creation.
+- **Progress Tracking:** Bug fix: The `/save` endpoint now tracks the maximum
+  prompt index reached in each section, storing it in `heartbeat/max_prompt` for
+  better progress monitoring.
+
+**Developer Tools**
+
+- **Database Management:** Added new commands to `create_directive.py`
+  (`userData`, `saveDatabase`, `restoreUser`, `deleteUser`) for backing up,
+  restoring, and deleting user data, utilizing concurrent execution for
+  performance.
+- **Cleanup:** Removed the deprecated `upload_apk.py` script.
+- **Documentation:** Added technical summaries for both the Android app and
+  Python server to `README.md`.
+
+**Refactoring**
+
+- **Code Quality:** Applied linting and improved docstrings across `main.py` and
+  `create_directive.py`.
+
 # Release Notes - v2.3.7
 
 ## New Features
