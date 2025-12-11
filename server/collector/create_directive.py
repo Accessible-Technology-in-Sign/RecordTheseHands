@@ -42,28 +42,35 @@ SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 USE_FUTURES_DEPTH = 8
 
+db = firestore.Client()
+
 
 def delete_user(username):
   """delete the given user."""
-  db = firestore.Client()
   c_ref = db.collection(f'collector/users/{username}')
-  delete_collection_recursive(c_ref)
+  futures = list()
+  with ThreadPoolExecutor(max_workers=200) as executor:
+    print('Sending all deletion requests.')
+    delete_collection_recursive(c_ref, executor, futures)
+    print('Waiting for all requests to complete.')
+    for future in futures:
+      future.result()
+    print('All requests completed.')
 
 
-def delete_document_recursive(doc_ref):
+def delete_document_recursive(doc_ref, executor, futures):
   for c_ref in doc_ref.collections():
-    delete_collection_recursive(c_ref)
-  doc_ref.delete()
+    delete_collection_recursive(c_ref, executor, futures)
+  futures.append(executor.submit(doc_ref.delete))
 
 
-def delete_collection_recursive(c_ref):
+def delete_collection_recursive(c_ref, executor, futures):
   for doc_ref in c_ref.list_documents():
-    delete_document_recursive(doc_ref)
+    delete_document_recursive(doc_ref, executor, futures)
 
 
 def save_user_data(username, output_filename):
-  """delete the given user."""
-  db = firestore.Client()
+  """Save the given user to json."""
   c_ref = db.collection(f'collector/users/{username}')
   with ThreadPoolExecutor(max_workers=20) as tree_executor:
     with ThreadPoolExecutor(max_workers=20) as leaf_executor:
@@ -80,8 +87,7 @@ def save_user_data(username, output_filename):
 
 
 def save_database(output_filename, print_depth=10):
-  """delete the given user."""
-  db = firestore.Client()
+  """Save the entire database to json."""
   with ThreadPoolExecutor(max_workers=20) as tree_executor:
     with ThreadPoolExecutor(max_workers=200) as leaf_executor:
       data = save_document_recursive(
@@ -94,6 +100,30 @@ def save_database(output_filename, print_depth=10):
   with open(output_filename, 'w') as f:
     f.write(json.dumps(data, indent=2))
     f.write('\n')
+
+
+def restore_user(username, database_filename):
+  """Restore a user from a database save."""
+  with open(database_filename, 'r') as f:
+    data = json.loads(f.read())
+  user = None
+  for entry in data['collection']['collector']:
+    if entry['id'] == 'users':
+      user = entry['collection'][username]
+  if user:
+    write_collection_to_firestore(f'collector/users/{username}', user)
+
+
+def write_collection_to_firestore(prefix, data):
+  print(f'Writing collection {prefix}')
+  for entry in data:
+    doc_id = f'{prefix}/{entry['id']}'
+    if 'data' in entry:
+      doc_ref = db.document(doc_id)
+      doc_ref.set(entry['data'])
+    if 'collection' in entry:
+      for collection_id, collection in entry['collection'].items():
+        write_collection_to_firestore(f'{doc_id}/{collection_id}', collection)
 
 
 def get_document_data(doc_ref):
@@ -210,7 +240,6 @@ def save_collection_recursive(
 
 def print_directives(username):
   """Print all the directives for the given user."""
-  db = firestore.Client()
   c_ref = db.collection(f'collector/users/{username}/data/directive')
   max_sequence_number = -1
   directives = list()
@@ -222,7 +251,6 @@ def print_directives(username):
 
 def create_directive(username, op, value):
   """Create a directive for the given user."""
-  db = firestore.Client()
   c_ref = db.collection(f'collector/users/{username}/data/directive')
   max_sequence_number = -1
   directives = list()
@@ -259,7 +287,6 @@ def create_directive(username, op, value):
 
 
 def cancel_directive(username, directive_id):
-  db = firestore.Client()
   directive_id = int(directive_id)
   doc_ref = db.document(
       f'collector/users/{username}/data/directive/{directive_id}'
@@ -319,7 +346,6 @@ def main():
   elif sys.argv[2] == 'printDirectives':
     print_directives(sys.argv[1])
   elif sys.argv[2] == 'listUsers':
-    db = firestore.Client()
     doc_ref = db.document(f'collector/users')
     for c_ref in doc_ref.collections():
       print(c_ref.id)
@@ -332,7 +358,6 @@ def main():
     login_token, login_hash = token_maker.make_token(username, password)
     output = {'loginToken': login_token}
     print(json.dumps(output, indent=2))
-    db = firestore.Client()
     doc_ref = db.document(f'collector/users/{username}/login_hash')
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'changeUser':
@@ -345,7 +370,6 @@ def main():
     login_token, login_hash = token_maker.make_token(new_username, password)
     output = {'loginToken': login_token}
     create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
-    db = firestore.Client()
     doc_ref = db.document(f'collector/users/{new_username}/login_hash')
     doc_ref.set({'login_hash': login_hash})
   elif sys.argv[2] == 'setPrompts' or sys.argv[2] == 'setPromptsNoUpload':
@@ -369,7 +393,6 @@ def main():
         'path': uploaded_relative_path,
         'creationTimestamp': timestamp,
     }
-    db = firestore.Client()
     doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
     doc_ref.set(prompts_data)
     doc_ref = db.document(
@@ -392,7 +415,6 @@ def main():
     if max_version:
       version_constraints['max_version'] = max_version
 
-    db = firestore.Client()
     doc_ref = db.document(
         f'collector/users/{username}/data/prompts/version_constraints'
     )
@@ -421,6 +443,8 @@ def main():
     save_user_data(sys.argv[1], sys.argv[3])
   elif sys.argv[2] == 'saveDatabase':
     save_database(sys.argv[3])
+  elif sys.argv[2] == 'restoreUser':
+    restore_user(sys.argv[1], sys.argv[3])
   else:
     raise AssertionError(
         f'Unknown Operation {sys.argv[2]}. Full command line: '
