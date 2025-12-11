@@ -681,6 +681,8 @@ def users_page():
 
   current_time = datetime.datetime.now(datetime.timezone.utc)
 
+  print('/users')
+
   users = list()
   for c_ref in doc_ref.collections():
     users.append({'username': c_ref.id})
@@ -984,7 +986,7 @@ def save():
 
   db = firestore.Client()
 
-  max_prompt_index = None
+  current_max_prompt_indexes = dict()
   for entry in data:
     key = entry.get('key')
     if not key:
@@ -1018,13 +1020,36 @@ def save():
     if key.startswith('sessionData-') and not tutorial_mode:
       if 'data' in save:
         if 'finalPromptIndex' in save['data']:
+          section_name = save['data']['sectionName']
           final_prompt_index = int(save['data']['finalPromptIndex'])
-          if max_prompt_index is None or max_prompt_index < final_prompt_index:
-            max_prompt_index = final_prompt_index
-  if max_prompt_index is not None:
-    db.document(f'collector/users/{username}/data/heartbeat/max_prompt').set(
-        {'maxPrompt': max_prompt_index}
+          current_max_prompt_indexes[section_name] = max(
+              current_max_prompt_indexes.get(section_name, 0),
+              final_prompt_index,
+          )
+  if current_max_prompt_indexes:
+
+    doc_ref = db.document(
+        f'collector/users/{username}/data/heartbeat/max_prompt'
     )
+    doc_data = doc_ref.get()
+    if not doc_data.exists:
+      total = sum(current_max_prompt_indexes.values())
+      current_max_prompt_indexes['maxPrompt'] = total
+      doc_ref.set(current_max_prompt_indexes)
+    else:
+      doc_dict = doc_data.to_dict()
+      doc_dict.pop('maxPrompt', None)
+      updated_dict = dict()
+      for key in set(doc_dict) | set(current_max_prompt_indexes):
+        updated_dict[key] = max(
+            doc_dict.get(key, 0), current_max_prompt_indexes.get(key, 0)
+        )
+      total = sum(updated_dict.values())
+      updated_dict['maxPrompt'] = total
+      doc_ref.update(
+          updated_dict,
+          option=db.write_option(last_update_time=doc_data.update_time),
+      )
 
   return flask.render_template('success.html', message='Key values saved.')
 
