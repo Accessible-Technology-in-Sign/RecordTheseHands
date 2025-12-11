@@ -1,3 +1,14 @@
+# Release Notes - v2.3.9
+
+## Server
+
+**Bug Fixes**
+
+- **Save Endpoint Fix:** Corrected a variable reference error in the `/save`
+  endpoint that prevented prompt progress from being correctly updated.
+- **Updated App version:** The Android versionCode and versionName for the app
+  hadn't been updated since v1.3.1 .
+
 # Release Notes - v2.3.8
 
 ## Android Application
