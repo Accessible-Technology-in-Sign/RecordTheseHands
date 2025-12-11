@@ -42,6 +42,11 @@ def main() -> int:
       help='Path to instructions JSON file',
   )
   parser.add_argument(
+      'tutorial_json',
+      type=pathlib.Path,
+      help='Path to tutorial JSON file',
+  )
+  parser.add_argument(
       'base_json', type=pathlib.Path, help='Path to base prompts JSON file'
   )
   parser.add_argument(
@@ -64,6 +69,8 @@ def main() -> int:
   try:
     with open(args.instructions_json, 'r') as f:
       instructions = json.load(f)
+    with open(args.tutorial_json, 'r') as f:
+      tutorial = json.load(f)
     with open(args.base_json, 'r') as f:
       base = json.load(f)
   except (json.JSONDecodeError, IOError) as e:
@@ -94,6 +101,14 @@ def main() -> int:
             section['metadata'] = {}
           section['metadata']['instructions'] = overview_instructions
           logging.info(f'Applied instructions for section: {section_name}')
+
+  # Merge tutorial prompts.
+  for section_name, section in base.get('data', {}).items():
+    tutorial_section = tutorial.get(section_name, {}).get('tutorial')
+    if not tutorial_section:
+      continue
+    section['tutorial'] = tutorial_section
+    logging.info(f'Applied tutorial prompts for section: {section_name}')
 
   try:
     with open(args.output_json, 'w') as f:
