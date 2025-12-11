@@ -22,11 +22,7 @@
 """Main flask based server to facilitate sign language data collection."""
 
 import base64
-import copy
 import datetime
-import functools
-import hashlib
-import io
 import json
 import logging
 import mimetypes
@@ -34,7 +30,6 @@ import os
 import pathlib
 import re
 import sys
-import urllib.request
 
 import config
 import flask
@@ -146,6 +141,7 @@ def request_loader(request):
 
 
 def initialize_app():
+  """Initializes the Flask app and logging."""
   logging_client = google.cloud.logging.Client()
   logging_client.setup_logging()
 
@@ -181,7 +177,11 @@ def get_secret(secret_id):
 
 @app.context_processor
 def inject_dev_header():
-  """Create a dev header that is always available in the Jinja templates."""
+  """Create a dev header that is always available in the Jinja templates.
+
+  Returns:
+    A dictionary containing the dev_header for the Jinja templates.
+  """
   if IS_PROD_ENV:
     if IS_LOCAL_ENV:
       server_title = 'localhost Prod'
@@ -236,7 +236,7 @@ def check_login_token(login_token):
   Args:
     login_token: The login token as a string.
 
-  Returns
+  Returns:
     A Tuple of (is_valid, username, allow_webapp_access)
   """
   m = re.match(r'^([a-z][a-z0-9_]{2,}):[0-9a-f]{64}$', login_token)
@@ -382,8 +382,9 @@ def check_version_page():
     max_version_parts = max_version_parts + [0] * (
         max_version_length - len(max_version_parts)
     )
-    print(
-        f'checking app_version_parts > max_version_parts which is {app_version_parts > max_version_parts}'
+    logging.info(
+        'checking app_version_parts > max_version_parts which is %s',
+        app_version_parts > max_version_parts,
     )
     if app_version_parts > max_version_parts:
       return (
@@ -442,7 +443,7 @@ def resource_page():
 
   path = flask.request.values.get('path', '')
 
-  logging.info(f'/resource username={username} path={path!r}')
+  logging.info('/resource username=%s path=%r', username, path)
 
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
@@ -468,7 +469,7 @@ def prompts_page():
 
   assert username
 
-  logging.info(f'/prompts {username}')
+  logging.info('/prompts %s', username)
 
   db = firestore.Client()
   doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
@@ -509,7 +510,7 @@ def upload():
 
   assert username
 
-  logging.info(f'/upload {username}')
+  logging.info('/upload %s', username)
 
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
@@ -553,34 +554,6 @@ def upload():
   return flask.jsonify({'uploadLink': upload_link})
 
 
-if IS_LOCAL_ENV:
-  # TODO remove this anchor.
-  # (used by upload_file.py so it doesn't need login_token)
-
-  @app.route('/simple_upload', methods=['POST'])
-  def simple_upload():
-    """Upload an item."""
-    username = 'testing'
-
-    app_version = flask.request.values.get('app_version', 'unknown')
-    filename = flask.request.values.get('filename', '')
-    m = re.match(r'^[a-zA-Z0-9_:.-]*$', filename)
-    if not m:
-      return 'filename had weird characters in it.', 400
-    md5sum = flask.request.values.get('md5', '')
-    m = re.match(r'^[0-9a-f]{32}$', md5sum)
-    if not m:
-      return 'md5 was invalid (must be 32 lower case hex characters).', 400
-
-    db = firestore.Client()
-    db.document(f'collector/users/{username}/data/file/{filename}').set(
-        {'appVersion': app_version, 'filename': filename, 'md5': md5sum}
-    )
-
-    upload_link = get_upload_link(f'upload/{username}/{filename}')
-    return flask.jsonify({'uploadLink': upload_link})
-
-
 @app.route('/verify', methods=['POST'])
 def verify():
   """verify the md5 on an uploaded item."""
@@ -591,7 +564,7 @@ def verify():
 
   assert username
 
-  logging.info(f'/verify {username}')
+  logging.info('/verify %s', username)
 
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
@@ -674,10 +647,11 @@ def logout():
 @app.route('/users', methods=['GET', 'POST'])
 @flask_login.login_required
 def users_page():
+  """Renders the users page, displaying a list of users and their heartbeat data."""
   if not flask_login.current_user.allow_webapp_access:
     return 'User does not have access to the webapp.', 403
   db = firestore.Client()
-  doc_ref = db.document(f'collector/users')
+  doc_ref = db.document('collector/users')
 
   current_time = datetime.datetime.now(datetime.timezone.utc)
 
@@ -710,6 +684,7 @@ def users_page():
 @app.route('/user', methods=['GET', 'POST'])
 @flask_login.login_required
 def user_page():
+  """Renders the user-specific page, displaying directives, files, and tutorial files."""
   if not flask_login.current_user.allow_webapp_access:
     return 'User does not have access to the webapp.', 403
   db = firestore.Client()
@@ -771,6 +746,14 @@ def user_page():
 
 
 def get_clip_bounds_in_video(clip_data):
+  """Calculates the start and end times of a clip within a video.
+
+  Args:
+    clip_data: A dictionary containing clip metadata.
+
+  Returns:
+    A tuple of (start_seconds, end_seconds) or (None, None) if data is missing.
+  """
   video_start = clip_data.get('videoStart')
   if not video_start:
     return (None, None)
@@ -805,6 +788,7 @@ def get_clip_bounds_in_video(clip_data):
 @app.route('/video', methods=['GET', 'POST'])
 @flask_login.login_required
 def video_page():
+  """Renders the video page, displaying video information and associated clip data."""
   if not flask_login.current_user.allow_webapp_access:
     return 'User does not have access to the webapp.', 403
   filename = flask.request.values.get('filename', '')
@@ -828,13 +812,11 @@ def video_page():
       f'collector/users/{username}/{tutorial_mode_prefix}data/save_clip'
   )
   num_skipped = 0
-  total_clips = 0
   clip_data = list()
   for doc in c_ref.stream():
     if doc.id.startswith('clipData-'):
       doc_dict = doc.to_dict()
       data = doc_dict.get('data')
-      total_clips = 0
       simple_clip = {
           'clipId': data.get('clipId'),
           'filename': data.get('filename'),
@@ -978,7 +960,7 @@ def save():
 
   assert username
 
-  logging.info(f'/save {username}')
+  logging.info('/save %s', username)
 
   data = json.loads(data_string)
 
@@ -994,7 +976,7 @@ def save():
     partition = entry.get('partition', 'default')
     m = re.match(r'^[a-zA-Z0-9_-]+$', partition)
     if not m:
-      logging.error(f'partition is badly formed {partition!r}')
+      logging.error('partition is badly formed %r', partition)
       return 'partition is badly formed', 400
     tutorial_mode = entry.get('tutorialMode', False)
     tutorial_mode_prefix = ''
@@ -1004,22 +986,22 @@ def save():
         f'collector/users/{username}/{tutorial_mode_prefix}data/'
         f'save_{partition}/{key}'
     )
-    save = {
+    save_data = {
         'appVersion': app_version,
         'serverTimestamp': timestamp,
         'key': key,
     }
     if tutorial_mode:
-      save['tutorialMode'] = tutorial_mode
+      save_data['tutorialMode'] = tutorial_mode
     if entry.get('message'):
-      save['message'] = entry.get('message')
+      save_data['message'] = entry.get('message')
     if entry.get('data'):
-      save['data'] = entry.get('data')
-    db.document(doc_key).set(save)
+      save_data['data'] = entry.get('data')
+    db.document(doc_key).set(save_data)
 
     if key.startswith('sessionData-') and not tutorial_mode:
-      if 'data' in save:
-        if 'finalPromptIndex' in save['data']:
+      if 'data' in save_data:
+        if 'finalPromptIndex' in save_data['data']:
           section_name = save['data']['sectionName']
           final_prompt_index = int(save['data']['finalPromptIndex'])
           current_max_prompt_indexes[section_name] = max(
@@ -1062,7 +1044,7 @@ def save_state():
   if not is_valid_login:
     return 'login_token invalid', 401
 
-  logging.info(f'/save_state {username}')
+  logging.info('/save_state %s', username)
 
   state = flask.request.values.get('state', '')
   app_version = flask.request.values.get('app_version', 'unknown')
@@ -1093,7 +1075,7 @@ def directives_page():
 
   assert username
 
-  logging.info(f'/directives {username}')
+  logging.info('/directives %s', username)
 
   db = firestore.Client()
 
@@ -1122,8 +1104,9 @@ def directives_page():
   )
   if directives:
     logging.info(
-        f'responding to /directives for {username} with ids='
-        + ','.join([str(x.get('id', '-1')) for x in directives])
+        'responding to /directives for %s with ids=%s',
+        username,
+        ','.join([str(x.get('id', '-1')) for x in directives]),
     )
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -1158,7 +1141,7 @@ def directive_completed():
 
   assert username
 
-  logging.info(f'/directive_completed {username}')
+  logging.info('/directive_completed %s', username)
 
   db = firestore.Client()
   doc_ref = db.document(
