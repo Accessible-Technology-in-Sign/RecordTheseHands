@@ -1002,8 +1002,8 @@ def save():
     if key.startswith('sessionData-') and not tutorial_mode:
       if 'data' in save_data:
         if 'finalPromptIndex' in save_data['data']:
-          section_name = save['data']['sectionName']
-          final_prompt_index = int(save['data']['finalPromptIndex'])
+          section_name = save_data['data']['sectionName']
+          final_prompt_index = int(save_data['data']['finalPromptIndex'])
           current_max_prompt_indexes[section_name] = max(
               current_max_prompt_indexes.get(section_name, 0),
               final_prompt_index,
