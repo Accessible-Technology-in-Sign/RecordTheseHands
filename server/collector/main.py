@@ -845,13 +845,15 @@ def video_page():
       if end_s:
         simple_clip['end_s'] = end_s
       if data.get('filename') == filename:
-        print(repr(simple_clip))
+        # print(repr(simple_clip))
         clip_data.append(simple_clip)
       else:
         num_skipped += 1
 
-  print(f'skipped {num_skipped} clips searching for clips in correct filename.')
-  print(f'found {len(clip_data)} clips.')
+  print(
+      f'found {len(clip_data)} clips '
+      f'(skipped {num_skipped} from other filenames).'
+  )
 
   c_ref = db.collection(
       f'collector/users/{username}/{tutorial_mode_prefix}data/save_session'
@@ -867,7 +869,7 @@ def video_page():
   clip_data.sort(key=lambda x: (x.get('clipId', ''),))
 
   download_link = get_download_link(f'upload/{username}/upload/{filename}')
-  print(f'download_link = {download_link}')
+  # print(f'download_link = {download_link}')
 
   return flask.render_template(
       'video.html',

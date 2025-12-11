@@ -94,14 +94,21 @@ function onVideoTimeUpdate(video_tag) {
     <pre class="hide-on-show-clips">ffplay "file:{{clip['filename']}}" {{ss_str}}{{t_str}}-window_title "{{clip['promptText']}}"</pre>
     {% endif %}
     <pre class="show-on-show-clips">{{clip['promptText']}}</pre>
-    <video
-     src="{{video_link}}{{video_clip_bounds}}"
-     preload="none"
-     data-clip-bounds="{{video_clip_bounds}}"
-     class="preview-video show-on-show-clips"
-     controls>
-      No support for video tag.
-    </video>
+    <div class="show-on-show-clips">
+      <video
+       id="videoPlayer{{i}}"
+       src="{{video_link}}{{video_clip_bounds}}"
+       preload="none"
+       data-clip-bounds="{{video_clip_bounds}}"
+       class="preview-video"
+       controls>
+        No support for video tag.
+      </video>
+      {% if 'start_s' in clip and 'end_s' in clip %}
+        <button onClick="document.getElementById('videoPlayer{{i}}').currentTime = {{clip['start_s']}}">Go to start</button>
+        <button onClick="document.getElementById('videoPlayer{{i}}').currentTime = {{clip['end_s']}}">Go to end</button>
+      {% endif %}
+    </div>
   </td>
 </tr>
 {% endfor %}
