@@ -21,15 +21,14 @@
 # SOFTWARE.
 """Script to create a directive for a user.."""
 
+import concurrent.futures
 import datetime
 import json
 import os
 import pathlib
 import secrets
 import sys
-import time
 
-from concurrent.futures import ThreadPoolExecutor
 from google.cloud import firestore
 
 import token_maker
@@ -49,7 +48,7 @@ def delete_user(username):
   """delete the given user."""
   c_ref = db.collection(f'collector/users/{username}')
   futures = list()
-  with ThreadPoolExecutor(max_workers=200) as executor:
+  with concurrent.futures.ThreadPoolExecutor(max_workers=200) as executor:
     print('Sending all deletion requests.')
     delete_collection_recursive(c_ref, executor, futures)
     print('Waiting for all requests to complete.')
@@ -72,8 +71,8 @@ def delete_collection_recursive(c_ref, executor, futures):
 def save_user_data(username, output_filename):
   """Save the given user to json."""
   c_ref = db.collection(f'collector/users/{username}')
-  with ThreadPoolExecutor(max_workers=20) as tree_executor:
-    with ThreadPoolExecutor(max_workers=20) as leaf_executor:
+  with concurrent.futures.ThreadPoolExecutor(max_workers=20) as tree_executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as leaf_executor:
       c_id, c_data = save_collection_recursive(
           c_ref,
           print_depth=2,
@@ -88,8 +87,10 @@ def save_user_data(username, output_filename):
 
 def save_database(output_filename, print_depth=10):
   """Save the entire database to json."""
-  with ThreadPoolExecutor(max_workers=20) as tree_executor:
-    with ThreadPoolExecutor(max_workers=200) as leaf_executor:
+  with concurrent.futures.ThreadPoolExecutor(max_workers=20) as tree_executor:
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=200
+    ) as leaf_executor:
       data = save_document_recursive(
           db,
           print_depth=print_depth,
@@ -133,11 +134,10 @@ def get_document_data(doc_ref):
 
 
 def extract_futures_document_recursive(data):
-  extracted = list()
   if 'data' in data:
     data['data'] = data['data'].result()
   if 'collection' in data:
-    for c_id, c_data in data['collection'].items():
+    for _, c_data in data['collection'].items():
       extract_futures_collection_recursive(c_data)
 
 
@@ -153,6 +153,7 @@ def save_document_recursive(
     tree_executor=None,
     leaf_executor=None,
 ):
+  """Recursively saves a document and its subcollections."""
   data = dict()
   if isinstance(doc_ref, firestore.Client):
     doc_id = '/'
@@ -218,6 +219,7 @@ def save_collection_recursive(
     tree_executor=None,
     leaf_executor=None,
 ):
+  """Recursively saves a collection and its documents."""
   data = list()
   if print_prefix is not None:
     print_prefix = f'{print_prefix}/{c_ref.id}'
@@ -241,7 +243,6 @@ def save_collection_recursive(
 def print_directives(username):
   """Print all the directives for the given user."""
   c_ref = db.collection(f'collector/users/{username}/data/directive')
-  max_sequence_number = -1
   directives = list()
   for doc in c_ref.stream():
     doc_dict = doc.to_dict()
@@ -287,6 +288,7 @@ def create_directive(username, op, value):
 
 
 def cancel_directive(username, directive_id):
+  """Cancels a directive for the given user and directive ID."""
   directive_id = int(directive_id)
   doc_ref = db.document(
       f'collector/users/{username}/data/directive/{directive_id}'
@@ -346,7 +348,7 @@ def main():
   elif sys.argv[2] == 'printDirectives':
     print_directives(sys.argv[1])
   elif sys.argv[2] == 'listUsers':
-    doc_ref = db.document(f'collector/users')
+    doc_ref = db.document('collector/users')
     for c_ref in doc_ref.collections():
       print(c_ref.id)
   elif sys.argv[2] == 'setPassword':
