@@ -333,7 +333,7 @@ def version_parts_from_string(version_string):
   m = re.fullmatch(r'^[vV]?(\d+(?:.\d+)*)?$', version_string.strip())
   if not m:
     return None
-  return m.group(1).split('.')
+  return [int(x) for x in m.group(1).split('.')]
 
 
 @app.route('/check_version', methods=['POST'])
