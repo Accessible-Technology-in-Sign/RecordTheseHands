@@ -1,3 +1,28 @@
+# Release Notes - v2.3.10
+
+## Server
+
+**New Features & Tools**
+
+- **Statistics Generation:** Added a new `stats` command to
+  `create_directive.py` that generates comprehensive user statistics from data
+  dumps.
+- **Tutorial Prompt Merging:** Updated `apply_instructions_to_prompts.py` to
+  support merging tutorial prompts from a separate JSON file.
+
+**Bug Fixes**
+
+- **Login:** Fixed a `flask-login` issue in `home_page` that would make users
+  unable to log in if they had an invalid `remember_token`.
+- **Version Check:** Fixed a bug so that the server side version check now
+  correctly thinks v2.3.9 < v2.3.10.
+
+**Refactoring & Cleanup**
+
+- **Code Cleanup:** Removed several deprecated scripts (`dump_clips.py`,
+  `phrases_to_prompts.py`, `upload_file.py`, `upload_mixed_prompts.py`).
+- **Lint:** Addressed all lint warnings in python scripts.
+
 # Release Notes - v2.3.9
 
 ## Server
