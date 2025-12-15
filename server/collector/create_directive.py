@@ -168,20 +168,20 @@ def get_in_document(document, path):
   If the path has an even number of parts it is a document,
   if odd then it is a collection.
   """
-  path_parts = path.split('/')
-  if not path_parts:
+  if not path:
     return None
-  current = current['collection'].get(ident)
+  path_parts = path.split('/')
+  if 'collection' not in document:
+    return None
+  current = document['collection'].get(path_parts[0])
   if current is None:
     return None
   if len(path_parts) == 1:
     return current
-  if 'collection' not in current:
-    return None
-  return get_in_collection(current, '/'.join(path[1:]))
+  return get_in_collection(current, '/'.join(path_parts[1:]))
 
 
-def statistics(username, filename, output_filename):
+def statistics(username, filename, output_filename=None):
   """compute statistics based on database or user dump."""
   with open(filename, 'r') as f:
     data = json.loads(f.read())
@@ -693,7 +693,7 @@ def main():
   elif sys.argv[2] == 'restoreUser':
     restore_user(sys.argv[1], sys.argv[3])
   elif sys.argv[2] == 'stats':
-    if len(sys.argv) >= 3:
+    if len(sys.argv) >= 5:
       statistics(sys.argv[1], sys.argv[3], sys.argv[4])
     else:
       statistics(sys.argv[1], sys.argv[3])
