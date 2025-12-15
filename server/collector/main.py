@@ -69,16 +69,6 @@ _BANNED_USERNAMES = frozenset(
 app = flask.Flask(__name__)
 login_manager = flask_login.LoginManager()
 
-if IS_LOCAL_ENV:
-  root = logging.getLogger()
-  root.setLevel(logging.DEBUG)
-
-  handler = logging.StreamHandler(sys.stdout)
-  handler.setLevel(logging.DEBUG)
-  formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s')
-  handler.setFormatter(formatter)
-  root.addHandler(handler)
-
 
 def json_pretty(data):
   return json.dumps(data, sort_keys=True, indent=2)
@@ -102,7 +92,7 @@ class User(flask_login.UserMixin):
 @login_manager.user_loader
 def user_loader(username):
   """Load the user given an id."""
-  logging.debug('user_loader {username!r}')
+  logging.debug(f'user_loader {username!r}')
   if not username:
     return None
   db = firestore.Client()
@@ -120,8 +110,10 @@ def user_loader(username):
 @login_manager.request_loader
 def request_loader(request):
   """Load a request, possibly logging the user in."""
-  logging.debug('request_loader {request!r}')
-  login_token = request.values.get('login_token', '')
+  logging.debug(f'request_loader {request!r}')
+  login_token = request.values.get('login_token')
+  if not login_token:
+    return None
   is_valid_login, username, allow_webapp_access = check_login_token(login_token)
   if not is_valid_login:
     return None
@@ -307,9 +299,18 @@ def get_upload_link(object_name):
 @app.route('/', methods=['GET', 'POST'])
 def home_page():
   """The homepage."""
+  logging.info('home_page')
+  if not flask_login.current_user.is_authenticated:
+    # Due to a bug in flask-login, the request_loader isn't called
+    # when an invalid remember_token cookie is present.  Just call
+    # it here to make sure it has been called.
+    # Bug fix: https://github.com/maxcountryman/flask-login/pull/901
+    request_loader(flask.request)
+
   if flask_login.current_user.is_authenticated:
     return flask.render_template('index.html')
 
+  logging.info(f'flask.request.method == {flask.request.method!r}')
   # If we're using POST and get this far, then the password was incorrect.
   incorrect_password = flask.request.method != 'GET'
 
@@ -1174,6 +1175,17 @@ if not IS_PROD_ENV:
 
 
 initialize_app()
+
+if IS_LOCAL_ENV:
+  root = logging.getLogger()
+  root.setLevel(logging.DEBUG)
+
+  handler = logging.StreamHandler(sys.stdout)
+  handler.setLevel(logging.DEBUG)
+  formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s')
+  handler.setFormatter(formatter)
+  root.addHandler(handler)
+
 
 if __name__ == '__main__':
   # This is used when running locally only. When deploying to Google App
