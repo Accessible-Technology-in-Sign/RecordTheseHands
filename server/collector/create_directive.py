@@ -21,6 +21,7 @@
 # SOFTWARE.
 """Script to create a directive for a user.."""
 
+import collections
 import concurrent.futures
 import datetime
 import json
@@ -75,13 +76,13 @@ def save_user_data(username, output_filename):
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as leaf_executor:
       c_id, c_data = save_collection_recursive(
           c_ref,
-          print_depth=2,
+          print_depth=3,
           tree_executor=tree_executor,
           leaf_executor=leaf_executor,
       )
       extract_futures_collection_recursive(c_data)
   with open(output_filename, 'w') as f:
-    f.write(json.dumps({'id': c_id, 'doc': c_data}, indent=2))
+    f.write(json.dumps({c_id: c_data}, indent=2))
     f.write('\n')
 
 
@@ -125,6 +126,224 @@ def write_collection_to_firestore(prefix, data):
     if 'collection' in entry:
       for collection_id, collection in entry['collection'].items():
         write_collection_to_firestore(f'{doc_id}/{collection_id}', collection)
+
+
+def get_document_in_collection(collection, doc_id):
+  for entry in collection:
+    if entry['id'] == 'doc_id':
+      return entry
+  return None
+
+
+def get_in_collection(collection, path):
+  """Use a path to get something in a collection.
+
+  If the path has an odd number of parts it is a document,
+  if even then it is a collection.
+  """
+  path_parts = path.split('/')
+  current = collection
+  for i in range(len(path_parts)):
+    ident = path_parts[i]
+    if i % 2 == 0:
+      found = False
+      for entry in current:
+        if entry['id'] == ident:
+          current = entry
+          found = True
+      if not found:
+        return None
+    else:
+      if 'collection' not in current:
+        return None
+      current = current['collection'].get(ident)
+      if current is None:
+        return None
+  return current
+
+
+def get_in_document(document, path):
+  """Use a path to get something in a document.
+
+  If the path has an even number of parts it is a document,
+  if odd then it is a collection.
+  """
+  path_parts = path.split('/')
+  if not path_parts:
+    return None
+  current = current['collection'].get(ident)
+  if current is None:
+    return None
+  if len(path_parts) == 1:
+    return current
+  if 'collection' not in current:
+    return None
+  return get_in_collection(current, '/'.join(path[1:]))
+
+
+def statistics(username, filename, output_filename):
+  """compute statistics based on database or user dump."""
+  with open(filename, 'r') as f:
+    data = json.loads(f.read())
+  user = None
+  if data.get('id') == '/' and 'collection' in data:
+    # We have a database dump.
+    user = get_in_document(data, f'collector/users/{username}')
+  else:
+    # We have a user dump.
+    user = data.get(username)
+
+  if not user:
+    return None
+
+  statistics = dict()
+  files = get_in_collection(user, 'data/file')
+  for doc in files:
+    assert 'data' in doc
+    path = doc['data'].get('path')
+    if 'path' not in statistics:
+      statistics['path'] = list()
+    statistics['path'].append(path)
+  heartbeat = get_in_collection(user, 'data/heartbeat/latest')
+  if heartbeat:
+    statistics['heartbeat'] = heartbeat['data']['timestamp']
+  max_prompt = get_in_collection(user, 'data/heartbeat/max_prompt')
+  if max_prompt:
+    if 'maxPrompt' in max_prompt['data']:
+      max_prompt['data']['all'] = max_prompt['data']['maxPrompt']
+      max_prompt['data'].pop('maxPrompt')
+    statistics['progress'] = max_prompt['data']
+  prompts = get_in_collection(user, 'data/prompts/active')
+  if prompts:
+    statistics['promptsPath'] = prompts['data'].get('path')
+  version_constraints = get_in_collection(user, 'data/prompts/version_constraints')
+  if version_constraints:
+    statistics['versionConstraints'] = version_constraints['data']
+
+  def fill_clip_stats(clips, clip_stats):
+    if not clips:
+      return
+    for clip in clips:
+      assert clip.get('id').startswith('clipData-')
+      data = clip['data']['data']
+      start = datetime.datetime.fromisoformat(data['startTimestamp'])
+      end = datetime.datetime.fromisoformat(data['endTimestamp'])
+      duration = (end - start).total_seconds()
+      section_name = data['sectionName']
+      # TODO: track bad prompts, track duplicate prompts, and track total
+      # prompts answered.
+      valid_str = 'valid' if data.get('valid') else 'invalid'
+      if data.get('isSkipExplanation', False) == True:
+        clip_stats['all'][f'num_{valid_str}_skip_explanation'] += 1
+        clip_stats['all'][f'duration_{valid_str}_skip_explanation'] += duration
+        clip_stats[section_name][f'num_{valid_str}_skip_explanation'] += 1
+        clip_stats[section_name][f'duration_{valid_str}_skip_explanation'] += duration
+      else:
+        clip_stats['all'][f'num_{valid_str}_clips'] += 1
+        clip_stats['all'][f'duration_{valid_str}_clips'] += duration
+        clip_stats[section_name][f'num_{valid_str}_clips'] += 1
+        clip_stats[section_name][f'duration_{valid_str}_clips'] += duration
+
+    for section_name, stats in clip_stats.items():
+      num_valid_clips = stats.get('num_valid_clips')
+      valid_duration = stats.get('duration_valid_clips')
+      if num_valid_clips is not None and valid_duration is not None:
+        stats['average_valid_clip_duration'] = valid_duration / num_valid_clips
+      num_valid_clips = stats.get('num_valid_skip_explanation')
+      valid_duration = stats.get('duration_valid_skip_explanation')
+      if num_valid_clips is not None and valid_duration is not None:
+        stats['average_skip_explanation_duration'] = valid_duration / num_valid_clips
+
+  clips = get_in_collection(user, 'data/save_clip')
+  clip_stats = collections.defaultdict(lambda: collections.defaultdict(int))
+  fill_clip_stats(clips, clip_stats)
+
+  tutorial_clips = get_in_collection(user, 'tutorial_data/save_clip')
+  tutorial_clip_stats = collections.defaultdict(
+      lambda: collections.defaultdict(int))
+  fill_clip_stats(tutorial_clips, tutorial_clip_stats)
+
+  # TODO(mgeorg): count 'HomeScreenActivity.onCreate' log messages
+  # (remember they might be in tutorial mode or regular mode).
+
+  total_duration_in_video = 0.0
+
+  def fill_session_stats(sessions, session_stats):
+    if not sessions:
+      return
+    for session in sessions:
+      data = session['data']['data']
+      start = datetime.datetime.fromisoformat(data['startTimestamp'])
+      end = datetime.datetime.fromisoformat(data['endTimestamp'])
+      duration = (end - start).total_seconds()
+      section_name = data['sectionName']
+
+      session_stats['all']['num_sessions'] += 1
+      session_stats['all']['duration_sessions'] += duration
+      session_stats[section_name]['num_sessions'] += 1
+      session_stats[section_name]['duration_sessions'] += duration
+
+  sessions = get_in_collection(user, 'data/save_session')
+  session_stats = collections.defaultdict(lambda: collections.defaultdict(int))
+  fill_session_stats(sessions, session_stats)
+  if 'progress' in statistics:
+    for section_name, stats in session_stats.items():
+      progress = statistics['progress'].get(section_name)
+      if progress:
+        stats['progress'] = progress
+
+  tutorial_sessions = get_in_collection(user, 'tutorial_data/save_session')
+  tutorial_session_stats = collections.defaultdict(
+      lambda: collections.defaultdict(int))
+  fill_session_stats(tutorial_sessions, tutorial_session_stats)
+
+  statistics['tutorial_clip_stats'] = dict(sorted(tutorial_clip_stats.items()))
+  statistics['tutorial_session_stats'] = dict(sorted(tutorial_session_stats.items()))
+  statistics['clip_stats'] = dict(sorted(clip_stats.items()))
+  statistics['session_stats'] = dict(sorted(session_stats.items()))
+
+  quick_summary = dict()
+  quick_summary['username'] = username
+  try:
+    quick_summary['num_valid_clips'] = statistics['clip_stats']['all']['num_valid_clips']
+  except KeyError:
+    pass
+  try:
+    quick_summary['num_invalid_clips'] = statistics['clip_stats']['all']['num_invalid_clips']
+  except KeyError:
+    pass
+  try:
+    quick_summary['num_bad_prompts'] = statistics['clip_stats']['all']['num_valid_skip_explanation']
+  except KeyError:
+    pass
+  try:
+    quick_summary['num_sessions'] = statistics['session_stats']['all']['num_sessions']
+  except KeyError:
+    pass
+  try:
+    quick_summary['duration_sessions'] = f'{round(statistics['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+  except KeyError:
+    pass
+  try:
+    quick_summary['duration_clips'] = f'{round(statistics['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+  except KeyError:
+    pass
+  try:
+    quick_summary['tutorial_duration_sessions'] = f'{round(statistics['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+  except KeyError:
+    pass
+  try:
+    quick_summary['tutorial_duration_clips'] = f'{round(statistics['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+  except KeyError:
+    pass
+
+  statistics['summary'] = quick_summary
+
+  print(json.dumps(statistics, indent=2))
+  if output_filename and output_filename != filename:
+    with open(output_filename, 'w') as f:
+      f.write(json.dumps(statistics, indent=2))
+      f.write('\n')
 
 
 def get_document_data(doc_ref):
@@ -447,6 +666,11 @@ def main():
     save_database(sys.argv[3])
   elif sys.argv[2] == 'restoreUser':
     restore_user(sys.argv[1], sys.argv[3])
+  elif sys.argv[2] == 'stats':
+    if len(sys.argv) >= 3:
+      statistics(sys.argv[1], sys.argv[3], sys.argv[4])
+    else:
+      statistics(sys.argv[1], sys.argv[3])
   else:
     raise AssertionError(
         f'Unknown Operation {sys.argv[2]}. Full command line: '
