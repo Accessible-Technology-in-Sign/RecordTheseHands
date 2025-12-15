@@ -306,6 +306,7 @@ class HomeScreenActivity : ComponentActivity() {
     lifecycleScope.launch(Dispatchers.IO) {
       try {
         Log.d(TAG, "Delaying next upload work.")
+        dataManager.logToServerAndPersist("uploadButton pressed.")
         UploadWorkManager.scheduleNextPeriodic(applicationContext)
         UploadPauseManager.pauseUploadUntil(null)
         dataManager.dataManagerData._uploadState.postValue(
