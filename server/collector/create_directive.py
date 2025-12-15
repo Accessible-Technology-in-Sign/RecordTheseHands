@@ -216,7 +216,9 @@ def statistics(username, filename, output_filename):
   prompts = get_in_collection(user, 'data/prompts/active')
   if prompts:
     statistics['promptsPath'] = prompts['data'].get('path')
-  version_constraints = get_in_collection(user, 'data/prompts/version_constraints')
+  version_constraints = get_in_collection(
+      user, 'data/prompts/version_constraints'
+  )
   if version_constraints:
     statistics['versionConstraints'] = version_constraints['data']
 
@@ -230,14 +232,16 @@ def statistics(username, filename, output_filename):
       end = datetime.datetime.fromisoformat(data['endTimestamp'])
       duration = (end - start).total_seconds()
       section_name = data['sectionName']
-      # TODO: track bad prompts, track duplicate prompts, and track total
-      # prompts answered.
+      # TODO(mgeorg): track bad prompts, track duplicate prompts, and track
+      # total prompts answered.
       valid_str = 'valid' if data.get('valid') else 'invalid'
       if data.get('isSkipExplanation', False) == True:
         clip_stats['all'][f'num_{valid_str}_skip_explanation'] += 1
         clip_stats['all'][f'duration_{valid_str}_skip_explanation'] += duration
         clip_stats[section_name][f'num_{valid_str}_skip_explanation'] += 1
-        clip_stats[section_name][f'duration_{valid_str}_skip_explanation'] += duration
+        clip_stats[section_name][
+            f'duration_{valid_str}_skip_explanation'
+        ] += duration
       else:
         clip_stats['all'][f'num_{valid_str}_clips'] += 1
         clip_stats['all'][f'duration_{valid_str}_clips'] += duration
@@ -252,7 +256,9 @@ def statistics(username, filename, output_filename):
       num_valid_clips = stats.get('num_valid_skip_explanation')
       valid_duration = stats.get('duration_valid_skip_explanation')
       if num_valid_clips is not None and valid_duration is not None:
-        stats['average_skip_explanation_duration'] = valid_duration / num_valid_clips
+        stats['average_skip_explanation_duration'] = (
+            valid_duration / num_valid_clips
+        )
 
   clips = get_in_collection(user, 'data/save_clip')
   clip_stats = collections.defaultdict(lambda: collections.defaultdict(int))
@@ -260,7 +266,8 @@ def statistics(username, filename, output_filename):
 
   tutorial_clips = get_in_collection(user, 'tutorial_data/save_clip')
   tutorial_clip_stats = collections.defaultdict(
-      lambda: collections.defaultdict(int))
+      lambda: collections.defaultdict(int)
+  )
   fill_clip_stats(tutorial_clips, tutorial_clip_stats)
 
   # TODO(mgeorg): count 'HomeScreenActivity.onCreate' log messages
@@ -294,46 +301,65 @@ def statistics(username, filename, output_filename):
 
   tutorial_sessions = get_in_collection(user, 'tutorial_data/save_session')
   tutorial_session_stats = collections.defaultdict(
-      lambda: collections.defaultdict(int))
+      lambda: collections.defaultdict(int)
+  )
   fill_session_stats(tutorial_sessions, tutorial_session_stats)
 
   statistics['tutorial_clip_stats'] = dict(sorted(tutorial_clip_stats.items()))
-  statistics['tutorial_session_stats'] = dict(sorted(tutorial_session_stats.items()))
+  statistics['tutorial_session_stats'] = dict(
+      sorted(tutorial_session_stats.items())
+  )
   statistics['clip_stats'] = dict(sorted(clip_stats.items()))
   statistics['session_stats'] = dict(sorted(session_stats.items()))
 
   quick_summary = dict()
   quick_summary['username'] = username
   try:
-    quick_summary['num_valid_clips'] = statistics['clip_stats']['all']['num_valid_clips']
+    quick_summary['num_valid_clips'] = statistics['clip_stats']['all'][
+        'num_valid_clips'
+    ]
   except KeyError:
     pass
   try:
-    quick_summary['num_invalid_clips'] = statistics['clip_stats']['all']['num_invalid_clips']
+    quick_summary['num_invalid_clips'] = statistics['clip_stats']['all'][
+        'num_invalid_clips'
+    ]
   except KeyError:
     pass
   try:
-    quick_summary['num_bad_prompts'] = statistics['clip_stats']['all']['num_valid_skip_explanation']
+    quick_summary['num_bad_prompts'] = statistics['clip_stats']['all'][
+        'num_valid_skip_explanation'
+    ]
   except KeyError:
     pass
   try:
-    quick_summary['num_sessions'] = statistics['session_stats']['all']['num_sessions']
+    quick_summary['num_sessions'] = statistics['session_stats']['all'][
+        'num_sessions'
+    ]
   except KeyError:
     pass
   try:
-    quick_summary['duration_sessions'] = f'{round(statistics['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    quick_summary['duration_sessions'] = (
+        f'{round(statistics['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    )
   except KeyError:
     pass
   try:
-    quick_summary['duration_clips'] = f'{round(statistics['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    quick_summary['duration_clips'] = (
+        f'{round(statistics['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    )
   except KeyError:
     pass
   try:
-    quick_summary['tutorial_duration_sessions'] = f'{round(statistics['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    quick_summary['tutorial_duration_sessions'] = (
+        f'{round(statistics['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    )
   except KeyError:
     pass
   try:
-    quick_summary['tutorial_duration_clips'] = f'{round(statistics['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    quick_summary['tutorial_duration_clips'] = (
+        f'{round(statistics['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    )
   except KeyError:
     pass
 
