@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""Example configuration file."""
+
 DEV_PROJECT = 'my-project-dev'
 PROD_PROJECT = 'my-project'
 

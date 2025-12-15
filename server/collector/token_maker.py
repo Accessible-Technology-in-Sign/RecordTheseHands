@@ -24,18 +24,7 @@
 Run the file directly in order to create a login token.
 """
 
-import base64
-import copy
-import datetime
-import functools
 import hashlib
-import io
-import json
-import mimetypes
-import os
-import pathlib
-import re
-import urllib.request
 
 
 def get_login_hash(username, login_token):
@@ -71,15 +60,13 @@ def get_login_hash(username, login_token):
 
 def make_token(username, password):
   login_token = f'{username}:{password}'
-  for i in range(1000):
+  for _ in range(1000):
     login_token = get_login_hash(username, login_token)
   login_hash = get_login_hash(username, login_token)
   return (login_token, login_hash)
 
 
-if __name__ == '__main__':
-  import getpass
-
+def main():
   username = input('username: ')
   if not username:
     username = 'admin'
@@ -100,3 +87,9 @@ key "admin_token_hash" in the secret manager.
 Make sure to include the "admin:" portion of the login_hash.
 """
   )
+
+
+if __name__ == '__main__':
+  import getpass  # pylint: disable=g-import-not-at-top
+
+  main()

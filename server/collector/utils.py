@@ -1,3 +1,5 @@
+"""Utility functions for video processing and file handling."""
+
 import hashlib
 import subprocess
 
@@ -14,7 +16,7 @@ def run_ffmpeg(command_args, capture_output=True, check=True, text=True):
     return result
   except subprocess.CalledProcessError as e:
     print(f'ffmpeg process error: {e}')
-  except Exception as e:
+  except Exception as e:  # pylint: disable=broad-exception-caught
     print(f'Unexpected error running ffmpeg: {e}')
 
 
@@ -30,7 +32,7 @@ def run_ffprobe(command_args, capture_output=True, check=True, text=True):
     return result
   except subprocess.CalledProcessError as e:
     print(f'ffprobe process error: {e}')
-  except Exception as e:
+  except Exception as e:  # pylint: disable=broad-exception-caught
     print(f'Unexpected error running ffprobe: {e}')
 
 

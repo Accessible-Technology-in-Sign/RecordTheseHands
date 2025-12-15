@@ -62,7 +62,7 @@ def main() -> int:
 
   if args.output_json.exists() and not args.force:
     logging.error(
-        f'Refusing to overwrite {args.output_json}. Use --force to overwrite.'
+        'Refusing to overwrite %s. Use --force to overwrite.', args.output_json
     )
     return 1
 
@@ -74,7 +74,7 @@ def main() -> int:
     with open(args.base_json, 'r') as f:
       base = json.load(f)
   except (json.JSONDecodeError, IOError) as e:
-    logging.error(f'Error reading input files: {e}')
+    logging.error('Error reading input files: %s', e)
     return 1
 
   # Merge overview instructions.
@@ -100,7 +100,7 @@ def main() -> int:
           if 'metadata' not in section:
             section['metadata'] = {}
           section['metadata']['instructions'] = overview_instructions
-          logging.info(f'Applied instructions for section: {section_name}')
+          logging.info('Applied instructions for section: %s', section_name)
 
   # Merge tutorial prompts.
   for section_name, section in base.get('data', {}).items():
@@ -108,15 +108,15 @@ def main() -> int:
     if not tutorial_section:
       continue
     section['tutorial'] = tutorial_section
-    logging.info(f'Applied tutorial prompts for section: {section_name}')
+    logging.info('Applied tutorial prompts for section: %s', section_name)
 
   try:
     with open(args.output_json, 'w') as f:
       json.dump(base, f, indent=2)
       f.write('\n')
-    logging.info(f'Successfully wrote to {args.output_json}')
+    logging.info('Successfully wrote to %s', args.output_json)
   except IOError as e:
-    logging.error(f'Error writing output file: {e}')
+    logging.error('Error writing output file: %s', e)
     return 1
 
   return 0

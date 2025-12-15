@@ -1,3 +1,5 @@
+"""Constants for the application."""
+
 # Copyright 2023 Google LLC
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,16 +23,17 @@
 import re
 
 # Match these accounts
-_MATCH_USERS = re.compile(r'^dqp\d{2}$')
+MATCH_USERS = re.compile(r'^dqp\d{2}$')
 
 # stem name of the output video files
-_VIDEO_DUMP_ID = 'video_dump'
+VIDEO_DUMP_ID = 'video_dump'
 
 # stem name of the output files (json and csv).
-_METADATA_DUMP_ID = 'metadata_dump'
+METADATA_DUMP_ID = 'metadata_dump'
 
 # stem name of the output video clips
-_CLIP_DUMP_ID = 'clip_dump'
+CLIP_DUMP_ID = 'clip_dump'
 
-# The edge safety buffer is the amount of time to be added to start and end of clips
+# The edge safety buffer is the amount of time to be added to start and
+# end of clips
 VIDEO_EDGE_SAFETY_BUFFER = 0.5

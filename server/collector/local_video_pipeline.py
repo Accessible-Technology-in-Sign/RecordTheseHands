@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""A local video processing pipeline for downloading, clipping, and dumping video metadata."""
+
 import argparse
 import clip_video
 import download_videos

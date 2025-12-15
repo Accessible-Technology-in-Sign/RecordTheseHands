@@ -92,7 +92,7 @@ class User(flask_login.UserMixin):
 @login_manager.user_loader
 def user_loader(username):
   """Load the user given an id."""
-  logging.debug(f'user_loader {username!r}')
+  logging.debug('user_loader %r', username)
   if not username:
     return None
   db = firestore.Client()
@@ -110,7 +110,7 @@ def user_loader(username):
 @login_manager.request_loader
 def request_loader(request):
   """Load a request, possibly logging the user in."""
-  logging.debug(f'request_loader {request!r}')
+  logging.debug('request_loader %r', request)
   login_token = request.values.get('login_token')
   if not login_token:
     return None
@@ -310,7 +310,6 @@ def home_page():
   if flask_login.current_user.is_authenticated:
     return flask.render_template('index.html')
 
-  logging.info(f'flask.request.method == {flask.request.method!r}')
   # If we're using POST and get this far, then the password was incorrect.
   incorrect_password = flask.request.method != 'GET'
 

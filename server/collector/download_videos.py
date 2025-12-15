@@ -19,23 +19,20 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Script to download videos from the Google Cloud Storage Bucket"""
+"""Script to download videos from the Google Cloud Storage Bucket."""
 
+import os
 import warnings
+
+import constants
+import google.api_core.exceptions
+from google.cloud import firestore
+from google.cloud import storage
+from utils import compute_md5
 
 warnings.filterwarnings(
     'ignore', category=UserWarning, message='.*transfer_manager.*'
 )
-
-import os
-import re
-
-import google.api_core.exceptions
-from google.cloud.storage import Client, transfer_manager
-from google.cloud import firestore
-from utils import compute_md5
-
-from constants import _MATCH_USERS, _VIDEO_DUMP_ID
 
 # Static globals.
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
@@ -52,20 +49,23 @@ def get_video_metadata(db, username):
   for doc_data in c_ref.stream():
     if doc_data.id.startswith(username):
       doc_dict = doc_data.to_dict()
-      hash = doc_dict.get('md5')
+      file_hash = doc_dict.get('md5')
       path = doc_dict.get('path')
 
-      if not hash or not path:
+      if not file_hash or not path:
         print(f'Skipping invalid data under {doc_data.id}')
         continue
 
       path = f'upload/{username}/{path}'
 
-      if os.path.exists(f'{_VIDEO_DUMP_ID}/{path}'):
-        print(f'Skipping already downloaded file: {_VIDEO_DUMP_ID}/{path}')
+      if os.path.exists(f'{constants.VIDEO_DUMP_ID}/{path}'):
+        print(
+            f'Skipping already downloaded file: '
+            f'{constants.VIDEO_DUMP_ID}/{path}'
+        )
         continue
 
-      hashes.append(hash)
+      hashes.append(file_hash)
       paths.append(path)
 
   return hashes, paths
@@ -75,10 +75,10 @@ def download_all_videos(
     bucket_name, blob_names, destination_directory='', workers=8
 ):
   """Download blobs in a list by name, concurrently in a process pool."""
-  storage_client = Client()
+  storage_client = storage.Client()
   bucket = storage_client.bucket(bucket_name)
 
-  results = transfer_manager.download_many_to_path(
+  results = storage.transfer_manager.download_many_to_path(
       bucket,
       blob_names,
       destination_directory=destination_directory,
@@ -94,9 +94,9 @@ def download_all_videos(
 
 def clean():
   """Remove all the videos."""
-  if os.path.exists(_VIDEO_DUMP_ID):
-    os.system(f'rm -rf {_VIDEO_DUMP_ID}')
-  print(f'Removed {_VIDEO_DUMP_ID}')
+  if os.path.exists(constants.VIDEO_DUMP_ID):
+    os.system(f'rm -rf {constants.VIDEO_DUMP_ID}')
+  print(f'Removed {constants.VIDEO_DUMP_ID}')
 
 
 def main():
@@ -106,7 +106,7 @@ def main():
   all_hashes = []
   all_paths = []
   for c_ref in doc_ref.collections():
-    m = _MATCH_USERS.match(c_ref.id)
+    m = constants.MATCH_USERS.match(c_ref.id)
     if not m:
       continue
     retry = True
@@ -123,13 +123,13 @@ def main():
         retry = True
 
   print(f'\nStarting download for {len(all_paths)} videos')
-  download_all_videos(BUCKET_NAME, all_paths, f'{_VIDEO_DUMP_ID}/')
+  download_all_videos(BUCKET_NAME, all_paths, f'{constants.VIDEO_DUMP_ID}/')
   print('Done downloading videos')
 
   print('\nValidating videos')
-  for hash, path in zip(all_hashes, all_paths):
-    file_path = f'{_VIDEO_DUMP_ID}/{path}'
-    if compute_md5(file_path) != hash:
+  for file_hash, path in zip(all_hashes, all_paths):
+    file_path = f'{constants.VIDEO_DUMP_ID}/{path}'
+    if compute_md5(file_path) != file_hash:
       print(f'File {file_path} failed validation')
       os.remove(file_path)
       print(f'Deleted {file_path}')

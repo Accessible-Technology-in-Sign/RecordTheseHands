@@ -29,7 +29,7 @@ completed clips to the cloud.  There is currently no equivalent script
 in this project.
 """
 
-from collections import defaultdict
+import collections
 import concurrent.futures
 import csv
 import datetime
@@ -38,7 +38,7 @@ import os
 import pathlib
 import re
 
-from constants import VIDEO_EDGE_SAFETY_BUFFER, _CLIP_DUMP_ID, _METADATA_DUMP_ID, _VIDEO_DUMP_ID
+import constants
 import utils
 
 PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
@@ -46,8 +46,6 @@ assert PROJECT_ID, 'must specify the environment variable GOOGLE_CLOUD_PROJECT'
 
 BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
-
-VIDEO_EDGE_SAFETY_BUFFER = 0.5
 
 
 def ffprobe_packet_info(video):
@@ -129,6 +127,7 @@ def make_clip(
       zero, despite pts_time values to the contrary).
     output_filename: The name of the file to write to (overwriting anything that
       was there).
+    verbose: If true, print verbose logging.
 
   Returns:
     A clip_spec describing the created video.
@@ -281,18 +280,20 @@ def make_clip(
 
 
 def make_clips(
-    video_directory=f'{_VIDEO_DUMP_ID}/upload',
-    dump_csv=f'{_METADATA_DUMP_ID}.csv',
-    user_buffers={},
+    video_directory=f'{constants.VIDEO_DUMP_ID}/upload',
+    dump_csv=f'{constants.METADATA_DUMP_ID}.csv',
+    user_buffers=None,
 ):
   """Make clips from all the videos in the video directory."""
+  if user_buffers is None:
+    user_buffers = {}
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
-  output_dir = pathlib.Path(_CLIP_DUMP_ID)
+  output_dir = pathlib.Path(constants.CLIP_DUMP_ID)
 
   os.makedirs(output_dir, exist_ok=True)
 
-  clip_data = defaultdict(list)
+  clip_data = collections.defaultdict(list)
   clips = []
 
   with dump_csv.open('r', encoding='utf-8') as f:
@@ -313,8 +314,10 @@ def make_clips(
     packet_info = ffprobe_packet_info(str(video))
     tasks = []
     buffers = user_buffers.get(user_id, {})
-    safety_buffer_start = buffers.get('start', VIDEO_EDGE_SAFETY_BUFFER)
-    safety_buffer_end = buffers.get('end', VIDEO_EDGE_SAFETY_BUFFER)
+    safety_buffer_start = buffers.get(
+        'start', constants.VIDEO_EDGE_SAFETY_BUFFER
+    )
+    safety_buffer_end = buffers.get('end', constants.VIDEO_EDGE_SAFETY_BUFFER)
     for start_time, end_time in clip_times:
       start_time_adjusted = max(
           start_time - safety_buffer_start, 0
@@ -343,7 +346,7 @@ def make_clips(
 
       try:
         clips.append(future.result())
-      except Exception as e:
+      except Exception as e:  # pylint: disable=broad-exception-caught
         print(f'Error processing clip {task}: {e}')
 
   with output_dir.joinpath('clips.json').open('w', encoding='utf-8') as f:
@@ -352,10 +355,10 @@ def make_clips(
 
 def clean():
   """Remove all the clips."""
-  if os.path.exists(_CLIP_DUMP_ID):
-    os.system(f'rm -rf {_CLIP_DUMP_ID}')
+  if os.path.exists(constants.CLIP_DUMP_ID):
+    os.system(f'rm -rf {constants.CLIP_DUMP_ID}')
 
-  print(f'Removed {_CLIP_DUMP_ID}')
+  print(f'Removed {constants.CLIP_DUMP_ID}')
 
 
 def main(buffer_config=None):

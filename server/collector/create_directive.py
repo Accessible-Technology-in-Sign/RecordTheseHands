@@ -128,18 +128,18 @@ def write_collection_to_firestore(prefix, data):
         write_collection_to_firestore(f'{doc_id}/{collection_id}', collection)
 
 
-def get_document_in_collection(collection, doc_id):
-  for entry in collection:
-    if entry['id'] == 'doc_id':
-      return entry
-  return None
-
-
 def get_in_collection(collection, path):
   """Use a path to get something in a collection.
 
   If the path has an odd number of parts it is a document,
   if even then it is a collection.
+
+  Args:
+    collection: The collection object.
+    path: The path to retrieve.
+
+  Returns:
+    The object at the path, or None.
   """
   path_parts = path.split('/')
   current = collection
@@ -167,6 +167,13 @@ def get_in_document(document, path):
 
   If the path has an even number of parts it is a document,
   if odd then it is a collection.
+
+  Args:
+    document: The document object.
+    path: The path to retrieve.
+
+  Returns:
+    The object at the path, or None.
   """
   if not path:
     return None
@@ -182,7 +189,16 @@ def get_in_document(document, path):
 
 
 def statistics(username, filename, output_filename=None):
-  """compute statistics based on database or user dump."""
+  """compute statistics based on database or user dump.
+
+  Args:
+    username: The username to compute statistics for.
+    filename: The filename of the dump.
+    output_filename: The filename to write the statistics to.
+
+  Returns:
+    The statistics dictionary or None if user not found.
+  """
   with open(filename, 'r') as f:
     data = json.loads(f.read())
   user = None
@@ -196,31 +212,31 @@ def statistics(username, filename, output_filename=None):
   if not user:
     return None
 
-  statistics = dict()
+  user_stats = dict()
   files = get_in_collection(user, 'data/file')
   for doc in files:
     assert 'data' in doc
     path = doc['data'].get('path')
-    if 'path' not in statistics:
-      statistics['path'] = list()
-    statistics['path'].append(path)
+    if 'path' not in user_stats:
+      user_stats['path'] = list()
+    user_stats['path'].append(path)
   heartbeat = get_in_collection(user, 'data/heartbeat/latest')
   if heartbeat:
-    statistics['heartbeat'] = heartbeat['data']['timestamp']
+    user_stats['heartbeat'] = heartbeat['data']['timestamp']
   max_prompt = get_in_collection(user, 'data/heartbeat/max_prompt')
   if max_prompt:
     if 'maxPrompt' in max_prompt['data']:
       max_prompt['data']['all'] = max_prompt['data']['maxPrompt']
       max_prompt['data'].pop('maxPrompt')
-    statistics['progress'] = max_prompt['data']
+    user_stats['progress'] = max_prompt['data']
   prompts = get_in_collection(user, 'data/prompts/active')
   if prompts:
-    statistics['promptsPath'] = prompts['data'].get('path')
+    user_stats['promptsPath'] = prompts['data'].get('path')
   version_constraints = get_in_collection(
       user, 'data/prompts/version_constraints'
   )
   if version_constraints:
-    statistics['versionConstraints'] = version_constraints['data']
+    user_stats['versionConstraints'] = version_constraints['data']
 
   def fill_clip_stats(clips, clip_stats):
     if not clips:
@@ -235,7 +251,7 @@ def statistics(username, filename, output_filename=None):
       # TODO(mgeorg): track bad prompts, track duplicate prompts, and track
       # total prompts answered.
       valid_str = 'valid' if data.get('valid') else 'invalid'
-      if data.get('isSkipExplanation', False) == True:
+      if data.get('isSkipExplanation', False):
         clip_stats['all'][f'num_{valid_str}_skip_explanation'] += 1
         clip_stats['all'][f'duration_{valid_str}_skip_explanation'] += duration
         clip_stats[section_name][f'num_{valid_str}_skip_explanation'] += 1
@@ -273,8 +289,6 @@ def statistics(username, filename, output_filename=None):
   # TODO(mgeorg): count 'HomeScreenActivity.onCreate' log messages
   # (remember they might be in tutorial mode or regular mode).
 
-  total_duration_in_video = 0.0
-
   def fill_session_stats(sessions, session_stats):
     if not sessions:
       return
@@ -293,9 +307,9 @@ def statistics(username, filename, output_filename=None):
   sessions = get_in_collection(user, 'data/save_session')
   session_stats = collections.defaultdict(lambda: collections.defaultdict(int))
   fill_session_stats(sessions, session_stats)
-  if 'progress' in statistics:
+  if 'progress' in user_stats:
     for section_name, stats in session_stats.items():
-      progress = statistics['progress'].get(section_name)
+      progress = user_stats['progress'].get(section_name)
       if progress:
         stats['progress'] = progress
 
@@ -305,70 +319,70 @@ def statistics(username, filename, output_filename=None):
   )
   fill_session_stats(tutorial_sessions, tutorial_session_stats)
 
-  statistics['tutorial_clip_stats'] = dict(sorted(tutorial_clip_stats.items()))
-  statistics['tutorial_session_stats'] = dict(
+  user_stats['tutorial_clip_stats'] = dict(sorted(tutorial_clip_stats.items()))
+  user_stats['tutorial_session_stats'] = dict(
       sorted(tutorial_session_stats.items())
   )
-  statistics['clip_stats'] = dict(sorted(clip_stats.items()))
-  statistics['session_stats'] = dict(sorted(session_stats.items()))
+  user_stats['clip_stats'] = dict(sorted(clip_stats.items()))
+  user_stats['session_stats'] = dict(sorted(session_stats.items()))
 
   quick_summary = dict()
   quick_summary['username'] = username
   try:
-    quick_summary['num_valid_clips'] = statistics['clip_stats']['all'][
+    quick_summary['num_valid_clips'] = user_stats['clip_stats']['all'][
         'num_valid_clips'
     ]
   except KeyError:
     pass
   try:
-    quick_summary['num_invalid_clips'] = statistics['clip_stats']['all'][
+    quick_summary['num_invalid_clips'] = user_stats['clip_stats']['all'][
         'num_invalid_clips'
     ]
   except KeyError:
     pass
   try:
-    quick_summary['num_bad_prompts'] = statistics['clip_stats']['all'][
+    quick_summary['num_bad_prompts'] = user_stats['clip_stats']['all'][
         'num_valid_skip_explanation'
     ]
   except KeyError:
     pass
   try:
-    quick_summary['num_sessions'] = statistics['session_stats']['all'][
+    quick_summary['num_sessions'] = user_stats['session_stats']['all'][
         'num_sessions'
     ]
   except KeyError:
     pass
   try:
     quick_summary['duration_sessions'] = (
-        f'{round(statistics['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+        f'{round(user_stats['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
     )
   except KeyError:
     pass
   try:
     quick_summary['duration_clips'] = (
-        f'{round(statistics['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+        f'{round(user_stats['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
     )
   except KeyError:
     pass
   try:
     quick_summary['tutorial_duration_sessions'] = (
-        f'{round(statistics['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+        f'{round(user_stats['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
     )
   except KeyError:
     pass
   try:
     quick_summary['tutorial_duration_clips'] = (
-        f'{round(statistics['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+        f'{round(user_stats['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
     )
   except KeyError:
     pass
 
-  statistics['summary'] = quick_summary
+  user_stats['summary'] = quick_summary
 
-  print(json.dumps(statistics, indent=2))
+  print(json.dumps(user_stats, indent=2))
   if output_filename and output_filename != filename:
     with open(output_filename, 'w') as f:
-      f.write(json.dumps(statistics, indent=2))
+      f.write(json.dumps(user_stats, indent=2))
       f.write('\n')
 
 
