@@ -116,6 +116,8 @@
     <string name="set_username_button">Set Username</string>
     <string name="download_apk_button">Download APK</string>
     <string name="disable_dismiss_circle_button">Disable Dismiss Circle</string>
+    <string name="enable_dismiss_circle_button">Enable Dismiss Circle</string>
+
     <string name="ok_button">OK</string>
     <string name="remove_device_warning">Remove previous device from this username (DANGEROUS)</string>
     <string name="reset_overview_instructions">Reset Overview Instructions</string>

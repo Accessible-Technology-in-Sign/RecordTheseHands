@@ -131,9 +131,9 @@ class AdminActivity : ComponentActivity() {
           intent.data = apkUrl.toUri()
           startActivity(intent)
         },
-        onDisableDismissCountdownCircle = {
+        onSetDismissCountdownCircle = { enabled ->
           lifecycleScope.launch(Dispatchers.IO) {
-            dataManager.setEnableDismissCountdownCircle(false)
+            dataManager.setEnableDismissCountdownCircle(enabled)
           }
         },
         onResetOverviewInstructions = {
@@ -166,7 +166,7 @@ fun AdminScreenContent(
   onSetDeviceId: (String) -> Unit,
   onAttachToAccount: (Boolean) -> Unit,
   onDownloadApk: () -> Unit,
-  onDisableDismissCountdownCircle: () -> Unit,
+  onSetDismissCountdownCircle: (Boolean) -> Unit,
   onResetOverviewInstructions: () -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
@@ -181,6 +181,7 @@ fun AdminScreenContent(
   var showRemoveDeviceCheckbox by remember { mutableStateOf(false) }
   var removePreviousDeviceChecked by remember { mutableStateOf(false) }
   var numTitleClicks by remember { mutableStateOf(0) }
+  var showHiddenSettings by remember { mutableStateOf(false) }
   val scope = rememberCoroutineScope()
 
   LaunchedEffect(Unit) {
@@ -250,9 +251,7 @@ fun AdminScreenContent(
           numTitleClicks++
           if (numTitleClicks == 5) {
             numTitleClicks = 0
-            scope.launch(Dispatchers.IO) {
-              dataManager.setEnableDismissCountdownCircle(true)
-            }
+            showHiddenSettings = !showHiddenSettings
           }
         }
     )
@@ -300,30 +299,32 @@ fun AdminScreenContent(
         )
       }
       // Device ID Section
-      if (isTablet) {
-        Row(
-          modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          deviceIdWithCurrentText()
-          newDeviceIdTextField()
-        }
-        setDeviceIdButton()
-      } else {
-        Row(
-          modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
+      if (showHiddenSettings) {
+        if (isTablet) {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            deviceIdWithCurrentText()
+            newDeviceIdTextField()
+          }
           setDeviceIdButton()
-          deviceIdWithCurrentText()
-        }
-        Row(
-          modifier = Modifier.padding(top = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          newDeviceIdTextField()
+        } else {
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            setDeviceIdButton()
+            deviceIdWithCurrentText()
+          }
+          Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            newDeviceIdTextField()
+          }
         }
       }
       // Attach to Account Section
@@ -483,16 +484,19 @@ fun AdminScreenContent(
       text = stringResource(R.string.download_apk_button)
     )
 
-    val showDisableDismissCountdownCircleButton =
-      userSettings?.enableDismissCountdownCircle ?: false
-    if (showDisableDismissCountdownCircleButton) {
+    if (showHiddenSettings) {
+      val isDismissCountdownCircleEnabled = userSettings?.enableDismissCountdownCircle ?: false
       SecondaryButton(
-        onClick = onDisableDismissCountdownCircle,
+        onClick = { onSetDismissCountdownCircle(!isDismissCountdownCircleEnabled) },
         modifier = Modifier.constrainAs(disableDismissCountdownCircleButton) {
           bottom.linkTo(downloadButton.top, margin = 48.dp)
           start.linkTo(downloadButton.start)
         },
-        text = stringResource(R.string.disable_dismiss_circle_button)
+        text = if (isDismissCountdownCircleEnabled) {
+          stringResource(R.string.disable_dismiss_circle_button)
+        } else {
+          stringResource(R.string.enable_dismiss_circle_button)
+        }
       )
     }
 
@@ -500,7 +504,7 @@ fun AdminScreenContent(
       SecondaryButton(
         onClick = onResetOverviewInstructions,
         modifier = Modifier.constrainAs(resetOverviewInstructionsButton) {
-          if (showDisableDismissCountdownCircleButton) {
+          if (showHiddenSettings) {
             bottom.linkTo(disableDismissCountdownCircleButton.top, margin = 16.dp)
             start.linkTo(disableDismissCountdownCircleButton.start)
           } else {
