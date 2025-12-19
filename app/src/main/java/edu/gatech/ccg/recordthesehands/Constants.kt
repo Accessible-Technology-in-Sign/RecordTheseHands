@@ -27,7 +27,7 @@ object Constants {
   /**
    * The app version (used in server communications).
    */
-  const val APP_VERSION = "2.3.10"
+  const val APP_VERSION = "2.3.11"
 
   /**
    * The size, in inches, at which we should consider the user's device a tablet.

@@ -12,8 +12,8 @@ android {
         applicationId "edu.gatech.ccg.recordthesehands"
         minSdkVersion 31
         targetSdkVersion 36
-        versionCode 9
-        versionName "2.3.10"
+        versionCode 10
+        versionName "2.3.11"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
