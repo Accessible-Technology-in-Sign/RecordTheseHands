@@ -868,6 +868,7 @@ def video_page():
 def register_login():
   """Create an authentication token for login."""
   device_id = flask.request.values.get('device_id', '').strip()
+  android_id = flask.request.values.get('android_id', '')
   login_token = flask.request.values.get('login_token', '')
   admin_token = flask.request.values.get('admin_token', '')
   allow_webapp_access = flask.request.values.get(
@@ -940,7 +941,14 @@ def register_login():
   }
   if device_id:
     data['device_id'] = device_id
+  if android_id:
+    data['android_id'] = android_id
   db.document(f'collector/users/{username}/login_hash').set(data)
+
+  if device_id:
+    db.document(f'collector/users/{username}/login_hash/all/{device_id}').set(
+        data
+    )
 
   return flask.render_template(
       'success.html', message=f'User {username} successfully created.'

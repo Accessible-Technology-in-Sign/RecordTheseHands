@@ -27,6 +27,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.net.ConnectivityManager
+import android.provider.Settings
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -1340,12 +1341,16 @@ class DataManager private constructor(val context: Context) {
 
       val url = URL(getServer() + "/register_login")
       Log.d(TAG, "Registering login at $url")
+      val android_id = Settings.Secure.getString(
+        context.contentResolver, Settings.Secure.ANDROID_ID
+      ) ?: "<unknown>"
       val (code, responseText) =
         serverFormPostRequest(
           url,
           mapOf(
             "app_version" to APP_VERSION,
             "device_id" to getDeviceIdUnderLock(),
+            "android_id" to android_id,
             "admin_token" to adminToken,
             "login_token" to newLoginToken,
             "must_have_prompts_file" to "true",
