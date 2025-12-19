@@ -28,6 +28,7 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import java.security.SecureRandom
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -167,4 +168,24 @@ fun hapticFeedbackOnTouchListener(view: View, event: MotionEvent): Boolean {
 fun thisDeviceIsATablet(context: Context): Boolean {
   val configuration = context.resources.configuration
   return configuration.smallestScreenWidthDp >= 600
+}
+
+fun generateUnambiguousHex(numBytes: Int): String {
+  var candidate = SecureRandom().generateSeed(numBytes).toHexString()
+  Log.d("generateDeviceId", "Generated deviceId first try: ${candidate}")
+  if (numBytes <= 0) {
+    return ""
+  }
+  if (numBytes > 1) {
+    while (!Regex("^[a-f][0-9a-f]*[0-9][0-9a-f]*[a-f]$").matches(candidate)) {
+      candidate = SecureRandom().generateSeed(numBytes).toHexString()
+      Log.d("generateDeviceId", "Generated deviceId: ${candidate}")
+    }
+  } else {
+    while (!Regex("^[a-f][0-9]$").matches(candidate)) {
+      candidate = SecureRandom().generateSeed(numBytes).toHexString()
+      Log.d("generateDeviceId", "Generated deviceId: ${candidate}")
+    }
+  }
+  return candidate
 }

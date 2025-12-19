@@ -42,6 +42,7 @@ import edu.gatech.ccg.recordthesehands.Constants.PROMPTS_FILENAME
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_CHANNEL_ID
 import edu.gatech.ccg.recordthesehands.Constants.UPLOAD_NOTIFICATION_ID
 import edu.gatech.ccg.recordthesehands.R
+import edu.gatech.ccg.recordthesehands.generateUnambiguousHex
 import edu.gatech.ccg.recordthesehands.padZeroes
 import edu.gatech.ccg.recordthesehands.recording.ClipDetails
 import edu.gatech.ccg.recordthesehands.recording.RecordingSessionInfo
@@ -250,7 +251,12 @@ class DataManager private constructor(val context: Context) {
     val deviceIdKey = stringPreferencesKey("deviceId")
     var deviceId = context.prefStore.data.map { it[deviceIdKey] }.firstOrNull()
     if (deviceId == null) {
-      deviceId = SecureRandom().generateSeed(4).toHexString()
+      // Do not use the ANDROID_ID here, we want this to change if the app is
+      // reinstalled.  More specifically, we need this to change if the session id
+      // index is reset (as happens when the prefStore is deleted on uninstall).
+      // If the same id is used with the same session id, then vital data will be
+      // overwritten in firestore.
+      deviceId = generateUnambiguousHex(4)
       context.prefStore.edit { preferences ->
         preferences[deviceIdKey] = deviceId
       }
@@ -1939,8 +1945,7 @@ class DataManager private constructor(val context: Context) {
    * include operations like changing users, updating the APK, reloading prompts, or deleting
    * files.
    *
-   * This function does not acquire the data lock itself, but the directives it executes
-   * (via [executeDirective]) may acquire the lock. It performs a network request and
+   * This function assumes the data lock is acquired. It performs a network request and
    * potentially many other blocking operations depending on the directives received.
    *
    * @return `true` if all directives were fetched and executed successfully, `false` otherwise.
@@ -1964,7 +1969,8 @@ class DataManager private constructor(val context: Context) {
       url,
       mapOf(
         "app_version" to APP_VERSION,
-        "login_token" to dataManagerData.loginToken!!
+        "login_token" to dataManagerData.loginToken!!,
+        "device_id" to getDeviceIdUnderLock()
       )
     )
     if (code >= 200 && code < 300) {

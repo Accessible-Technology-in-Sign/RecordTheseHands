@@ -1073,6 +1073,8 @@ def directives_page():
   if not is_valid_login:
     return 'login_token invalid', 401
 
+  device_id = flask.request.values.get('device_id', '<unknown>').strip()
+
   assert username
 
   logging.info('/directives %s', username)
@@ -1117,6 +1119,7 @@ def directives_page():
       {
           'appVersion': app_version,
           'timestamp': timestamp,
+          'deviceId': device_id,
       }
   )
 
