@@ -1,3 +1,27 @@
+# Release Notes - v2.3.11
+
+## Android Application
+
+**Technical Changes**
+
+- **Device ID Generation:** Implemented a more robust, unambiguous hex generator
+  for internal device IDs.
+- **Admin Interface:** Hidden advanced settings (Device ID configuration,
+  "Dismiss Circle" toggle) by default. They can be revealed by tapping the
+  "Admin Interface" title 5 times.
+- **Server Communication:** The app now securely reports the `ANDROID_ID` to the
+  server during login.
+
+## Server
+
+**Improvements**
+
+- **Device Tracking:**
+  - The `/register_login` endpoint now stores the `android_id` and maintains a
+    history of logins per device in a new `all/{device_id}` sub-collection.
+  - The `/directives` endpoint now logs the requesting `device_id` in the user's
+    heartbeat data.
+
 # Release Notes - v2.3.10
 
 ## Server
