@@ -66,10 +66,19 @@ def make_token(username, password):
   return (login_token, login_hash)
 
 
+def login_token_to_login_hash(login_token):
+  username, _ = login_token.split(':', 1)
+  return get_login_hash(username, login_token)
+
+
 def main():
-  username = input('username: ')
+  username = input('username (or login_token): ')
   if not username:
     username = 'admin'
+  if ':' in username:
+    login_hash = login_token_to_login_hash(username)
+    print(f'Assuming this was a login_token, the login_hash is\n{login_hash}')
+    return
   password = getpass.getpass()
   assert password == password.strip(), 'password has surrounding white space.'
 
