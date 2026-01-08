@@ -299,7 +299,6 @@ def get_upload_link(object_name):
 @app.route('/', methods=['GET', 'POST'])
 def home_page():
   """The homepage."""
-  logging.info('home_page')
   if not flask_login.current_user.is_authenticated:
     # Due to a bug in flask-login, the request_loader isn't called
     # when an invalid remember_token cookie is present.  Just call
@@ -307,8 +306,14 @@ def home_page():
     # Bug fix: https://github.com/maxcountryman/flask-login/pull/901
     request_loader(flask.request)
 
+  logging.info('home_page')
+
   if flask_login.current_user.is_authenticated:
+    request_username = flask_login.current_user.id
+    logging.info('home_page [logged in as %r]', request_username)
     return flask.render_template('index.html')
+
+  logging.info('home_page [not logged in]')
 
   # If we're using POST and get this far, then the password was incorrect.
   incorrect_password = flask.request.method != 'GET'
@@ -383,7 +388,7 @@ def check_version_page():
         max_version_length - len(max_version_parts)
     )
     logging.info(
-        'checking app_version_parts > max_version_parts which is %s',
+        'checking app_version_parts > max_version_parts which is %r',
         app_version_parts > max_version_parts,
     )
     if app_version_parts > max_version_parts:
@@ -420,7 +425,7 @@ def apk_page():
   if not latest_apk_blob:
     return 'No valid APK file found in the storage bucket.', 404
 
-  print(f'Found apk file: {latest_apk_blob.name}')
+  logging.info('Found apk file: %r', latest_apk_blob.name)
 
   latest_apk_filename = os.path.basename(latest_apk_blob.name)
   query_parameters = {
@@ -443,7 +448,7 @@ def resource_page():
 
   path = flask.request.values.get('path', '')
 
-  logging.info('/resource username=%s path=%r', username, path)
+  logging.info('/resource username=%r path=%r', username, path)
 
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
@@ -465,6 +470,9 @@ def prompts_page():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error(
+        '/prompts %s [login failed for token %r]', username, login_token
+    )
     return 'login_token invalid', 401
 
   assert username
@@ -475,10 +483,12 @@ def prompts_page():
   doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
   doc_data = doc_ref.get()
   if not doc_data.exists:
+    logging.error('/prompts %s [no prompts found]', username)
     return (f'no prompts found for user {username}'), 404
   doc_dict = doc_data.to_dict()
   path = doc_dict.get('path')
   if not path:
+    logging.error('/prompts %s [prompt file not found]', username)
     return (f'prompt file not found for user {username}'), 404
 
   timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -505,28 +515,46 @@ def upload():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error(
+        '/upload %s [login failed for token %r]', username, login_token
+    )
     return 'login_token invalid', 401
   app_version = flask.request.values.get('app_version', 'unknown')
 
   assert username
-
   logging.info('/upload %s', username)
 
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
+    logging.error(
+        '/upload %s [path had weird characters in it or too much depth %r]',
+        username,
+        path,
+    )
     return 'path had weird characters in it or too much depth.', 400
   filename = pathlib.Path(path).name
   m = re.match(r'^[a-zA-Z0-9_:.-]*$', filename)
   if not m:
+    logging.error(
+        '/upload %s [filename had weird characters in it %r]',
+        username,
+        filename,
+    )
     return 'filename had weird characters in it.', 400
   md5sum = flask.request.values.get('md5', '')
   m = re.match(r'^[0-9a-f]{32}$', md5sum)
   if not m:
+    logging.error('/upload %s [md5 was invalid %r]', username, md5sum)
     return 'md5 was invalid (must be 32 lower case hex characters).', 400
   file_size = flask.request.values.get('file_size', '')
   m = re.match(r'^\d+$', file_size)
   if not m:
+    logging.error(
+        '/upload %s [file_size was not a non-negative integer %r]',
+        username,
+        file_size,
+    )
     return 'file_size was not a non-negative integer', 400
   tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
       '1',
@@ -551,6 +579,7 @@ def upload():
   )
 
   upload_link = get_upload_link(f'upload/{username}/{path}')
+  logging.info('/upload %s [upload link returned]', username)
   return flask.jsonify({'uploadLink': upload_link})
 
 
@@ -560,27 +589,45 @@ def verify():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error(
+        '/verify %s [login failed for token %r]', username, login_token
+    )
     return 'login_token invalid', 401
 
   assert username
-
   logging.info('/verify %s', username)
 
   path = flask.request.values.get('path', '')
   m = re.match(r'^[a-zA-Z0-9_:.-]+(?:/[a-zA-Z0-9_:.-]+){,5}$', path)
   if not m:
+    logging.error(
+        '/verify %s [path had weird characters in it or too much depth %r]',
+        username,
+        path,
+    )
     return 'path had weird characters in it or too much depth.', 400
   filename = pathlib.Path(path).name
   m = re.match(r'^[a-zA-Z0-9_:.-]*$', filename)
   if not m:
+    logging.error(
+        '/verify %s [filename had weird characters in it %r]',
+        username,
+        filename,
+    )
     return 'filename had weird characters in it.', 400
   md5sum = flask.request.values.get('md5', '')
   m = re.match(r'^[0-9a-f]{32}$', md5sum)
   if not m:
+    logging.error('/verify %s [md5 was invalid %r]', username, md5sum)
     return 'md5 was invalid (must be 32 lower case hex characters).', 400
   file_size = flask.request.values.get('file_size', '')
   m = re.match(r'^\d+$', file_size)
   if not m:
+    logging.error(
+        '/verify %s [file_size was not a non-negative integer %r]',
+        username,
+        file_size,
+    )
     return 'file_size was not a non-negative integer', 400
   tutorial_mode = flask.request.values.get('tutorial_mode', '').lower() in [
       '1',
@@ -596,13 +643,24 @@ def verify():
       f'collector/users/{username}/{tutorial_mode_prefix}data/file/{filename}'
   ).get()
   if not doc_ref.exists:
+    logging.error('/verify %s [no file registered for %r]', username, filename)
     return 'no file registered', 400
   doc_dict = doc_ref.to_dict()
   registered_md5 = doc_dict.get('md5')
   if not registered_md5:
+    logging.error(
+        '/verify %s [no md5sum registered for %r]', username, filename
+    )
     return 'file does not have an md5sum registered.', 400
   assert re.match(r'^[0-9a-f]{32}$', registered_md5)
   if md5sum != registered_md5:
+    logging.error(
+        '/verify %s [md5sum mismatch for %r: %r != %r]',
+        username,
+        filename,
+        md5sum,
+        registered_md5,
+    )
     return 'Provided md5sum and the one registered do not match.', 400
 
   gcs = storage.Client()
@@ -620,6 +678,9 @@ def verify():
   md5_matches = file_md5 == md5sum
   size_matches = blob.size == int(file_size)
   verified = md5_matches and size_matches
+  logging.info(
+      '/verify %s [completed, verified is %r]', username, bool(verified)
+  )
   return (
       flask.jsonify(
           {
@@ -655,7 +716,8 @@ def users_page():
 
   current_time = datetime.datetime.now(datetime.timezone.utc)
 
-  print('/users')
+  request_username = flask_login.current_user.id
+  logging.info('/users [logged in as %r]', request_username)
 
   users = list()
   for c_ref in doc_ref.collections():
@@ -877,6 +939,9 @@ def register_login():
   must_have_prompts_file = flask.request.values.get(
       'must_have_prompts_file', ''
   ).strip()
+  must_not_have_prompts_file = flask.request.values.get(
+      'must_not_have_prompts_file', ''
+  ).strip()
   must_match_device_id = flask.request.values.get(
       'must_match_device_id', ''
   ).strip()
@@ -914,6 +979,15 @@ def register_login():
       return (
           f'Refusing to set login token for {username!r} because '
           f'it does not have an associated prompts file.'
+      ), 400
+
+  if must_not_have_prompts_file:
+    doc_ref = db.document(f'collector/users/{username}/data/prompts/active')
+    doc_data = doc_ref.get()
+    if doc_data.exists:
+      return (
+          f'Refusing to set login token for {username!r} because '
+          f'it has an associated prompts file.'
       ), 400
 
   if must_match_device_id:
@@ -961,6 +1035,7 @@ def save():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error('/save %s [login failed for token %r]', username, login_token)
     return 'login_token invalid', 401
 
   data_string = flask.request.values.get('data', '[]')
@@ -980,6 +1055,7 @@ def save():
   for entry in data:
     key = entry.get('key')
     if not key:
+      logging.error('json entries malformed')
       return 'json entries malformed', 400
     partition = entry.get('partition', 'default')
     m = re.match(r'^[a-zA-Z0-9_-]+$', partition)
@@ -1041,6 +1117,7 @@ def save():
           option=db.write_option(last_update_time=doc_data.update_time),
       )
 
+  logging.info('/save %s [completed]', username)
   return flask.render_template('success.html', message='Key values saved.')
 
 
@@ -1050,6 +1127,9 @@ def save_state():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error(
+        '/save_state %s [login failed for token %r]', username, login_token
+    )
     return 'login_token invalid', 401
 
   logging.info('/save_state %s', username)
@@ -1070,6 +1150,7 @@ def save_state():
       }
   )
 
+  logging.info('/save_state %s [completed]', username)
   return flask.render_template('success.html', message='Key value saved.')
 
 
@@ -1079,6 +1160,9 @@ def directives_page():
   login_token = flask.request.values.get('login_token', '')
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error(
+        '/directives %s [login failed for token %r]', username, login_token
+    )
     return 'login_token invalid', 401
 
   device_id = flask.request.values.get('device_id', '<unknown>').strip()
@@ -1144,10 +1228,13 @@ def directive_completed():
 
   is_valid_login, username, _ = check_login_token(login_token)
   if not is_valid_login:
+    logging.error('/directive_completed login_token_invalid %r', login_token)
     return 'login_token invalid', 401
   if not directive_id:
+    logging.error('/directive_completed no directive id provided.')
     return 'no directive id provided', 400
   if not timestamp:
+    logging.error('/directive_completed timestamp must be provided.')
     return 'timestamp must be provided', 400
 
   assert username
@@ -1160,6 +1247,7 @@ def directive_completed():
   )
   doc_data = doc_ref.get()
   if not doc_data.exists:
+    logging.error('/directive_completed directive not found.')
     return 'directive not found.', 404
   doc_dict = doc_data.to_dict()
   server_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
