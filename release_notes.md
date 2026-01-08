@@ -1,3 +1,17 @@
+# Release Notes - v2.3.12
+
+## Android Application
+
+- Unchanged. Version number remains at v2.3.11
+
+## Server
+
+- Added `must_not_have_prompts_file` to the `register_login` endpoint to prevent
+  creating a login for a user that already has a prompts file.
+- Improved logging.
+- Added the ability to turn a `login_token` into a `login_hash` to
+  `token_maker.py`.
+
 # Release Notes - v2.3.11
 
 ## Android Application
