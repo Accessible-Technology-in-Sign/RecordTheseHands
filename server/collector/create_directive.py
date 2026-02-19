@@ -238,9 +238,10 @@ def statistics(username, filename, output_filename=None):
   if version_constraints:
     user_stats['versionConstraints'] = version_constraints['data']
 
-  def fill_clip_stats(clips, clip_stats):
+  def fill_clip_stats(clips, clip_stats, duplicate_prompt_ids=None):
     if not clips:
       return
+    seen_prompts = set()
     for clip in clips:
       assert clip.get('id').startswith('clipData-')
       data = clip['data']['data']
@@ -248,8 +249,19 @@ def statistics(username, filename, output_filename=None):
       end = datetime.datetime.fromisoformat(data['endTimestamp'])
       duration = (end - start).total_seconds()
       section_name = data['sectionName']
-      # TODO(mgeorg): track bad prompts, track duplicate prompts, and track
-      # total prompts answered.
+
+      prompt_data = data.get('promptData')
+      if data.get('valid') and prompt_data:
+        prompt_id = prompt_data.get('promptId')
+        if prompt_id is not None:
+          if prompt_id in seen_prompts:
+            if duplicate_prompt_ids is not None:
+              duplicate_prompt_ids.add(prompt_id)
+            clip_stats['all']['num_valid_duplicates'] += 1
+            clip_stats[section_name]['num_valid_duplicates'] += 1
+          else:
+            seen_prompts.add(prompt_id)
+
       valid_str = 'valid' if data.get('valid') else 'invalid'
       if data.get('isSkipExplanation', False):
         clip_stats['all'][f'num_{valid_str}_skip_explanation'] += 1
@@ -276,9 +288,11 @@ def statistics(username, filename, output_filename=None):
             valid_duration / num_valid_clips
         )
 
+  duplicate_prompt_ids = set()
   clips = get_in_collection(user, 'data/save_clip')
   clip_stats = collections.defaultdict(lambda: collections.defaultdict(int))
-  fill_clip_stats(clips, clip_stats)
+  fill_clip_stats(clips, clip_stats, duplicate_prompt_ids)
+  user_stats['duplicate_prompt_ids'] = sorted(duplicate_prompt_ids)
 
   tutorial_clips = get_in_collection(user, 'tutorial_data/save_clip')
   tutorial_clip_stats = collections.defaultdict(
@@ -347,33 +361,49 @@ def statistics(username, filename, output_filename=None):
   except KeyError:
     pass
   try:
+    quick_summary['num_valid_duplicates'] = user_stats['clip_stats']['all'][
+        'num_valid_duplicates'
+    ]
+  except KeyError:
+    pass
+  try:
     quick_summary['num_sessions'] = user_stats['session_stats']['all'][
         'num_sessions'
     ]
   except KeyError:
     pass
   try:
-    quick_summary['duration_sessions'] = (
-        f'{round(user_stats['session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    num = round(
+        user_stats['session_stats']['all']['duration_sessions'] / 60 / 60, 2
     )
+    quick_summary['duration_sessions'] = f'{num} hours'
   except KeyError:
     pass
   try:
-    quick_summary['duration_clips'] = (
-        f'{round(user_stats['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    num = round(
+        user_stats['clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2
     )
+    quick_summary['duration_clips'] = f'{num} hours'
   except KeyError:
     pass
   try:
-    quick_summary['tutorial_duration_sessions'] = (
-        f'{round(user_stats['tutorial_session_stats']['all']['duration_sessions'] / 60 / 60, 2)} hours'
+    num = round(
+        user_stats['tutorial_session_stats']['all']['duration_sessions']
+        / 60
+        / 60,
+        2,
     )
+    quick_summary['tutorial_duration_sessions'] = f'{num} hours'
   except KeyError:
     pass
   try:
-    quick_summary['tutorial_duration_clips'] = (
-        f'{round(user_stats['tutorial_clip_stats']['all']['duration_valid_clips'] / 60 / 60, 2)} hours'
+    num = round(
+        user_stats['tutorial_clip_stats']['all']['duration_valid_clips']
+        / 60
+        / 60,
+        2,
     )
+    quick_summary['tutorial_duration_clips'] = f'{num} hours'
   except KeyError:
     pass
 
@@ -587,6 +617,7 @@ def main():
         '    changeUser NEW_USERNAME NEW_PASSWORD',
         '    setPrompts PROMPT_FILE_PATH',
         '    setPromptsNoUpload PROMPT_FILE_PATH',
+        '    reloadPrompts',
         '    deleteFile FILE_PATH',
         '    uploadState',
         '    unregisterLostFiles',
@@ -595,24 +626,30 @@ def main():
         '    deleteUser',
         '    userData OUTPUT_FILENAME',
         '    saveDatabase OUTPUT_FILENAME',
+        '    restoreUser DATABASE_FILENAME',
+        '    stats DUMP_FILENAME [OUTPUT_FILENAME]',
         sep='\n      ',
         file=sys.stderr,
     )
     sys.exit(1)
   username = sys.argv[1]
-  print(f'Using username: {username}')
-  if sys.argv[2] == 'noop':
-    create_directive(sys.argv[1], sys.argv[2], '{}')
+  op = sys.argv[2]
+  op_args = sys.argv[3:]
+  del sys.argv
 
-  elif sys.argv[2] == 'printDirectives':
-    print_directives(sys.argv[1])
-  elif sys.argv[2] == 'listUsers':
+  print(f'Using username: {username}')
+  if op == 'noop':
+    create_directive(username, op, '{}')
+
+  elif op == 'printDirectives':
+    print_directives(username)
+  elif op == 'listUsers':
     doc_ref = db.document('collector/users')
     for c_ref in doc_ref.collections():
       print(c_ref.id)
-  elif sys.argv[2] == 'setPassword':
-    if len(sys.argv) >= 5:
-      password = sys.argv[4]
+  elif op == 'setPassword':
+    if len(op_args) >= 1:
+      password = op_args[0]
     else:
       password = secrets.token_hex(16)
       print(f'Randomly generated password is: {password!r}')
@@ -621,23 +658,23 @@ def main():
     print(json.dumps(output, indent=2))
     doc_ref = db.document(f'collector/users/{username}/login_hash')
     doc_ref.set({'login_hash': login_hash})
-  elif sys.argv[2] == 'changeUser':
-    new_username = sys.argv[3]
-    if len(sys.argv) >= 5:
-      password = sys.argv[4]
+  elif op == 'changeUser':
+    new_username = op_args[0]
+    if len(op_args) >= 2:
+      password = op_args[1]
     else:
       password = secrets.token_hex(16)
       print(f'Randomly generated password is: {password!r}')
     login_token, login_hash = token_maker.make_token(new_username, password)
     output = {'loginToken': login_token}
-    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
+    create_directive(username, op, json.dumps(output))
     doc_ref = db.document(f'collector/users/{new_username}/login_hash')
     doc_ref.set({'login_hash': login_hash})
-  elif sys.argv[2] == 'setPrompts' or sys.argv[2] == 'setPromptsNoUpload':
+  elif op == 'setPrompts' or op == 'setPromptsNoUpload':
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    path = pathlib.Path(sys.argv[3])
+    path = pathlib.Path(op_args[0])
     uploaded_relative_path = str(pathlib.Path('prompts', path.name))
-    if sys.argv[2] == 'setPrompts':
+    if op == 'setPrompts':
       if not path.exists():
         raise ValueError(f'Prompt file not found: {path}')
       print(
@@ -645,8 +682,8 @@ def main():
           f'  gsutil cp {path} gs://{BUCKET_NAME}/prompts/'
       )
       input('Press enter when file is uploaded> ')
-    if sys.argv[2] == 'setPromptsNoUpload':
-      if uploaded_relative_path != sys.argv[3]:
+    if op == 'setPromptsNoUpload':
+      if uploaded_relative_path != op_args[0]:
         print(
             f'Ignoring directory and setting path to {uploaded_relative_path}'
         )
@@ -661,9 +698,9 @@ def main():
     )
     doc_ref.set(prompts_data)
     print('THIS WILL NOT RELOAD THE PROMPTS, USE reloadPrompts FOR THAT.')
-  elif sys.argv[2] == 'setVersionRange':
-    min_version = sys.argv[3]
-    max_version = sys.argv[4]
+  elif op == 'setVersionRange':
+    min_version = op_args[0]
+    max_version = op_args[1]
     if min_version.lower() == 'none':
       min_version = None
     if max_version.lower() == 'none':
@@ -680,42 +717,36 @@ def main():
         f'collector/users/{username}/data/prompts/version_constraints'
     )
     doc_ref.set(version_constraints)
-  elif sys.argv[2] == 'reloadPrompts':
-    create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'deleteFile':
-    output = {'filepath': sys.argv[3]}
-    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
-  elif sys.argv[2] == 'deleteFile':
-    output = {'filepath': sys.argv[3]}
-    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
-  elif sys.argv[2] == 'uploadState':
-    create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'setTutorialMode':
-    output = {'tutorialMode': sys.argv[3].lower() in ['1', 't', 'true']}
-    create_directive(sys.argv[1], sys.argv[2], json.dumps(output))
-  elif sys.argv[2] == 'unregisterLostFiles':
-    create_directive(sys.argv[1], sys.argv[2], '{}')
-  elif sys.argv[2] == 'cancel':
-    directive_id = int(sys.argv[3])
-    cancel_directive(sys.argv[1], directive_id)
-  elif sys.argv[2] == 'deleteUser':
-    delete_user(sys.argv[1])
-  elif sys.argv[2] == 'userData':
-    save_user_data(sys.argv[1], sys.argv[3])
-  elif sys.argv[2] == 'saveDatabase':
-    save_database(sys.argv[3])
-  elif sys.argv[2] == 'restoreUser':
-    restore_user(sys.argv[1], sys.argv[3])
-  elif sys.argv[2] == 'stats':
-    if len(sys.argv) >= 5:
-      statistics(sys.argv[1], sys.argv[3], sys.argv[4])
+  elif op == 'reloadPrompts':
+    create_directive(username, op, '{}')
+  elif op == 'deleteFile':
+    output = {'filepath': op_args[0]}
+    create_directive(username, op, json.dumps(output))
+  elif op == 'uploadState':
+    create_directive(username, op, '{}')
+  elif op == 'setTutorialMode':
+    output = {'tutorialMode': op_args[0].lower() in ['1', 't', 'true']}
+    create_directive(username, op, json.dumps(output))
+  elif op == 'unregisterLostFiles':
+    create_directive(username, op, '{}')
+  elif op == 'cancel':
+    directive_id = int(op_args[0])
+    cancel_directive(username, directive_id)
+  elif op == 'deleteUser':
+    delete_user(username)
+  elif op == 'userData':
+    save_user_data(username, op_args[0])
+  elif op == 'saveDatabase':
+    save_database(op_args[0])
+  elif op == 'restoreUser':
+    restore_user(username, op_args[0])
+  elif op == 'stats':
+    if len(op_args) >= 2:
+      statistics(username, op_args[0], op_args[1])
     else:
-      statistics(sys.argv[1], sys.argv[3])
+      statistics(username, op_args[0])
   else:
-    raise AssertionError(
-        f'Unknown Operation {sys.argv[2]}. Full command line: '
-        + ' '.join(sys.argv)
-    )
+    raise AssertionError(f'Unknown Operation {op!r}.')
 
 
 if __name__ == '__main__':
