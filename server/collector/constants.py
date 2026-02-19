@@ -23,7 +23,7 @@
 import re
 
 # Match these accounts
-MATCH_USERS = re.compile(r'^dqp\d{2}$')
+MATCH_USERS = re.compile(r'^[tp]\d{2}$')
 
 # stem name of the output video files
 VIDEO_DUMP_ID = 'video_dump'

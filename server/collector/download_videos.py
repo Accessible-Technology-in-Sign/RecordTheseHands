@@ -21,14 +21,15 @@
 # SOFTWARE.
 """Script to download videos from the Google Cloud Storage Bucket."""
 
+import json
 import os
+import sys
 import warnings
 
 import constants
-import google.api_core.exceptions
-from google.cloud import firestore
 from google.cloud import storage
-from utils import compute_md5
+from google.cloud.storage import transfer_manager
+import utils
 
 warnings.filterwarnings(
     'ignore', category=UserWarning, message='.*transfer_manager.*'
@@ -41,19 +42,23 @@ BUCKET_NAME = f'{PROJECT_ID}.appspot.com'
 SERVICE_ACCOUNT_EMAIL = f'{PROJECT_ID}@appspot.gserviceaccount.com'
 
 
-def get_video_metadata(db, username):
-  """Obtain the video hash and path metadata from firestore."""
-  c_ref = db.collection(f'collector/users/{username}/data/file')
+def get_video_metadata_from_json(username, data_doc):
+  """Obtain video metadata from user JSON."""
+  file_collection = utils.get_in_document(data_doc, 'file')
   hashes = []
   paths = []
-  for doc_data in c_ref.stream():
-    if doc_data.id.startswith(username):
-      doc_dict = doc_data.to_dict()
-      file_hash = doc_dict.get('md5')
-      path = doc_dict.get('path')
+  if not file_collection:
+    return hashes, paths
+
+  for doc in file_collection:
+    doc_id = doc.get('id', '')
+    if doc_id.startswith(username):
+      data = doc.get('data', {})
+      file_hash = data.get('md5')
+      path = data.get('path')
 
       if not file_hash or not path:
-        print(f'Skipping invalid data under {doc_data.id}')
+        print(f'Skipping invalid data under {doc_id}')
         continue
 
       path = f'upload/{username}/{path}'
@@ -78,7 +83,7 @@ def download_all_videos(
   storage_client = storage.Client()
   bucket = storage_client.bucket(bucket_name)
 
-  results = storage.transfer_manager.download_many_to_path(
+  results = transfer_manager.download_many_to_path(
       bucket,
       blob_names,
       destination_directory=destination_directory,
@@ -99,28 +104,37 @@ def clean():
   print(f'Removed {constants.VIDEO_DUMP_ID}')
 
 
-def main():
-  print('Getting metadata from firestore')
-  db = firestore.Client()
-  doc_ref = db.document('collector/users')
+def main(db_dump_path):
+  if not db_dump_path:
+    raise ValueError('A database dump JSON path must be provided.')
+
   all_hashes = []
   all_paths = []
-  for c_ref in doc_ref.collections():
-    m = constants.MATCH_USERS.match(c_ref.id)
-    if not m:
+
+  with open(db_dump_path, 'r') as f:
+    db_data = json.load(f)
+
+  users_doc = utils.get_in_document(db_data, 'collector/users')
+
+  if not users_doc or 'collection' not in users_doc:
+    print('No users found in database dump.')
+    return
+
+  for username, user_collection in users_doc['collection'].items():
+    if not constants.MATCH_USERS.match(username):
       continue
-    retry = True
-    print(f'Getting data for user: {c_ref.id}')
-    while retry:
-      retry = False
-      try:
-        hashes, paths = get_video_metadata(db, c_ref.id)
-        print(f'{c_ref.id} {len(hashes)}')
-        all_hashes.extend(hashes)
-        all_paths.extend(paths)
-      except google.api_core.exceptions.RetryError:
-        print('timed out, retrying')
-        retry = True
+    print(f'Getting data for user: {username}')
+
+    data_doc = utils.get_in_collection(user_collection, 'data')
+
+    if not data_doc:
+      print(f'No data document found for user {username}')
+      continue
+
+    hashes, paths = get_video_metadata_from_json(username, data_doc)
+    print(f'{username} {len(hashes)}')
+    all_hashes.extend(hashes)
+    all_paths.extend(paths)
 
   print(f'\nStarting download for {len(all_paths)} videos')
   download_all_videos(BUCKET_NAME, all_paths, f'{constants.VIDEO_DUMP_ID}/')
@@ -129,7 +143,7 @@ def main():
   print('\nValidating videos')
   for file_hash, path in zip(all_hashes, all_paths):
     file_path = f'{constants.VIDEO_DUMP_ID}/{path}'
-    if compute_md5(file_path) != file_hash:
+    if utils.compute_md5(file_path) != file_hash:
       print(f'File {file_path} failed validation')
       os.remove(file_path)
       print(f'Deleted {file_path}')
@@ -138,4 +152,7 @@ def main():
 
 
 if __name__ == '__main__':
-  main()
+  if len(sys.argv) < 2:
+    print('Usage: python download_videos.py DB_DUMP_PATH')
+    sys.exit(1)
+  main(sys.argv[1])

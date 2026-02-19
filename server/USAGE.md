@@ -94,9 +94,9 @@ Valid operations:
 - `printDirectives` – Print out all existing directives for a user (in your
   console).
 - `updateApk` – Tells the device to download the latest APK on the DPAN Server
-- `setPrompts /path/to/prompt` – Tells the device to download prompts from
-  the path provided (Path is GCP bucket path). This is used for both tutorial
-  and regular prompts.
+- `setPrompts /path/to/prompt` – Tells the device to download prompts from the
+  path provided (Path is GCP bucket path). This is used for both tutorial and
+  regular prompts.
 - `deleteFile` – Instructs the device to delete a file from local storage.
 - `setTutorialMode` – Enables a user to enter into tutorial mode
 - `cancel` – Marks a specific directive (by ID) as canceled.
@@ -115,12 +115,28 @@ Valid operations:
 ## Producing clips
 
 The following scripts are used to create individual clips for each sign after
-uploading videos and metadata to a Google Cloud Project. Before running any of
-the following scripts, use the CLI to set the environment variable
-`GOOGLE_CLOUD_PROJECT` to the name of your Google Cloud Project.
+the app has uploaded videos and metadata to the Google Cloud Project.
 
-```
+**1. Generate a database dump** The pipeline requires a local JSON snapshot of
+the Firestore database.
+
+Before running `create_directive.py` you must setup the local environment.
+
+```bash
+source setup_local_env.sh
 export GOOGLE_CLOUD_PROJECT=name-of-project
+```
+
+To generate the database dump run the following.
+
+```bash
+python create_directive.py admin saveDatabase all_data.json
+```
+
+**2. Run the full pipeline** Use the pipeline script with the generated dump:
+
+```bash
+python local_video_pipeline.py --db_dump all_data.json
 ```
 
 ### Scripts
@@ -184,15 +200,14 @@ downloading for your device.
 
 ### Data Formatting
 
-To run these scripts, the following metadata fields in Firestore must be
+To run these scripts, the following metadata fields in the database dump must be
 formatted as described below. This is enforced throughout the script using regex
 patterns.
 
 - `username`
-  - The script will only download metadata from users in the Firestore directory
-    (`collector/users/{username}`) that follow the format `dpqNN`, where `NN`
-    denotes two digits.
-    - For example, `dpq01` is a valid username, while `dpq001` is not.
+  - The script will only download metadata from users in the database dump that
+    follow the format `tNN` or `pNN`, where `NN` denotes two digits.
+    - For example, `t01` is a valid username, while `t001` is not.
 - `clipId`
   - The `clipId` for each clip follows the format `{sessionId}-{index}`.
     - For example, a clip with a session ID of `52c45ea0-s001` and an index of
@@ -206,8 +221,8 @@ patterns.
 
 ## Metadata extraction (dump_clips.py)
 
-As stated above, this script downloads metadata from Firestore in a Google Cloud
-Project to the files `metadata_dump.csv` and `metadata_dump.json`. This metadata
+As stated above, this script extracts metadata from a local database dump JSON
+file to the files `metadata_dump.csv` and `metadata_dump.json`. This metadata
 corresponds to the videos retrieved from `RecordTheseHands`, including the
 following:
 
@@ -230,25 +245,26 @@ following:
 
 ### Code Explanation
 
-Data collection is primarily done using two functions, `get_data` and
+Data collection is primarily done using two functions, `get_data_from_json` and
 `get_clip_bounds_in_video`.
 
 #### Getting clip and session data
 
-Taking in a `username` as an argument, `get_data` retrieves all relevant
-metadata for every clip recorded by the target user.
+Taking in a `user_doc` as an argument, `get_data_from_json` retrieves all
+relevant metadata for every clip recorded by the target user from the database
+dump.
 
-It first connects to Firestore, then iterates over all of the `clipData` and
-`sessionData` for the user specified by `username`. In each iteration, if it
-detects `clipData`, it checks that `clip-id` and `filename` (1) conform to the
-previously described formatting and (2) are non-null. Otherwise, it will print a
-message notifying invalid data and skip the current clip. If all checks pass, a
-dictionary is created to represent the current clip with the metadata values
-(namely: `userID`, `sessionIndex`, `clipIndex`, `filename`, `promptText`, and
-`valid`) mapped to appropriate keys. The function then calculates `start_s` and
-`end_s`, the start and end timestamps for the clip, using
-`get_clip_bounds_in_video`. These values will be important when splitting up the
-full videos. The clip dictionary is then appended to a running list of clips.
+It iterates over all of the `clipData` and `sessionData` for the user. In each
+iteration, if it detects `clipData`, it checks that `clip-id` and `filename` (1)
+conform to the previously described formatting and (2) are non-null. Otherwise,
+it will print a message notifying invalid data and skip the current clip. If all
+checks pass, a dictionary is created to represent the current clip with the
+metadata values (namely: `userID`, `sessionIndex`, `clipIndex`, `filename`,
+`promptText`, and `valid`) mapped to appropriate keys. The function then
+calculates `start_s` and `end_s`, the start and end timestamps for the clip,
+using `get_clip_bounds_in_video`. These values will be important when splitting
+up the full videos. The clip dictionary is then appended to a running list of
+clips.
 
 If `sessionData` is detected, the function simply appends all of the data to a
 running list of sessions.
@@ -282,9 +298,9 @@ pair of start and end bounds.
 
 #### Putting it all together
 
-To collect the requisite data for all users, we simply loop through all valid
-users in the Firestore and run `get_data` on each. This is done in the `main`
-function. The returned `clips` and `sessions` for each user are added to
+To collect the requisite data for all users, we loop through all valid users in
+the database dump and run `get_data_from_json` on each. This is done in the
+`main` function. The returned `clips` and `sessions` for each user are added to
 respective lists storing all users' data. After all `clips` and `sessions` have
 been retrieved from all users, the data is written to the output `JSON` and
 `csv` files.
@@ -298,22 +314,22 @@ storage buckets in the set Google Cloud Project.
 
 The video downloading is done in three steps:
 
-1. Obtaining the video metadata, including associated md5 hash and video path
-1. Concurrently downloading all videos from Google Cloud using a process pool
-1. Comparing downloaded hashes to computed hashes for each video as data
+1. Obtaining the video metadata from the database dump, including associated md5
+   hash and video path
+2. Concurrently downloading all videos from Google Cloud using a process pool
+3. Comparing downloaded hashes to computed hashes for each video as data
    validation
 
 #### 1. Obtaining the video metadata
 
-Metadata collection for video downloads is done through the `get_video_metadata`
-function.
+Metadata collection for video downloads is done through the
+`get_video_metadata_from_json` function.
 
-Taking in a reference to the Firestore (`db`) and the target user (`username`)
-as arguments, the function iterates through all files listed under the target
-user in Firestore. For each instance of file data, it iterates through all
-fields and saves the `hash` and `path` values to a list. After finishing
-iteration, it returns two lists containing all hashes and paths associated to
-videos generated by the target user.
+Taking in a reference to a user document from the database dump (`user_doc`) as
+an argument, the function iterates through all files listed under the target
+user. For each instance of file data, it saves the `hash` and `path` values to a
+list. After finishing iteration, it returns two lists containing all hashes and
+paths associated to videos generated by the target user.
 
 #### 2. Downloading all videos
 
@@ -334,10 +350,11 @@ exception. In either case, an appropriate message is printed to console.
 #### 3. Data validation
 
 In the `main` function, the script retrieves hash and path metadata for each
-video, then downloads each one. After all downloads are finished, it computes
-the md5 hash for each video and compares it to the has retrieved from Google
-Cloud. If they match, the video passes validation. After `main` finishes
-running, all valid videos should be downloaded to the specified directory.
+video from the database dump, then downloads each one. After all downloads are
+finished, it computes the md5 hash for each video and compares it to the hash
+retrieved from the database dump. If they match, the video passes validation.
+After `main` finishes running, all valid videos should be downloaded to the
+specified directory.
 
 ## Local video clipping (clip_video.py)
 

@@ -27,34 +27,40 @@ import clip_video
 import download_videos
 import dump_clips
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      "--clean",
-      action="store_true",
+      '--clean',
+      action='store_true',
       default=False,
-      help="Clean all existing files",
+      help='Clean all existing files',
   )
   parser.add_argument(
-      "--buffers", type=str, default=None, help="Config file for user buffers"
+      '--buffers', type=str, default=None, help='Config file for user buffers'
+  )
+  parser.add_argument(
+      '--db_dump',
+      type=str,
+      required=True,
+      help='JSON file containing database dump',
   )
   args = parser.parse_args()
 
   if args.clean:
-    print("CLEANING EXISTING FILES")
-    print("---------------------------------------")
+    print('CLEANING EXISTING FILES')
+    print('---------------------------------------')
     download_videos.clean()
     dump_clips.clean()
     clip_video.clean()
 
-  print("\n\nSTARTING VIDEO DOWNLOAD")
-  print("---------------------------------------")
-  download_videos.main()
+  print('\n\nSTARTING VIDEO DOWNLOAD')
+  print('---------------------------------------')
+  download_videos.main(args.db_dump)
 
-  print("\n\nSTARTING CLIP METADATA DOWNLOAD")
-  print("---------------------------------------")
-  dump_clips.main()
+  print('\n\nSTARTING CLIP METADATA DOWNLOAD')
+  print('---------------------------------------')
+  dump_clips.main(args.db_dump)
 
-  print("\n\nSTARTING VIDEO CLIPPING")
-  print("---------------------------------------")
+  print('\n\nSTARTING VIDEO CLIPPING')
+  print('---------------------------------------')
   clip_video.main(args.buffers)
