@@ -353,14 +353,6 @@ def make_clips(
     f.write(json.dumps(clips, indent=2))
 
 
-def clean():
-  """Remove all the clips."""
-  if os.path.exists(constants.CLIP_DUMP_ID):
-    os.system(f'rm -rf {constants.CLIP_DUMP_ID}')
-
-  print(f'Removed {constants.CLIP_DUMP_ID}')
-
-
 def main(buffer_config=None):
   """Make all the clips."""
   user_buffers = {}

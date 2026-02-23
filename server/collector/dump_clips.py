@@ -119,15 +119,6 @@ def get_clip_bounds_in_video(clip_data):
   return (start_s, end_s)
 
 
-def clean():
-  """Remove all the metadata."""
-  for ext in ['json', 'csv']:
-    path = f'{constants.METADATA_DUMP_ID}.{ext}'
-    if os.path.exists(path):
-      os.remove(path)
-      print(f'Removed {path}')
-
-
 def main(db_dump_path):
   if not db_dump_path:
     raise ValueError('A database dump JSON path must be provided.')

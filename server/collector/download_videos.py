@@ -97,13 +97,6 @@ def download_all_videos(
       print(f'Downloaded {name} to {destination_directory + name}.')
 
 
-def clean():
-  """Remove all the videos."""
-  if os.path.exists(constants.VIDEO_DUMP_ID):
-    os.system(f'rm -rf {constants.VIDEO_DUMP_ID}')
-  print(f'Removed {constants.VIDEO_DUMP_ID}')
-
-
 def main(db_dump_path):
   if not db_dump_path:
     raise ValueError('A database dump JSON path must be provided.')

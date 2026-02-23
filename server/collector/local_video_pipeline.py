@@ -30,12 +30,6 @@ import dump_clips
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--clean',
-      action='store_true',
-      default=False,
-      help='Clean all existing files',
-  )
-  parser.add_argument(
       '--buffers', type=str, default=None, help='Config file for user buffers'
   )
   parser.add_argument(
@@ -45,13 +39,6 @@ if __name__ == '__main__':
       help='JSON file containing database dump',
   )
   args = parser.parse_args()
-
-  if args.clean:
-    print('CLEANING EXISTING FILES')
-    print('---------------------------------------')
-    download_videos.clean()
-    dump_clips.clean()
-    clip_video.clean()
 
   print('\n\nSTARTING VIDEO DOWNLOAD')
   print('---------------------------------------')
