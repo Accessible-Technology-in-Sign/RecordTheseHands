@@ -53,7 +53,7 @@ def get_data_from_json(data_doc):
   for doc in raw_entries:
     doc_id = doc.get('id', '')
     if doc_id.startswith('clipData-'):
-      data = doc.get('data')
+      data = doc.get('data', {}).get('data')
       if not data:
         continue
       clip_id = data.get('clipId')
