@@ -29,6 +29,7 @@ completed clips to the cloud.  There is currently no equivalent script
 in this project.
 """
 
+import argparse
 import collections
 import concurrent.futures
 import csv
@@ -281,17 +282,25 @@ def make_clip(
 
 def make_clips(
     video_directory=f'{constants.VIDEO_DUMP_ID}/upload',
+    clip_directory=constants.CLIP_DUMP_ID,
     dump_csv=f'{constants.METADATA_DUMP_ID}.csv',
     user_buffers=None,
 ):
-  """Make clips from all the videos in the video directory."""
+  """Make clips from all the videos in the video directory.
+
+  Args:
+    video_directory: Directory containing the original videos.
+    clip_directory: Directory where the clips will be stored.
+    dump_csv: CSV file containing the metadata for the clips.
+    user_buffers: Dictionary containing user-specific safety buffers.
+  """
   if user_buffers is None:
     user_buffers = {}
   video_directory = pathlib.Path(video_directory)
   dump_csv = pathlib.Path(dump_csv)
-  output_dir = pathlib.Path(constants.CLIP_DUMP_ID)
+  output_dir = pathlib.Path(clip_directory)
 
-  os.makedirs(output_dir, exist_ok=True)
+  output_dir.mkdir(parents=True, exist_ok=True)
 
   clip_data = collections.defaultdict(list)
   clips = []
@@ -353,14 +362,43 @@ def make_clips(
     f.write(json.dumps(clips, indent=2))
 
 
-def main(buffer_config=None):
-  """Make all the clips."""
+def main():
+  """Main entry point for making clips."""
+  parser = argparse.ArgumentParser(
+      description='Make frame accurate clips from videos.'
+  )
+  parser.add_argument(
+      '--video-dir',
+      default=f'{constants.VIDEO_DUMP_ID}/upload',
+      help='Directory containing original videos.',
+  )
+  parser.add_argument(
+      '--clip-dir',
+      default=constants.CLIP_DUMP_ID,
+      help='Directory to store clips.',
+  )
+  parser.add_argument(
+      '--metadata-csv',
+      default=f'{constants.METADATA_DUMP_ID}.csv',
+      help='CSV file containing clip metadata.',
+  )
+  parser.add_argument(
+      '--buffer-config',
+      help='JSON file containing user-specific safety buffers.',
+  )
+  args = parser.parse_args()
+
   user_buffers = {}
-  if buffer_config:
-    with open(buffer_config, 'r', encoding='utf-8') as f:
+  if args.buffer_config:
+    with open(args.buffer_config, 'r', encoding='utf-8') as f:
       user_buffers = json.load(f)
 
-  make_clips(user_buffers=user_buffers)
+  make_clips(
+      video_directory=args.video_dir,
+      clip_directory=args.clip_dir,
+      dump_csv=args.metadata_csv,
+      user_buffers=user_buffers,
+  )
 
 
 if __name__ == '__main__':
