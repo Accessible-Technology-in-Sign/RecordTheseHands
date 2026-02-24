@@ -28,6 +28,7 @@ import json
 import os
 import sys
 
+import data_access
 import constants
 import utils
 
@@ -38,9 +39,9 @@ def get_data_from_json(data_doc):
   sessions = []
 
   # Try multiple possible collection paths for clips and sessions
-  save_collection = utils.get_in_document(data_doc, 'save')
-  clip_collection = utils.get_in_document(data_doc, 'save_clip')
-  session_collection = utils.get_in_document(data_doc, 'save_session')
+  save_collection = data_access.get_in_document(data_doc, 'save')
+  clip_collection = data_access.get_in_document(data_doc, 'save_clip')
+  session_collection = data_access.get_in_document(data_doc, 'save_session')
 
   raw_entries = []
   if save_collection:
@@ -130,7 +131,7 @@ def main(db_dump_path):
     db_data = json.load(f)
 
   # Navigate to the users collection in the dump
-  users_doc = utils.get_in_document(db_data, 'collector/users')
+  users_doc = data_access.get_in_document(db_data, 'collector/users')
 
   if not users_doc or 'collection' not in users_doc:
     print('No users found in database dump.')
@@ -141,7 +142,7 @@ def main(db_dump_path):
       continue
 
     print(f'Getting data for user: {username}')
-    data_doc = utils.get_in_collection(user_collection, 'data')
+    data_doc = data_access.get_in_collection(user_collection, 'data')
 
     if not data_doc:
       print(f'No data document found for user {username}')

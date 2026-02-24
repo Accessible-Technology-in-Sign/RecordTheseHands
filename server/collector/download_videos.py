@@ -28,6 +28,7 @@ import pathlib
 import warnings
 
 import constants
+import data_access
 from google.cloud import storage
 from google.cloud.storage import transfer_manager
 import utils
@@ -54,7 +55,7 @@ def get_video_metadata_from_json(username, data_doc, video_dump_dir):
   Returns:
     A tuple containing lists of (hashes, blob_names, exists).
   """
-  file_collection = utils.get_in_document(data_doc, 'file')
+  file_collection = data_access.get_in_document(data_doc, 'file')
   hashes = []
   blob_names = []
   exists = []
@@ -129,7 +130,7 @@ def main(db_dump_path, video_dump_dir):
   with db_dump_path.open('r') as f:
     db_data = json.load(f)
 
-  users_doc = utils.get_in_document(db_data, 'collector/users')
+  users_doc = data_access.get_in_document(db_data, 'collector/users')
 
   if not users_doc or 'collection' not in users_doc:
     print('No users found in database dump.')
@@ -141,7 +142,7 @@ def main(db_dump_path, video_dump_dir):
       continue
     print(f'Getting data for user: {username}')
 
-    data_doc = utils.get_in_collection(user_collection, 'data')
+    data_doc = data_access.get_in_collection(user_collection, 'data')
 
     if not data_doc:
       print(f'No data document found for user {username}')
