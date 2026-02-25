@@ -22,18 +22,15 @@
 
 """Script to dump clip metadata from a database dump JSON."""
 
-import csv
+import argparse
 import datetime
 import json
-import os
-import sys
 
-import data_access
 import constants
-import utils
+import data_access
 
 
-def get_data_from_json(data_doc):
+def get_data_from_json(data_doc, username=None, username_prefix=''):
   """Obtain clip and session data from a user's JSON data."""
   clips = []
   sessions = []
@@ -65,19 +62,25 @@ def get_data_from_json(data_doc):
       if not filename:
         continue
 
+      user_id = username or data.get('username') or doc_id.split('-')[0]
       simple_clip = {
-          'userId': data.get('username') or doc_id.split('-')[0],
+          'userId': username_prefix + user_id,
           'clipId': clip_id,
+          'sessionId': data.get('sessionId'),
           'filename': filename,
           'promptText': data.get('promptData', {}).get('prompt'),
+          'promptId': data.get('promptData', {}).get('promptId'),
+          'sectionName': data.get('sectionName'),
           'valid': data.get('valid'),
       }
+      if data.get('isSkipExplanation'):
+        simple_clip['isSkipExplanation'] = True
 
       start_s, end_s = get_clip_bounds_in_video(data)
       if start_s is not None:
-        simple_clip['start_s'] = start_s
+        simple_clip['startS'] = start_s
       if end_s is not None:
-        simple_clip['end_s'] = end_s
+        simple_clip['endS'] = end_s
 
       clips.append({'summary': simple_clip, 'full': doc})
     elif doc_id.startswith('sessionData-'):
@@ -120,7 +123,7 @@ def get_clip_bounds_in_video(clip_data):
   return (start_s, end_s)
 
 
-def main(db_dump_path):
+def main(db_dump_path, username_prefix=''):
   if not db_dump_path:
     raise ValueError('A database dump JSON path must be provided.')
 
@@ -148,7 +151,9 @@ def main(db_dump_path):
       print(f'No data document found for user {username}')
       continue
 
-    clips, sessions = get_data_from_json(data_doc)
+    clips, sessions = get_data_from_json(
+        data_doc, username=username, username_prefix=username_prefix
+    )
     print(f'{username} {len(clips)} {len(sessions)}')
     all_clips.extend(clips)
     all_sessions.extend(sessions)
@@ -165,37 +170,14 @@ def main(db_dump_path):
     json.dump({'clips': all_clips, 'sessions': all_sessions}, f, indent=2)
     f.write('\n')
 
-  # Write CSV
-  csv_rows = []
-  for clip in all_clips:
-    if (
-        'start_s' not in clip['summary']
-        or 'end_s' not in clip['summary']
-        or 'promptText' not in clip['summary']
-    ):
-      continue
-    if not clip['summary']['valid']:
-      continue
-    row = [
-        clip['summary']['userId'],
-        clip['summary']['filename'][:-4],
-        '',
-        '',
-        clip['summary']['start_s'],
-        clip['summary']['end_s'],
-        clip['summary']['promptText'],
-    ]
-    csv_rows.append(row)
-
-  csv_path = f'{constants.METADATA_DUMP_ID}.csv'
-  print(f'Writing csv to {csv_path}')
-  with open(csv_path, 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerows(csv_rows)
-
 
 if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print('Usage: python dump_clips.py DB_DUMP_PATH')
-    sys.exit(1)
-  main(sys.argv[1])
+  parser = argparse.ArgumentParser(description='Dump clip metadata.')
+  parser.add_argument(
+      'db_dump_path', help='Path to the database dump JSON file.'
+  )
+  parser.add_argument(
+      '--username_prefix', default='', help='Prefix for the userId.'
+  )
+  args = parser.parse_args()
+  main(args.db_dump_path, args.username_prefix)
