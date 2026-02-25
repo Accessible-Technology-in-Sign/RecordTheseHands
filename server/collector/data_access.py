@@ -22,6 +22,7 @@
 """Data access layer for Firestore and data structure navigation."""
 
 import concurrent.futures
+import datetime
 import json
 import os
 from google.cloud import firestore
@@ -110,7 +111,9 @@ def delete_collection_recursive(c_ref, executor, futures):
     delete_document_recursive(doc_ref, executor, futures)
 
 
-def save_document_recursive_parallel(doc_ref, print_depth=10):
+def save_document_recursive_parallel(
+    doc_ref, print_depth=10, convert_datetime=True
+):
   """Recursively saves a document and its subcollections in parallel."""
   with concurrent.futures.ThreadPoolExecutor(max_workers=20) as tree_executor:
     with concurrent.futures.ThreadPoolExecutor(
@@ -121,20 +124,25 @@ def save_document_recursive_parallel(doc_ref, print_depth=10):
           print_depth=print_depth,
           tree_executor=tree_executor,
           leaf_executor=leaf_executor,
+          convert_datetime=convert_datetime,
       )
       extract_futures_document_recursive(data)
   return data
 
 
-def save_database(output_filename, print_depth=10):
+def save_database(output_filename, print_depth=10, convert_datetime=True):
   """Save the entire database to json."""
-  data = save_document_recursive_parallel(db, print_depth=print_depth)
+  data = save_document_recursive_parallel(
+      db, print_depth=print_depth, convert_datetime=convert_datetime
+  )
   with open(output_filename, 'w') as f:
     f.write(json.dumps(data, indent=2))
     f.write('\n')
 
 
-def save_collection_recursive_parallel(c_ref, print_depth=3):
+def save_collection_recursive_parallel(
+    c_ref, print_depth=3, convert_datetime=True
+):
   """Recursively saves a collection and its documents in parallel."""
   with concurrent.futures.ThreadPoolExecutor(max_workers=20) as tree_executor:
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as leaf_executor:
@@ -143,6 +151,7 @@ def save_collection_recursive_parallel(c_ref, print_depth=3):
           print_depth=print_depth,
           tree_executor=tree_executor,
           leaf_executor=leaf_executor,
+          convert_datetime=convert_datetime,
       )
       extract_futures_collection_recursive(c_data)
   return c_id, c_data
@@ -161,11 +170,32 @@ def write_collection_to_firestore(prefix, data):
         write_collection_to_firestore(f'{doc_id}/{collection_id}', collection)
 
 
-def get_document_data(doc_ref):
+def convert_datetime_to_str_in_dict(d):
+  """Recursively converts datetime objects to ISO strings in a dict or list."""
+  if isinstance(d, dict):
+    for k, v in d.items():
+      if isinstance(v, datetime.datetime):
+        d[k] = v.isoformat()
+      elif isinstance(v, (dict, list)):
+        convert_datetime_to_str_in_dict(v)
+  elif isinstance(d, list):
+    for i, v in enumerate(d):
+      if isinstance(v, datetime.datetime):
+        d[i] = v.isoformat()
+      elif isinstance(v, (dict, list)):
+        convert_datetime_to_str_in_dict(v)
+  return d
+
+
+def get_document_data(doc_ref, convert_datetime=True):
   """Retrieves data for a single document."""
   doc_data = doc_ref.get()
   if doc_data.exists:
-    return doc_data.to_dict()
+    doc_dict = doc_data.to_dict()
+    if convert_datetime:
+      convert_datetime_to_str_in_dict(doc_dict)
+    return doc_dict
+  return None
 
 
 def extract_futures_document_recursive(data):
@@ -189,6 +219,7 @@ def save_document_recursive(
     print_prefix=None,
     tree_executor=None,
     leaf_executor=None,
+    convert_datetime=True,
 ):
   """Recursively saves a document and its subcollections."""
   data = dict()
@@ -210,7 +241,9 @@ def save_document_recursive(
   else:
     if print_depth:
       print(f'{print_prefix}')
-    data['data'] = leaf_executor.submit(get_document_data, doc_ref)
+    data['data'] = leaf_executor.submit(
+        get_document_data, doc_ref, convert_datetime
+    )
 
   if USE_FUTURES_DEPTH == print_depth:
     # Only use the tree_executor on a single depth,
@@ -227,6 +260,7 @@ def save_document_recursive(
               print_prefix=print_prefix,
               tree_executor=tree_executor,
               leaf_executor=leaf_executor,
+              convert_datetime=convert_datetime,
           )
       )
     for future in futures:
@@ -244,6 +278,7 @@ def save_document_recursive(
           print_prefix=print_prefix,
           tree_executor=tree_executor,
           leaf_executor=leaf_executor,
+          convert_datetime=convert_datetime,
       )
       data['collection'][c_id] = c_data
 
@@ -256,6 +291,7 @@ def save_collection_recursive(
     print_prefix=None,
     tree_executor=None,
     leaf_executor=None,
+    convert_datetime=True,
 ):
   """Recursively saves a collection and its documents."""
   data = list()
@@ -278,6 +314,7 @@ def save_collection_recursive(
               print_prefix=print_prefix,
               tree_executor=tree_executor,
               leaf_executor=leaf_executor,
+              convert_datetime=convert_datetime,
           )
       )
     for future in futures:
@@ -292,6 +329,7 @@ def save_collection_recursive(
               print_prefix=print_prefix,
               tree_executor=tree_executor,
               leaf_executor=leaf_executor,
+              convert_datetime=convert_datetime,
           )
       )
 

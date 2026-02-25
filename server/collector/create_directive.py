@@ -25,7 +25,6 @@ import collections
 import concurrent.futures
 import datetime
 import json
-import os
 import pathlib
 import secrets
 import sys
@@ -47,11 +46,11 @@ def delete_user(username):
     print('All requests completed.')
 
 
-def save_user_data(username, output_filename):
+def save_user_data(username, output_filename, convert_datetime=True):
   """Save the given user to json."""
   c_ref = data_access.db.collection(f'collector/users/{username}')
   c_id, c_data = data_access.save_collection_recursive_parallel(
-      c_ref, print_depth=3
+      c_ref, print_depth=3, convert_datetime=convert_datetime
   )
   with open(output_filename, 'w') as f:
     f.write(json.dumps({c_id: c_data}, indent=2))
