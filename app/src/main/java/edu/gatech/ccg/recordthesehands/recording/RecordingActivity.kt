@@ -60,6 +60,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -79,6 +80,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -328,6 +330,8 @@ class RecordingActivity : FragmentActivity() {
    * been selected for the user to record, indices 0 to K - 1 (inclusive) are the indices
    * corresponding to those words, index K is the index for the "Swipe right to end recording"
    * page, and index K + 1 is the recording summary page.
+   *
+   * TODO: Move to RecordingViewModel.
    */
   private var currentPage: Int = 0
 
@@ -629,6 +633,8 @@ class RecordingActivity : FragmentActivity() {
           dataManager.saveClipData(it)
         }
 
+      viewModel.markPromptAsStarted(currentPage)
+
       prompt.recordMinMs?.let {
         viewModel.setRecordingCountdownDuration(it)
         viewModel.restartRecordingCountdown()
@@ -820,9 +826,13 @@ class RecordingActivity : FragmentActivity() {
       val explainTextVisible by viewModel.explainTextVisible.collectAsState()
       val isExplainTimerActive by viewModel.isExplainTimerActive.collectAsState()
       val viewedPrompts by viewModel.viewedPrompts.collectAsState()
+      val startedPrompts by viewModel.startedPrompts.collectAsState()
       var skipButtonText by remember { mutableStateOf(R.string.bad_prompt) }
       var skipButtonEnabled by remember { mutableStateOf(true) }
       var skipButtonVisible by remember { mutableStateOf(true) }
+      val userSettings by dataManager.userSettings.observeAsState()
+      val splitViewEnabled = userSettings?.enableSplitView ?: false
+      val blockSwipeUntilStart = userSettings?.blockSwipeUntilStart ?: false
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -889,7 +899,12 @@ class RecordingActivity : FragmentActivity() {
           // This would be done by implementing custom gesture detection and triggering the
           // pager animation manually.  Also, the read timer would need to be removed but
           // reactivate when the page appears again.
-          userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive && !isExplainTimerActive,
+
+          // TODO: Add `recordOrSkipPressed`. Use map approach like Ken to avoid situation
+          // where users have to press a button every time to swipe freely. Also make this
+          // configurable, and if disabled, recordOrSkipPressed is hardcoded to true.
+          userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive && !isExplainTimerActive
+            && (!blockSwipeUntilStart || currentPage in startedPrompts || currentPage == sessionLimit - sessionStartIndex),
           modifier = Modifier.constrainAs(pager) {
             top.linkTo(parent.top)
             start.linkTo(parent.start)
@@ -932,9 +947,10 @@ class RecordingActivity : FragmentActivity() {
               }
 
             if (page < sessionLimit - sessionStartIndex) {
-              PromptView(
+              PromptView2(
                 prompt = prompts.array[sessionStartIndex + page],
-                modifier = commonModifier
+                modifier = commonModifier,
+                splitView = splitViewEnabled
               )
             } else if (page == sessionLimit - sessionStartIndex) {
               ConfirmPage(
@@ -1738,62 +1754,188 @@ fun ConfirmPage(onFinish: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun PromptView(prompt: Prompt, modifier: Modifier = Modifier) {
+fun ImagePreview(prompt: Prompt) {
   val isTablet = thisDeviceIsATablet(LocalContext.current)
+  var imageBitmap: ImageBitmap? = null
+  if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
+    Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
+    val context = LocalContext.current
+    imageBitmap = remember(prompt.resourcePath) {
+      val file = File(context.filesDir, prompt.resourcePath)
+      if (file.exists()) {
+        BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+      } else {
+        null
+      }
+    }
+  }
+
+  if (imageBitmap != null) {
+    Image(
+      bitmap = imageBitmap,
+      contentDescription = null,
+      modifier = Modifier
+        .width(if (isTablet) 300.dp else 180.dp)
+        .clip(RoundedCornerShape(8.dp))
+    )
+  }
+}
+
+@Composable
+fun PromptView2(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolean = false) {
+  val isTablet = thisDeviceIsATablet(LocalContext.current)
+  val preview: (@Composable () -> Unit)? = if (prompt.resourcePath != null) {
+    when (prompt.promptType) {
+      PromptType.IMAGE -> ({ ImagePreview(prompt) })
+
+      PromptType.VIDEO -> ({
+        VideoPlayer(
+          resourcePath = prompt.resourcePath,
+          modifier = Modifier
+            .then(
+              if (splitView) Modifier.fillMaxWidth()
+              else Modifier.width(if (isTablet) 300.dp else 180.dp)
+            ),
+          cornerRadius = 8.dp
+        )
+      })
+
+      else -> null
+    }
+  } else null
+
   Box(
-    modifier = modifier
+    modifier = Modifier
       .fillMaxWidth()
       .padding(if (isTablet) 12.dp else 0.dp)
       .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
       .background(Color.White, shape = RoundedCornerShape(8.dp))
       .padding(if (isTablet) 12.dp else 8.dp)
   ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      var imageBitmap: ImageBitmap? = null
-      if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
-        Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
-        val context = LocalContext.current
-        imageBitmap = remember(prompt.resourcePath) {
-          val file = File(context.filesDir, prompt.resourcePath)
-          if (file.exists()) {
-            BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
-          } else {
-            null
+    TextFlow(
+      text = prompt.prompt ?: "",
+      color = Color.Black,
+      fontSize = if (isTablet) 30.sp else 24.sp,
+      modifier = Modifier.fillMaxWidth(),
+      obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
+    ) {
+      if (!splitView) {
+        preview?.invoke()
+      }
+    }
+  }
+
+  if (splitView) {
+    preview?.invoke()
+  }
+}
+
+@Composable
+fun PromptView(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolean = false) {
+  val isTablet = thisDeviceIsATablet(LocalContext.current)
+  val hasVideo = prompt.promptType == PromptType.VIDEO && prompt.resourcePath != null
+
+  Column(modifier = modifier) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(if (isTablet) 12.dp else 0.dp)
+        .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+        .background(Color.White, shape = RoundedCornerShape(8.dp))
+        .padding(if (isTablet) 12.dp else 8.dp)
+    ) {
+      when {
+        // VIDEO in normal mode: text + inline video inside the prompt card
+        hasVideo && !splitView -> {
+          Column {
+            if (prompt.prompt != null) {
+              Text(
+                text = prompt.prompt,
+                color = Color.Black,
+                fontSize = if (isTablet) 30.sp else 24.sp,
+              )
+              Spacer(modifier = Modifier.height(8.dp))
+            }
+            VideoPlayer(
+              resourcePath = prompt.resourcePath!!,
+              modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f),
+              cornerRadius = 8.dp
+            )
+          }
+        }
+        // VIDEO in split mode: only text in the card; large video shown below
+        hasVideo && splitView -> {
+          Text(
+            text = prompt.prompt ?: "",
+            color = Color.Black,
+            fontSize = if (isTablet) 30.sp else 24.sp,
+          )
+        }
+        // TEXT or IMAGE: existing behavior
+        else -> {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            var imageBitmap: ImageBitmap? = null
+            if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
+              Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
+              val context = LocalContext.current
+              imageBitmap = remember(prompt.resourcePath) {
+                val file = File(context.filesDir, prompt.resourcePath)
+                if (file.exists()) {
+                  BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+                } else {
+                  null
+                }
+              }
+            }
+            if (imageBitmap != null && !isTablet) {
+              TextFlow(
+                text = prompt.prompt ?: "",
+                color = Color.Black,
+                fontSize = 24.sp,
+                modifier = Modifier.weight(1f),
+                obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
+              ) {
+                Image(
+                  bitmap = imageBitmap,
+                  contentDescription = null,
+                  modifier = Modifier
+                    .width(180.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                )
+              }
+            } else {
+              Text(
+                text = prompt.prompt ?: "",
+                color = Color.Black,
+                fontSize = if (isTablet) 30.sp else 24.sp,
+                modifier = Modifier.weight(1f)
+              )
+              if (imageBitmap != null) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Image(
+                  bitmap = imageBitmap,
+                  contentDescription = null,
+                  modifier = Modifier.width(300.dp)
+                )
+              }
+            }
           }
         }
       }
-      if (imageBitmap != null && !isTablet) {
-        TextFlow(
-          text = prompt.prompt ?: "",
-          color = Color.Black,
-          fontSize = 24.sp,
-          modifier = Modifier.weight(1f),
-          obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
-        ) {
-          Image(
-            bitmap = imageBitmap,
-            contentDescription = null,
-            modifier = Modifier
-              .width(180.dp)
-              .clip(RoundedCornerShape(8.dp))
-          )
-        }
-      } else {
-        Text(
-          text = prompt.prompt ?: "",
-          color = Color.Black,
-          fontSize = if (isTablet) 30.sp else 24.sp,
-          modifier = Modifier.weight(1f)
-        )
-        if (imageBitmap != null) {
-          Spacer(modifier = Modifier.width(16.dp))
-          Image(
-            bitmap = imageBitmap,
-            contentDescription = null,
-            modifier = Modifier.width(300.dp)
-          )
-        }
-      }
+    }
+    // Split mode: large video below the text box
+    if (hasVideo && splitView) {
+      Spacer(modifier = Modifier.height(8.dp))
+      VideoPlayer(
+        resourcePath = prompt.resourcePath!!,
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = if (isTablet) 12.dp else 0.dp)
+          .aspectRatio(16f / 9f),
+        cornerRadius = 8.dp
+      )
     }
   }
 }

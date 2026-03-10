@@ -72,4 +72,8 @@
     <string name="perm_alert_message">तुमचा डेटा रेकॉर्ड करण्यासाठी, आम्हाला कॅमेरा आणि लेखन कार्यक्षमतेसाठी प्रवेश आवश्यक आहे.</string>
     <string name="ok">ठीक आहे</string>
     <string name="words_signed">सांकेतिक शब्द</string>
+
+    <!-- Pending translation -->
+    <string name="enable_split_view">स्प्लिट व्ह्यू सक्षम करा</string>
+    <string name="block_swipe_until_start">सुरू दाबेपर्यंत स्वाइप ब्लॉक करा</string>
 </resources>

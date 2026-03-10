@@ -74,4 +74,8 @@
     <string name="perm_alert_message">आपका डेटा रिकॉर्ड करने के लिए, हमें कैमरा और लेखन कार्यक्षमता तक पहुँच की आवश्यकता होगी।</string>
     <string name="ok">ठीक है</string>
     <string name="words_signed">हस्ताक्षरित शब्द</string>
+
+    <!-- Pending translation -->
+    <string name="enable_split_view">स्प्लिट व्यू सक्षम करें</string>
+    <string name="block_swipe_until_start">स्टार्ट दबाने तक स्वाइप ब्लॉक करें</string>
 </resources>

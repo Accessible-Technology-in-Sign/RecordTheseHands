@@ -44,8 +44,15 @@ class RecordingViewModel : ViewModel() {
   private val _viewedPrompts = MutableStateFlow<Set<Int>>(emptySet())
   val viewedPrompts: StateFlow<Set<Int>> = _viewedPrompts
 
+  private val _startedPrompts = MutableStateFlow<Set<Int>>(emptySet())
+  val startedPrompts: StateFlow<Set<Int>> = _startedPrompts
+
   fun markPromptAsViewed(promptIndex: Int) {
     _viewedPrompts.value = _viewedPrompts.value + promptIndex
+  }
+
+  fun markPromptAsStarted(promptIndex: Int) {
+    _startedPrompts.value += promptIndex
   }
 
   fun restartRecordingCountdown() {
