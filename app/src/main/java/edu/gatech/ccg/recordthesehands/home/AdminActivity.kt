@@ -152,6 +152,11 @@ class AdminActivity : ComponentActivity() {
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setBlockSwipeUntilStart(enabled)
           }
+        },
+        onSetDisableSkipButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSkipButton(disabled)
+          }
         }
       )
     }
@@ -181,7 +186,8 @@ fun AdminScreenContent(
   onSetDismissCountdownCircle: (Boolean) -> Unit,
   onResetOverviewInstructions: () -> Unit,
   onSetSplitView: (Boolean) -> Unit,
-  onSetBlockSwipeUntilStart: (Boolean) -> Unit
+  onSetBlockSwipeUntilStart: (Boolean) -> Unit,
+  onSetDisableSkipButton: (Boolean) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
@@ -521,6 +527,26 @@ fun AdminScreenContent(
         Switch(
           checked = isBlockSwipeEnabled,
           onCheckedChange = { onSetBlockSwipeUntilStart(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
+      }
+
+      val isSkipButtonDisabled = userSettings?.disableSkipButton ?: false
+      Row(
+        modifier = Modifier.padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.disable_skip_button),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isSkipButtonDisabled,
+          onCheckedChange = { onSetDisableSkipButton(it) },
           colors = SwitchDefaults.colors(
             checkedThumbColor = LightBlue,
             checkedTrackColor = LightBlue.copy(alpha = 0.5f)

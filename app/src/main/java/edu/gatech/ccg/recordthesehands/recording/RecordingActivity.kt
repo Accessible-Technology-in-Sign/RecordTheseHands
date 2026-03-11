@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
@@ -110,6 +111,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -838,6 +840,7 @@ class RecordingActivity : FragmentActivity() {
       val userSettings by dataManager.userSettings.observeAsState()
       val splitViewEnabled = userSettings?.enableSplitView ?: false
       val blockSwipeUntilStart = userSettings?.blockSwipeUntilStart ?: false
+      val disableSkipButton = userSettings?.disableSkipButton ?: false
 
       val lifecycleOwner = LocalLifecycleOwner.current
       val context = LocalContext.current
@@ -885,17 +888,36 @@ class RecordingActivity : FragmentActivity() {
           previewViewHolder,
           modifier = Modifier.constrainAs(cameraPreview) {
             top.linkTo(guideline)
-            start.linkTo(parent.start)
             bottom.linkTo(parent.bottom)
-            if (isTablet && splitViewEnabled) {
-              width = Dimension.value(screenWidthDp - 420.dp)
-            } else {
-              end.linkTo(parent.end)
-              width = Dimension.fillToConstraints
-            }
+            val margin = if (isTablet && splitViewEnabled) 420.dp else 0.dp
+            start.linkTo(parent.start, margin = margin)
+            end.linkTo(parent.end, margin = margin)
+            width = Dimension.fillToConstraints
             height = Dimension.fillToConstraints
           }
         )
+
+        fun updateGuidelinePosition(page: Int, currentPage: Int, layoutCoordinates: LayoutCoordinates, offset: Int = 0) {
+          if (page == currentPage) {
+            val yPositionInPixels =
+              layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height + offset
+            val newPosition = (yPositionInPixels / density.density)
+            if (guidelineTargetPosition != newPosition) {
+              val oldPosition = guidelineTargetPosition
+              guidelineTargetPosition = newPosition
+              coroutineScope.launch {
+                Log.d(
+                  TAG,
+                  "animating guideline position change from $oldPosition to $newPosition."
+                )
+                guidelinePosition.animateTo(
+                  newPosition,
+                  animationSpec = tween(200, easing = EaseOutCirc)
+                )
+              }
+            }
+          }
+        }
 
         val pagerState = rememberPagerState(
           initialPage = 0,
@@ -920,68 +942,43 @@ class RecordingActivity : FragmentActivity() {
             height = Dimension.fillToConstraints
           }
         ) { page ->
-          Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = if (isTablet && splitViewEnabled) Alignment.TopEnd else Alignment.TopStart
+          ConstraintLayout(
+            modifier = Modifier
+              .fillMaxSize()
+              .padding(top = if (isTablet) 0.dp else 64.dp)
           ) {
-            ConstraintLayout(
-              modifier = Modifier
-                .then(
-                  if (isTablet && splitViewEnabled)
-                    Modifier.fillMaxHeight().widthIn(max = 420.dp)
-                  else Modifier.fillMaxSize()
-                )
-                .padding(top = if (isTablet) 0.dp else 64.dp)
-            ) {
-              val (content) = createRefs()
-              val commonModifier = Modifier
-                .constrainAs(content) {
-                //  top.linkTo(parent.top, margin = 96.dp)
-                  start.linkTo(parent.start)
-                  end.linkTo(parent.end)
-                  width = Dimension.matchParent
-                  height = Dimension.wrapContent
-                }
-                .onGloballyPositioned { layoutCoordinates ->
-                  if (isTablet && splitViewEnabled) {
-                    return@onGloballyPositioned
-                  }
-
-                  if (page == pagerState.currentPage) {
-                    val yPositionInPixels =
-                      layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
-                    val newPosition = (yPositionInPixels / density.density)
-                    if (guidelineTargetPosition != newPosition) {
-                      val oldPosition = guidelineTargetPosition
-                      guidelineTargetPosition = newPosition
-                      coroutineScope.launch {
-                        Log.d(
-                          TAG,
-                          "animating guideline position change from $oldPosition to $newPosition."
-                        )
-                        guidelinePosition.animateTo(
-                          newPosition,
-                          animationSpec = tween(200, easing = EaseOutCirc)
-                        )
-                      }
-                    }
-                  }
-                }
-
-              if (page < sessionLimit - sessionStartIndex) {
-                PromptView2(
-                  prompt = prompts.array[sessionStartIndex + page],
-                  modifier = commonModifier,
-                  splitView = splitViewEnabled
-                )
-              } else if (page == sessionLimit - sessionStartIndex) {
-                ConfirmPage(
-                  onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK_CONFIRM_PAGE") },
-                  modifier = commonModifier
-                )
-              } else {
-                throw IllegalStateException("Unreachable page in HorizontalPager")
+            val (content) = createRefs()
+            val commonModifier = Modifier
+              .constrainAs(content) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.matchParent
+                height = Dimension.wrapContent
               }
+              .onGloballyPositioned { layoutCoordinates ->
+                if (isTablet && splitViewEnabled && page < sessionLimit - sessionStartIndex) {
+                  // Repositioning handled by PromptView
+                  return@onGloballyPositioned
+                }
+                updateGuidelinePosition(page, pagerState.currentPage, layoutCoordinates)
+              }
+
+            if (page < sessionLimit - sessionStartIndex) {
+              PromptView2(
+                prompt = prompts.array[sessionStartIndex + page],
+                modifier = commonModifier,
+                splitView = splitViewEnabled,
+                onTextBoxPositioned = if (isTablet && splitViewEnabled) { layoutCoordinates ->
+                  updateGuidelinePosition(page, pagerState.currentPage, layoutCoordinates, 24)
+                } else null
+              )
+            } else if (page == sessionLimit - sessionStartIndex) {
+              ConfirmPage(
+                onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK_CONFIRM_PAGE") },
+                modifier = commonModifier
+              )
+            } else {
+              throw IllegalStateException("Unreachable page in HorizontalPager")
             }
           }
         }
@@ -1059,7 +1056,7 @@ class RecordingActivity : FragmentActivity() {
             }
             .padding(top = 0.dp, start = 16.dp)
         )
-        if (skipButtonVisible && !isReadTimerActive) {
+        if (skipButtonVisible && !isReadTimerActive && !disableSkipButton) {
           SkipButton(
             onClick = {
               skipButtonOnClickListener()
@@ -1805,7 +1802,12 @@ fun ImagePreview(prompt: Prompt) {
 }
 
 @Composable
-fun PromptView2(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolean = false) {
+fun PromptView2(
+  prompt: Prompt,
+  modifier: Modifier = Modifier,
+  splitView: Boolean = false,
+  onTextBoxPositioned: ((LayoutCoordinates) -> Unit)? = null
+) {
   val isTablet = thisDeviceIsATablet(LocalContext.current)
   val preview: (@Composable () -> Unit)? = if (prompt.resourcePath != null) {
     when (prompt.promptType) {
@@ -1835,6 +1837,11 @@ fun PromptView2(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolea
         .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
         .background(Color.White, shape = RoundedCornerShape(8.dp))
         .padding(if (isTablet) 12.dp else 8.dp)
+        .then(
+          if (onTextBoxPositioned != null)
+            Modifier.onGloballyPositioned { onTextBoxPositioned(it) }
+          else Modifier
+        )
     ) {
       TextFlow(
         text = prompt.prompt ?: "",
@@ -1852,10 +1859,12 @@ fun PromptView2(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolea
     if (splitView) {
       if (isTablet) {
         Box(
-          modifier = Modifier.fillMaxWidth().weight(2f),
-          contentAlignment = Alignment.Center
+          modifier = Modifier.fillMaxWidth().weight(5f),
+          contentAlignment = Alignment.CenterEnd
         ) {
-          preview?.invoke()
+          Box(modifier = Modifier.widthIn(max = 420.dp)) {
+            preview?.invoke()
+          }
         }
         Spacer(modifier = Modifier.weight(1f))
       } else {

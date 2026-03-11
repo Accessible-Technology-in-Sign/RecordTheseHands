@@ -28,13 +28,15 @@ import org.json.JSONObject
 data class UserSettings(
   val enableDismissCountdownCircle: Boolean = false,
   val enableSplitView: Boolean = false,
-  val blockSwipeUntilStart: Boolean = false
+  val blockSwipeUntilStart: Boolean = false,
+  val disableSkipButton: Boolean = false
 ) {
   fun toJson(): JSONObject {
     val json = JSONObject()
     json.put("enableDismissCountdownCircle", enableDismissCountdownCircle)
     json.put("enableSplitView", enableSplitView)
     json.put("blockSwipeUntilStart", blockSwipeUntilStart)
+    json.put("disableSkipButton", disableSkipButton)
     return json
   }
 
@@ -43,7 +45,8 @@ data class UserSettings(
       return UserSettings(
         enableDismissCountdownCircle = json.optBoolean("enableDismissCountdownCircle", false),
         enableSplitView = json.optBoolean("enableSplitView", false),
-        blockSwipeUntilStart = json.optBoolean("blockSwipeUntilStart", false)
+        blockSwipeUntilStart = json.optBoolean("blockSwipeUntilStart", false),
+        disableSkipButton = json.optBoolean("disableSkipButton", false)
       )
     }
   }
