@@ -25,6 +25,7 @@ package edu.gatech.ccg.recordthesehands.recording
 
 import android.app.NotificationManager
 import android.content.Context
+import android.content.res.Configuration
 import android.content.pm.ActivityInfo
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -64,12 +65,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -97,6 +101,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -874,15 +879,20 @@ class RecordingActivity : FragmentActivity() {
         val (cameraPreview, pager, timerLabel, recordButtons, recordingLight, goText, backButton, readTimer, skipButton, explainText) = createRefs()
         val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
+        val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
         CameraPreview(
           textureView,
           previewViewHolder,
           modifier = Modifier.constrainAs(cameraPreview) {
             top.linkTo(guideline)
             start.linkTo(parent.start)
-            end.linkTo(parent.end)
             bottom.linkTo(parent.bottom)
-            width = Dimension.fillToConstraints
+            if (isTablet && splitViewEnabled) {
+              width = Dimension.value(screenWidthDp - 420.dp)
+            } else {
+              end.linkTo(parent.end)
+              width = Dimension.fillToConstraints
+            }
             height = Dimension.fillToConstraints
           }
         )
@@ -899,10 +909,6 @@ class RecordingActivity : FragmentActivity() {
           // This would be done by implementing custom gesture detection and triggering the
           // pager animation manually.  Also, the read timer would need to be removed but
           // reactivate when the page appears again.
-
-          // TODO: Add `recordOrSkipPressed`. Use map approach like Ken to avoid situation
-          // where users have to press a button every time to swipe freely. Also make this
-          // configurable, and if disabled, recordOrSkipPressed is hardcoded to true.
           userScrollEnabled = !isReadTimerActive && !isRecordingTimerActive && !isExplainTimerActive
             && (!blockSwipeUntilStart || currentPage in startedPrompts || currentPage == sessionLimit - sessionStartIndex),
           modifier = Modifier.constrainAs(pager) {
@@ -914,51 +920,68 @@ class RecordingActivity : FragmentActivity() {
             height = Dimension.fillToConstraints
           }
         ) { page ->
-          ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-            val (content) = createRefs()
-            val commonModifier = Modifier
-              .constrainAs(content) {
-                top.linkTo(parent.top)
-                start.linkTo(parent.start)
-                end.linkTo(parent.end)
-                width = Dimension.matchParent
-                height = Dimension.wrapContent
-              }
-              .onGloballyPositioned { layoutCoordinates ->
-                if (page == pagerState.currentPage) {
-                  val yPositionInPixels =
-                    layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
-                  val newPosition = (yPositionInPixels / density.density)
-                  if (guidelineTargetPosition != newPosition) {
-                    val oldPosition = guidelineTargetPosition
-                    guidelineTargetPosition = newPosition
-                    coroutineScope.launch {
-                      Log.d(
-                        TAG,
-                        "animating guideline position change from $oldPosition to $newPosition."
-                      )
-                      guidelinePosition.animateTo(
-                        newPosition,
-                        animationSpec = tween(200, easing = EaseOutCirc)
-                      )
+          Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = if (isTablet && splitViewEnabled) Alignment.TopEnd else Alignment.TopStart
+          ) {
+            ConstraintLayout(
+              modifier = Modifier
+                .then(
+                  if (isTablet && splitViewEnabled)
+                    Modifier.fillMaxHeight().widthIn(max = 420.dp)
+                  else Modifier.fillMaxSize()
+                )
+                .padding(top = if (isTablet) 0.dp else 64.dp)
+            ) {
+              val (content) = createRefs()
+              val commonModifier = Modifier
+                .constrainAs(content) {
+                //  top.linkTo(parent.top, margin = 96.dp)
+                  start.linkTo(parent.start)
+                  end.linkTo(parent.end)
+                  width = Dimension.matchParent
+                  height = Dimension.wrapContent
+                }
+                .onGloballyPositioned { layoutCoordinates ->
+                  if (isTablet && splitViewEnabled) {
+                    return@onGloballyPositioned
+                  }
+
+                  if (page == pagerState.currentPage) {
+                    val yPositionInPixels =
+                      layoutCoordinates.positionInRoot().y + layoutCoordinates.size.height
+                    val newPosition = (yPositionInPixels / density.density)
+                    if (guidelineTargetPosition != newPosition) {
+                      val oldPosition = guidelineTargetPosition
+                      guidelineTargetPosition = newPosition
+                      coroutineScope.launch {
+                        Log.d(
+                          TAG,
+                          "animating guideline position change from $oldPosition to $newPosition."
+                        )
+                        guidelinePosition.animateTo(
+                          newPosition,
+                          animationSpec = tween(200, easing = EaseOutCirc)
+                        )
+                      }
                     }
                   }
                 }
-              }
 
-            if (page < sessionLimit - sessionStartIndex) {
-              PromptView2(
-                prompt = prompts.array[sessionStartIndex + page],
-                modifier = commonModifier,
-                splitView = splitViewEnabled
-              )
-            } else if (page == sessionLimit - sessionStartIndex) {
-              ConfirmPage(
-                onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK_CONFIRM_PAGE") },
-                modifier = commonModifier
-              )
-            } else {
-              throw IllegalStateException("Unreachable page in HorizontalPager")
+              if (page < sessionLimit - sessionStartIndex) {
+                PromptView2(
+                  prompt = prompts.array[sessionStartIndex + page],
+                  modifier = commonModifier,
+                  splitView = splitViewEnabled
+                )
+              } else if (page == sessionLimit - sessionStartIndex) {
+                ConfirmPage(
+                  onFinish = { concludeRecordingSession(RESULT_OK, "RESULT_OK_CONFIRM_PAGE") },
+                  modifier = commonModifier
+                )
+              } else {
+                throw IllegalStateException("Unreachable page in HorizontalPager")
+              }
             }
           }
         }
@@ -1804,29 +1827,41 @@ fun PromptView2(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolea
     }
   } else null
 
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .padding(if (isTablet) 12.dp else 0.dp)
-      .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
-      .background(Color.White, shape = RoundedCornerShape(8.dp))
-      .padding(if (isTablet) 12.dp else 8.dp)
-  ) {
-    TextFlow(
-      text = prompt.prompt ?: "",
-      color = Color.Black,
-      fontSize = if (isTablet) 30.sp else 24.sp,
-      modifier = Modifier.fillMaxWidth(),
-      obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
+  Column(modifier = modifier) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(if (isTablet) 12.dp else 0.dp)
+        .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+        .background(Color.White, shape = RoundedCornerShape(8.dp))
+        .padding(if (isTablet) 12.dp else 8.dp)
     ) {
-      if (!splitView) {
+      TextFlow(
+        text = prompt.prompt ?: "",
+        color = Color.Black,
+        fontSize = if (isTablet) 30.sp else 24.sp,
+        modifier = Modifier.fillMaxWidth(),
+        obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
+      ) {
+        if (!splitView) {
+          preview?.invoke()
+        }
+      }
+    }
+
+    if (splitView) {
+      if (isTablet) {
+        Box(
+          modifier = Modifier.fillMaxWidth().weight(2f),
+          contentAlignment = Alignment.Center
+        ) {
+          preview?.invoke()
+        }
+        Spacer(modifier = Modifier.weight(1f))
+      } else {
         preview?.invoke()
       }
     }
-  }
-
-  if (splitView) {
-    preview?.invoke()
   }
 }
 
