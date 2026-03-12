@@ -2,7 +2,7 @@
 
 # `Record These Hands!`
 
-© 2021–2025 Georgia Institute of Technology / Center for Accessible Technology
+© 2021–2026 Georgia Institute of Technology / Center for Accessible Technology
 in Sign (GT-CATS) / Google LLC<br> Licensed under the MIT license.
 
 Principal authors:

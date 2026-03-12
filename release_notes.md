@@ -1,3 +1,41 @@
+# Release Notes - v2.3.13
+
+## Android Application
+
+- Unchanged. Version number remains at v2.3.11.
+
+## Server
+
+**Data Pipeline Overhaul**
+
+- Migrated the entire data collection pipeline from direct Firestore queries to
+  local database dump processing, significantly improving robustness and
+  reducing server load.
+- Added a full-database parallel export feature to `create_directive.py` using
+  multi-threading for faster backups.
+- Introduced `dump_clips.py` as a dedicated tool for extracting rich metadata
+  (including session IDs, prompt IDs, and section names) from database
+  snapshots.
+- Updated `download_videos.py` to work with local data dumps and include MD5
+  hash validation for downloaded clips.
+- Refactored `local_video_pipeline.py` to orchestrate the new JSON-based
+  workflow.
+
+**Documentation**
+
+- Extensively updated `USAGE.md` with step-by-step instructions for the new
+  video processing pipeline.
+- Clarified username format requirements (`tNN` or `pNN`) for data processing.
+
+**Technical Improvements**
+
+- Standardized command-line interfaces across all collector scripts using
+  `argparse`.
+- Added support for username prefixes in metadata extraction to facilitate data
+  organization.
+- Modernized internal metadata field naming to consistent camelCase (e.g.,
+  `startS`, `endS`).
+
 # Release Notes - v2.3.12
 
 ## Android Application
