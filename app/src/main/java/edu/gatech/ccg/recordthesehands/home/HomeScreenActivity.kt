@@ -380,6 +380,8 @@ fun HomeScreenContent(
   val serverStatus by dataManager.serverStatus.observeAsState()
   val uploadState by dataManager.uploadState.observeAsState()
   val appStatus by dataManager.appStatus.observeAsState()
+  val userSettings by dataManager.userSettings.observeAsState()
+  val disableSwitchPromptsButton = userSettings?.disableSwitchPromptsButton ?: false
   var numTitleClicks by remember { mutableStateOf(0) }
   var showUploadStatus by remember { mutableStateOf(false) }
   var uploadStatusMessage by remember { mutableStateOf(null as String?) }
@@ -946,7 +948,7 @@ fun HomeScreenContent(
       text = startButtonText
     )
 
-    if (!startRecordingShouldSwitchPrompts) {
+    if (!startRecordingShouldSwitchPrompts && !disableSwitchPromptsButton) {
       // 14. Switch Prompts Button (AppCompatButton)
       SecondaryButton(
         onClick = { onSwitchPromptsClick() },

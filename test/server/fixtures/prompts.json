@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "defaultSection": "default"
+  },
+  "data": {
+    "default": {
+      "metadata": {
+        "dataCollectionId": "test-collection"
+      },
+      "main": [
+        {
+          "promptId": "about",
+          "promptType": "VIDEO",
+          "prompt": "about",
+          "resourcePath": "resource/video/about.mp4"
+        },
+        {
+          "promptId": "above",
+          "promptType": "VIDEO",
+          "prompt": "above",
+          "resourcePath": "resource/video/above.mp4"
+        }
+      ]
+    }
+  }
+}

@@ -46,6 +46,8 @@ import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
+import androidx.compose.material.Switch
+import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -140,6 +142,26 @@ class AdminActivity : ComponentActivity() {
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setOverviewInstructionsShown(false)
           }
+        },
+        onSetSplitView = { enabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setEnableSplitView(enabled)
+          }
+        },
+        onSetBlockSwipeUntilStart = { enabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setBlockSwipeUntilStart(enabled)
+          }
+        },
+        onSetDisableSkipButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSkipButton(disabled)
+          }
+        },
+        onSetDisableSwitchPromptsButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSwitchPromptsButton(disabled)
+          }
         }
       )
     }
@@ -167,7 +189,11 @@ fun AdminScreenContent(
   onAttachToAccount: (Boolean) -> Unit,
   onDownloadApk: () -> Unit,
   onSetDismissCountdownCircle: (Boolean) -> Unit,
-  onResetOverviewInstructions: () -> Unit
+  onResetOverviewInstructions: () -> Unit,
+  onSetSplitView: (Boolean) -> Unit,
+  onSetBlockSwipeUntilStart: (Boolean) -> Unit,
+  onSetDisableSkipButton: (Boolean) -> Unit,
+  onSetDisableSwitchPromptsButton: (Boolean) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
@@ -472,6 +498,86 @@ fun AdminScreenContent(
           }
           removeDeviceCheckbox()
         }
+      }
+
+      val isSplitViewEnabled = userSettings?.enableSplitView ?: false
+      Row(
+        modifier = Modifier.padding(top = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.enable_split_view),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isSplitViewEnabled,
+          onCheckedChange = { onSetSplitView(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
+      }
+
+      val isBlockSwipeEnabled = userSettings?.blockSwipeUntilStart ?: false
+      Row(
+        modifier = Modifier.padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.block_swipe_until_start),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isBlockSwipeEnabled,
+          onCheckedChange = { onSetBlockSwipeUntilStart(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
+      }
+
+      val isSkipButtonDisabled = userSettings?.disableSkipButton ?: false
+      Row(
+        modifier = Modifier.padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.disable_skip_button),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isSkipButtonDisabled,
+          onCheckedChange = { onSetDisableSkipButton(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
+      }
+
+      val isSwitchPromptsButtonDisabled = userSettings?.disableSwitchPromptsButton ?: false
+      Row(
+        modifier = Modifier.padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.disable_switch_prompts_button),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isSwitchPromptsButtonDisabled,
+          onCheckedChange = { onSetDisableSwitchPromptsButton(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
       }
     }
 

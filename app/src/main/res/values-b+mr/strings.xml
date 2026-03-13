@@ -65,6 +65,7 @@
     <string name="finish">समाप्त</string>
     <string name="recording">रेकॉर्डिंग</string>
     <string name="time">15:00</string>
+    <string name="bad_prompt">चुकीचा प्रॉम्प्ट</string>
     <string name="go">जा!</string>
 
     <!-- Permissions -->
@@ -72,4 +73,11 @@
     <string name="perm_alert_message">तुमचा डेटा रेकॉर्ड करण्यासाठी, आम्हाला कॅमेरा आणि लेखन कार्यक्षमतेसाठी प्रवेश आवश्यक आहे.</string>
     <string name="ok">ठीक आहे</string>
     <string name="words_signed">सांकेतिक शब्द</string>
+
+    <!-- Pending translation -->
+    <string name="enable_split_view">स्प्लिट व्ह्यू सक्षम करा</string>
+    <string name="block_swipe_until_start">सुरू दाबेपर्यंत स्वाइप ब्लॉक करा</string>
+    <string name="disable_skip_button">\'चुकीचा प्रॉम्प्ट\' बटण अक्षम करा</string>
+    <!-- Pending translation -->
+    <string name="disable_switch_prompts_button">\'Switch Prompts\' बटण अक्षम करा</string>
 </resources>
