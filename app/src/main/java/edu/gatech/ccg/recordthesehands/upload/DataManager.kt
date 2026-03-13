@@ -973,6 +973,14 @@ class DataManager private constructor(val context: Context) {
     }
   }
 
+  suspend fun setDisableSwitchPromptsButton(disabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(disableSwitchPromptsButton = disabled)
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
   /**
    * Sets whether version checking is enabled.
    * This function updates the `checkVersion` field in the `AppStatus` in both

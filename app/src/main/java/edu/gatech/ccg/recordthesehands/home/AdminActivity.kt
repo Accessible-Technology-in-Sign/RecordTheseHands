@@ -157,6 +157,11 @@ class AdminActivity : ComponentActivity() {
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setDisableSkipButton(disabled)
           }
+        },
+        onSetDisableSwitchPromptsButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSwitchPromptsButton(disabled)
+          }
         }
       )
     }
@@ -187,7 +192,8 @@ fun AdminScreenContent(
   onResetOverviewInstructions: () -> Unit,
   onSetSplitView: (Boolean) -> Unit,
   onSetBlockSwipeUntilStart: (Boolean) -> Unit,
-  onSetDisableSkipButton: (Boolean) -> Unit
+  onSetDisableSkipButton: (Boolean) -> Unit,
+  onSetDisableSwitchPromptsButton: (Boolean) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
@@ -547,6 +553,26 @@ fun AdminScreenContent(
         Switch(
           checked = isSkipButtonDisabled,
           onCheckedChange = { onSetDisableSkipButton(it) },
+          colors = SwitchDefaults.colors(
+            checkedThumbColor = LightBlue,
+            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+          )
+        )
+      }
+
+      val isSwitchPromptsButtonDisabled = userSettings?.disableSwitchPromptsButton ?: false
+      Row(
+        modifier = Modifier.padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = stringResource(R.string.disable_switch_prompts_button),
+          fontSize = 24.sp
+        )
+        Switch(
+          checked = isSwitchPromptsButtonDisabled,
+          onCheckedChange = { onSetDisableSwitchPromptsButton(it) },
           colors = SwitchDefaults.colors(
             checkedThumbColor = LightBlue,
             checkedTrackColor = LightBlue.copy(alpha = 0.5f)

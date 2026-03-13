@@ -29,6 +29,7 @@ import android.content.res.Configuration
 import android.content.pm.ActivityInfo
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
@@ -38,6 +39,8 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
+import android.media.MediaCodecList
+import android.media.MediaFormat
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -453,7 +456,9 @@ class RecordingActivity : FragmentActivity() {
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
   private lateinit var videoSize: Size
+  private lateinit var fallbackVideoSizes: List<Size>
   private var sensorOrientation: Int = 0
+  private var sensorAspectRatio: Float = 4f / 3f
   private var frontFacingCamera: Boolean = true
   private var mediaRecorder: MediaRecorder? = null
   private var screenRotationDegrees: Int = 0
@@ -583,8 +588,11 @@ class RecordingActivity : FragmentActivity() {
           }
 
           override fun onConfigureFailed(session: CameraCaptureSession) {
-            val exc = RuntimeException("Camera ${cameraDevice?.id} session configuration failed")
-            Log.e(TAG, exc.message, exc)
+            Log.e(
+              TAG,
+              "Camera ${cameraDevice?.id} session configuration failed " +
+                  "at ${videoSize.width}x${videoSize.height}"
+            )
           }
         }
       )
@@ -810,6 +818,9 @@ class RecordingActivity : FragmentActivity() {
       characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
     val map =
       characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+    val sensorRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)!!
+    sensorAspectRatio = sensorRect.width().toFloat() / sensorRect.height().toFloat()
+    Log.d(TAG, "Sensor active array: ${sensorRect.width()}x${sensorRect.height()}, aspect ratio: $sensorAspectRatio")
     videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder::class.java))
     screenRotationDegrees = when (display.rotation) {
       Surface.ROTATION_0 -> 0
@@ -847,6 +858,7 @@ class RecordingActivity : FragmentActivity() {
       textureView = remember { TextureView(context) }
       textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+          surface.setDefaultBufferSize(videoSize.width, videoSize.height)
           openCamera()
           configureTransform(width, height)
         }
@@ -856,6 +868,7 @@ class RecordingActivity : FragmentActivity() {
           width: Int,
           height: Int
         ) {
+          surface.setDefaultBufferSize(videoSize.width, videoSize.height)
           configureTransform(width, height)
         }
 
@@ -883,18 +896,25 @@ class RecordingActivity : FragmentActivity() {
         val guideline = createGuidelineFromTop(guidelinePosition.value.dp)
 
         val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+        val previewAspectRatio = if (screenRotationDegrees == 90 || screenRotationDegrees == 270) {
+          1f / sensorAspectRatio
+        } else {
+          sensorAspectRatio
+        }
         CameraPreview(
           textureView,
           previewViewHolder,
-          modifier = Modifier.constrainAs(cameraPreview) {
-            top.linkTo(guideline)
-            bottom.linkTo(parent.bottom)
-            val margin = if (isTablet && splitViewEnabled) 420.dp else 0.dp
-            start.linkTo(parent.start, margin = margin)
-            end.linkTo(parent.end, margin = margin)
-            width = Dimension.fillToConstraints
-            height = Dimension.fillToConstraints
-          }
+          modifier = Modifier
+            .aspectRatio(previewAspectRatio)
+            .constrainAs(cameraPreview) {
+              top.linkTo(guideline)
+              bottom.linkTo(parent.bottom)
+              val margin = if (isTablet && splitViewEnabled) 420.dp else 0.dp
+              start.linkTo(parent.start, margin = margin)
+              end.linkTo(parent.end, margin = margin)
+              width = Dimension.fillToConstraints
+              height = Dimension.fillToConstraints
+            }
         )
 
         fun updateGuidelinePosition(page: Int, currentPage: Int, layoutCoordinates: LayoutCoordinates, offset: Int = 0) {
@@ -1307,6 +1327,8 @@ class RecordingActivity : FragmentActivity() {
         heightConstrainedScale
       }
 
+    val aspectRatio = scaleWidth / scaleHeight
+
     Log.d(
       TAG, "configureTransform($widgetWidth, $widgetHeight)\n" +
           "screenRotationDegrees ${screenRotationDegrees}\n" +
@@ -1317,7 +1339,8 @@ class RecordingActivity : FragmentActivity() {
           "scaleWidth ${scaleWidth}\n" +
           "scaleHeight ${scaleHeight}\n" +
           "widthConstrainedScale ${widthConstrainedScale}\n" +
-          "heightConstrainedScale ${heightConstrainedScale}\n"
+          "heightConstrainedScale ${heightConstrainedScale}\n" +
+          "aspectRatio $aspectRatio:1"
     )
 
     val finalRotation = -screenRotationDegrees
@@ -1337,32 +1360,62 @@ class RecordingActivity : FragmentActivity() {
     textureView.setTransform(matrix)
   }
 
+  private fun isEncoderSizeSupported(width: Int, height: Int): Boolean {
+    val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+    for (codecInfo in codecList.codecInfos) {
+      if (!codecInfo.isEncoder) continue
+      for (type in codecInfo.supportedTypes) {
+        if (type.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true)) {
+          try {
+            val caps = codecInfo.getCapabilitiesForType(type).videoCapabilities
+            if (caps.isSizeSupported(width, height)) {
+              return true
+            }
+          } catch (e: Exception) {
+            // Codec doesn't support this type properly, skip it
+          }
+        }
+      }
+    }
+    return false
+  }
+
   private fun chooseVideoSize(choices: Array<Size>): Size {
     for (option in choices) {
       Log.d(TAG, "available resolution: ${option.width}x${option.height}")
     }
     fun hasAspectRatio(widthRatio: Int, heightRatio: Int, dim: Size): Boolean {
-      val target = widthRatio.toFloat() / heightRatio.toFloat()
-      return ((dim.width.toFloat() / dim.height.toFloat()) - target < 0.01)
+      return dim.width * heightRatio == dim.height * widthRatio
     }
 
-    val largestAvailableSize = choices.filter {
+    val candidateSizes = choices.filter {
       // Find a resolution smaller than the maximum pixel count (9 MP)
-      // with an aspect ratio of 4:3.
-      val output = it.width * it.height < MAXIMUM_RESOLUTION &&
+      // with an aspect ratio of 4:3, and supported by the H.264 encoder.
+      val matchesConstraints = it.width * it.height < MAXIMUM_RESOLUTION &&
           (hasAspectRatio(4, 3, it))
+      val encoderSupported = if (matchesConstraints) {
+        isEncoderSizeSupported(it.width, it.height)
+      } else {
+        false
+      }
       Log.d(
         TAG,
-        "match ${output} width ${it.width} height ${it.height} target width 4 target height 3 "
+        "match ${matchesConstraints} encoderSupported ${encoderSupported} " +
+            "width ${it.width} height ${it.height} target width 4 target height 3 "
       )
-      output
-    }?.maxByOrNull { it.width * it.height }
+      matchesConstraints && encoderSupported
+    }.sortedByDescending { it.width * it.height }
 
-    if (largestAvailableSize == null) {
+    if (candidateSizes.isEmpty()) {
       throw IllegalStateException("Unable to pick acceptable camera resolution.")
     }
-    Log.d(TAG, "picked resolution: ${largestAvailableSize.width}x${largestAvailableSize.height}")
-    return largestAvailableSize
+
+    // Store remaining sizes as fallbacks for retry on session configuration failure.
+    fallbackVideoSizes = candidateSizes.drop(1)
+
+    Log.d(TAG, "picked resolution: ${candidateSizes[0].width}x${candidateSizes[0].height}")
+    Log.d(TAG, "fallback resolutions: ${fallbackVideoSizes.map { "${it.width}x${it.height}" }}")
+    return candidateSizes[0]
   }
 
   private fun setUpMediaRecorder() {

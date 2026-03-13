@@ -29,7 +29,8 @@ data class UserSettings(
   val enableDismissCountdownCircle: Boolean = false,
   val enableSplitView: Boolean = false,
   val blockSwipeUntilStart: Boolean = false,
-  val disableSkipButton: Boolean = false
+  val disableSkipButton: Boolean = false,
+  val disableSwitchPromptsButton: Boolean = false
 ) {
   fun toJson(): JSONObject {
     val json = JSONObject()
@@ -37,6 +38,7 @@ data class UserSettings(
     json.put("enableSplitView", enableSplitView)
     json.put("blockSwipeUntilStart", blockSwipeUntilStart)
     json.put("disableSkipButton", disableSkipButton)
+    json.put("disableSwitchPromptsButton", disableSwitchPromptsButton)
     return json
   }
 
@@ -46,7 +48,8 @@ data class UserSettings(
         enableDismissCountdownCircle = json.optBoolean("enableDismissCountdownCircle", false),
         enableSplitView = json.optBoolean("enableSplitView", false),
         blockSwipeUntilStart = json.optBoolean("blockSwipeUntilStart", false),
-        disableSkipButton = json.optBoolean("disableSkipButton", false)
+        disableSkipButton = json.optBoolean("disableSkipButton", false),
+        disableSwitchPromptsButton = json.optBoolean("disableSwitchPromptsButton", false)
       )
     }
   }

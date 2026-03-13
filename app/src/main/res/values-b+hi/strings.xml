@@ -80,4 +80,6 @@
     <string name="enable_split_view">स्प्लिट व्यू सक्षम करें</string>
     <string name="block_swipe_until_start">स्टार्ट दबाने तक स्वाइप ब्लॉक करें</string>
     <string name="disable_skip_button">\'खराब प्रॉम्प्ट\' बटन अक्षम करें</string>
+    <!-- Pending translation -->
+    <string name="disable_switch_prompts_button">\'Switch Prompts\' बटन अक्षम करें</string>
 </resources>

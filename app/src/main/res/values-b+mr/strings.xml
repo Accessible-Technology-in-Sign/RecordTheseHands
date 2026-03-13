@@ -78,4 +78,6 @@
     <string name="enable_split_view">स्प्लिट व्ह्यू सक्षम करा</string>
     <string name="block_swipe_until_start">सुरू दाबेपर्यंत स्वाइप ब्लॉक करा</string>
     <string name="disable_skip_button">\'चुकीचा प्रॉम्प्ट\' बटण अक्षम करा</string>
+    <!-- Pending translation -->
+    <string name="disable_switch_prompts_button">\'Switch Prompts\' बटण अक्षम करा</string>
 </resources>
