@@ -456,7 +456,6 @@ class RecordingActivity : FragmentActivity() {
   private var backgroundHandler: Handler? = null
   private lateinit var textureView: TextureView
   private lateinit var videoSize: Size
-  private lateinit var fallbackVideoSizes: List<Size>
   private var sensorOrientation: Int = 0
   private var sensorAspectRatio: Float = 4f / 3f
   private var frontFacingCamera: Boolean = true
@@ -984,7 +983,7 @@ class RecordingActivity : FragmentActivity() {
               }
 
             if (page < sessionLimit - sessionStartIndex) {
-              PromptView2(
+              PromptView(
                 prompt = prompts.array[sessionStartIndex + page],
                 modifier = commonModifier,
                 splitView = splitViewEnabled,
@@ -1410,11 +1409,7 @@ class RecordingActivity : FragmentActivity() {
       throw IllegalStateException("Unable to pick acceptable camera resolution.")
     }
 
-    // Store remaining sizes as fallbacks for retry on session configuration failure.
-    fallbackVideoSizes = candidateSizes.drop(1)
-
     Log.d(TAG, "picked resolution: ${candidateSizes[0].width}x${candidateSizes[0].height}")
-    Log.d(TAG, "fallback resolutions: ${fallbackVideoSizes.map { "${it.width}x${it.height}" }}")
     return candidateSizes[0]
   }
 
@@ -1855,7 +1850,7 @@ fun ImagePreview(prompt: Prompt) {
 }
 
 @Composable
-fun PromptView2(
+fun PromptView(
   prompt: Prompt,
   modifier: Modifier = Modifier,
   splitView: Boolean = false,
@@ -1923,116 +1918,6 @@ fun PromptView2(
       } else {
         preview?.invoke()
       }
-    }
-  }
-}
-
-@Composable
-fun PromptView(prompt: Prompt, modifier: Modifier = Modifier, splitView: Boolean = false) {
-  val isTablet = thisDeviceIsATablet(LocalContext.current)
-  val hasVideo = prompt.promptType == PromptType.VIDEO && prompt.resourcePath != null
-
-  Column(modifier = modifier) {
-    Box(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(if (isTablet) 12.dp else 0.dp)
-        .border(3.dp, Color.Black, shape = RoundedCornerShape(8.dp))
-        .background(Color.White, shape = RoundedCornerShape(8.dp))
-        .padding(if (isTablet) 12.dp else 8.dp)
-    ) {
-      when {
-        // VIDEO in normal mode: text + inline video inside the prompt card
-        hasVideo && !splitView -> {
-          Column {
-            if (prompt.prompt != null) {
-              Text(
-                text = prompt.prompt,
-                color = Color.Black,
-                fontSize = if (isTablet) 30.sp else 24.sp,
-              )
-              Spacer(modifier = Modifier.height(8.dp))
-            }
-            VideoPlayer(
-              resourcePath = prompt.resourcePath!!,
-              modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f),
-              cornerRadius = 8.dp
-            )
-          }
-        }
-        // VIDEO in split mode: only text in the card; large video shown below
-        hasVideo && splitView -> {
-          Text(
-            text = prompt.prompt ?: "",
-            color = Color.Black,
-            fontSize = if (isTablet) 30.sp else 24.sp,
-          )
-        }
-        // TEXT or IMAGE: existing behavior
-        else -> {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            var imageBitmap: ImageBitmap? = null
-            if (prompt.promptType == PromptType.IMAGE && prompt.resourcePath != null) {
-              Log.d("PromptView", "Loading image for prompt: ${prompt.resourcePath}")
-              val context = LocalContext.current
-              imageBitmap = remember(prompt.resourcePath) {
-                val file = File(context.filesDir, prompt.resourcePath)
-                if (file.exists()) {
-                  BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
-                } else {
-                  null
-                }
-              }
-            }
-            if (imageBitmap != null && !isTablet) {
-              TextFlow(
-                text = prompt.prompt ?: "",
-                color = Color.Black,
-                fontSize = 24.sp,
-                modifier = Modifier.weight(1f),
-                obstacleAlignment = TextFlowObstacleAlignment.TopEnd,
-              ) {
-                Image(
-                  bitmap = imageBitmap,
-                  contentDescription = null,
-                  modifier = Modifier
-                    .width(180.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                )
-              }
-            } else {
-              Text(
-                text = prompt.prompt ?: "",
-                color = Color.Black,
-                fontSize = if (isTablet) 30.sp else 24.sp,
-                modifier = Modifier.weight(1f)
-              )
-              if (imageBitmap != null) {
-                Spacer(modifier = Modifier.width(16.dp))
-                Image(
-                  bitmap = imageBitmap,
-                  contentDescription = null,
-                  modifier = Modifier.width(300.dp)
-                )
-              }
-            }
-          }
-        }
-      }
-    }
-    // Split mode: large video below the text box
-    if (hasVideo && splitView) {
-      Spacer(modifier = Modifier.height(8.dp))
-      VideoPlayer(
-        resourcePath = prompt.resourcePath!!,
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(horizontal = if (isTablet) 12.dp else 0.dp)
-          .aspectRatio(16f / 9f),
-        cornerRadius = 8.dp
-      )
     }
   }
 }
