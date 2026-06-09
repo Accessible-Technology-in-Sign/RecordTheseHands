@@ -29,6 +29,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,6 +69,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -500,85 +502,30 @@ fun AdminScreenContent(
         }
       }
 
-      val isSplitViewEnabled = userSettings?.enableSplitView ?: false
-      Row(
-        modifier = Modifier.padding(top = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(R.string.enable_split_view),
-          fontSize = 24.sp
-        )
-        Switch(
-          checked = isSplitViewEnabled,
-          onCheckedChange = { onSetSplitView(it) },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = LightBlue,
-            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
-          )
-        )
-      }
+      SettingSwitch(
+        label = R.string.enable_split_view,
+        checked = userSettings?.enableSplitView ?: false,
+        onCheckedChange = { onSetSplitView(it) },
+        topPadding = 24.dp
+      )
 
-      val isBlockSwipeEnabled = userSettings?.blockSwipeUntilStart ?: false
-      Row(
-        modifier = Modifier.padding(top = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(R.string.block_swipe_until_start),
-          fontSize = 24.sp
-        )
-        Switch(
-          checked = isBlockSwipeEnabled,
-          onCheckedChange = { onSetBlockSwipeUntilStart(it) },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = LightBlue,
-            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
-          )
-        )
-      }
+      SettingSwitch(
+        label = R.string.block_swipe_until_start,
+        checked = userSettings?.blockSwipeUntilStart ?: false,
+        onCheckedChange = { onSetBlockSwipeUntilStart(it) }
+      )
 
-      val isSkipButtonDisabled = userSettings?.disableSkipButton ?: false
-      Row(
-        modifier = Modifier.padding(top = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(R.string.disable_skip_button),
-          fontSize = 24.sp
-        )
-        Switch(
-          checked = isSkipButtonDisabled,
-          onCheckedChange = { onSetDisableSkipButton(it) },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = LightBlue,
-            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
-          )
-        )
-      }
+      SettingSwitch(
+        label = R.string.disable_skip_button,
+        checked = userSettings?.disableSkipButton ?: false,
+        onCheckedChange = { onSetDisableSkipButton(it) }
+      )
 
-      val isSwitchPromptsButtonDisabled = userSettings?.disableSwitchPromptsButton ?: false
-      Row(
-        modifier = Modifier.padding(top = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Text(
-          text = stringResource(R.string.disable_switch_prompts_button),
-          fontSize = 24.sp
-        )
-        Switch(
-          checked = isSwitchPromptsButtonDisabled,
-          onCheckedChange = { onSetDisableSwitchPromptsButton(it) },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = LightBlue,
-            checkedTrackColor = LightBlue.copy(alpha = 0.5f)
-          )
-        )
-      }
+      SettingSwitch(
+        label = R.string.disable_switch_prompts_button,
+        checked = userSettings?.disableSwitchPromptsButton ?: false,
+        onCheckedChange = { onSetDisableSwitchPromptsButton(it) }
+      )
     }
 
     SecondaryButton(
@@ -651,5 +598,41 @@ fun AdminScreenContent(
         }
       )
     }
+  }
+}
+
+/**
+ * A labeled toggle row pairing a [Text] label with a [Switch], styled to match the
+ * other settings switches on the admin screen.
+ *
+ * @param label The string resource for the label shown next to the switch.
+ * @param checked The current value of the setting.
+ * @param onCheckedChange Invoked with the new value when the switch is toggled.
+ * @param topPadding Padding applied above the row.
+ */
+@Composable
+fun SettingSwitch(
+  @StringRes label: Int,
+  checked: Boolean,
+  onCheckedChange: (Boolean) -> Unit,
+  topPadding: Dp = 16.dp
+) {
+  Row(
+    modifier = Modifier.padding(top = topPadding),
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Text(
+      text = stringResource(label),
+      fontSize = 24.sp
+    )
+    Switch(
+      checked = checked,
+      onCheckedChange = onCheckedChange,
+      colors = SwitchDefaults.colors(
+        checkedThumbColor = LightBlue,
+        checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+      )
+    )
   }
 }
