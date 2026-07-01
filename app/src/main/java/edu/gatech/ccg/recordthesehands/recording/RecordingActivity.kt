@@ -1,7 +1,7 @@
 /**
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-2025
+ * Copyright (c) 2021-2026
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
