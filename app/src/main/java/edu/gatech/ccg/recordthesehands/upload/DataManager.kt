@@ -530,13 +530,13 @@ class DataManager private constructor(val context: Context) {
    */
   fun verifyAndOpenConnection(url: URL): HttpURLConnection {
     val urlConnection = url.openConnection() as HttpURLConnection
-    if (url.host != "localhost" && url.host != "127.0.0.1") {
-      check(urlConnection is HttpsURLConnection) {
+    if (urlConnection is HttpsURLConnection) {
+      setAppropriateTrust(urlConnection as HttpsURLConnection)
+    } else if (url.host != "localhost" && url.host != "127.0.0.1") {
+      error(
         "You must use an HTTPS connection to connect to the server, unless " +
         "debugging locally!"
-      }
-
-      setAppropriateTrust(urlConnection as HttpsURLConnection)
+      )
     }
     return urlConnection
   }
