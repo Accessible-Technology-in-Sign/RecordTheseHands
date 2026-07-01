@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Translations were made with ChatGPT, feel free to fix any incorrect translations. -->
-    <string name="app_name">RecordTheseHands</string>
+    <string name="app_name">手話録画アプリ</string>
 
     <!-- Log In Interface -->
     <string name="admin_title">ログイン</string>
@@ -21,18 +21,21 @@
     <string name="failed_button">アカウント作成に失敗しました。再試行してください</string>
 
     <!-- Prompt Page -->
-    <string name="select_prompt">プロンプトを選択</string>
-    <string name="downloaded_prompts">ダウンロード済みのプロンプト</string>
-    <string name="tutorial_prompts">チュートリアルモード</string>
+    <string name="select_prompt">モードを選択</string>
+    <string name="downloaded_prompts">本番モード</string>
+    <string name="tutorial_prompts">練習モード</string>
 
     <!-- Main Page -->
+    <string name="upload_in_progress">アップロード中</string>
+    <string name="upload_progress">進捗:</string>
+    <string name="switch_prompts">プロンプトの切り替え（押さない）</string>
     <!-- Information -->
     <string name="loading">アプリデータを読み込み中…</string>
     <string name="id_error">デバイスIDが設定されていません</string>
     <string name="username_error">ユーザー名が設定されていません</string>
 
     <!-- Status Information -->
-    <string name="status_header">ステータス情報</string>
+    <string name="status_header">接続状況</string>
     <string name="internet_status">インターネット接続を確認中…</string>
     <string name="internet_unavailable">インターネットが利用できません</string>
     <string name="internet_success">インターネットに接続済み</string>
@@ -41,15 +44,15 @@
     <string name="server_success">サーバーに接続済み</string>
 
     <!-- Statistics -->
-    <string name="statistics_header">統計</string>
-    <string name="prompts_completed">完了したプロンプト:</string>
-    <string name="total_recordings">録音合計:</string>
+    <string name="statistics_header">これまでの実績</string>
+    <string name="prompts_completed">完了した手話単語の数:</string>
+    <string name="total_recordings">合計の録画ファイル数:</string>
     <string name="total_time">合計時間:</string>
-    <string name="total_sessions">このセッションで完了した回数:</string>
+    <string name="total_sessions">前のセッションで完了した回数:</string>
     <string name="total_uploaded">アップロード合計</string>
-    <string name="ratio">%1$s の %2$s</string>
+    <string name="ratio">%2$s つのうち %1$s つ</string>
     <string name="counter">0</string>
-    <string name="tutorial_mode">チュートリアルモード</string>
+    <string name="tutorial_mode">これは練習モードです</string>
     <string name="start_button">開始</string>
     <string name="start_disabled">開始できません</string>
     <!-- Upload Dialog -->
@@ -64,15 +67,22 @@
 
     <!-- Recording Session Page -->
     <string name="record">開始</string>
-    <string name="restart">ミス\nリスタート</string>
+    <string name="restart">撮り直し</string>
     <string name="finish">完了</string>
-    <string name="recording">録音中</string>
+    <string name="recording">録画中</string>
     <string name="time">15:00</string>
-    <string name="go">スタート!</string>
+    <string name="bad_prompt">不適切なプロンプト</string>
+    <string name="go">開始</string>
 
     <!-- Permissions -->
     <string name="perm_alert">アプリを使用するには許可が必要です</string>
     <string name="perm_alert_message">データを記録するために、カメラと書き込み機能へのアクセスが必要です。</string>
     <string name="ok">OK</string>
     <string name="words_signed">手話した単語</string>
+
+    <!-- Pending translation -->
+    <string name="enable_split_view">分割ビューを有効にする</string>
+    <string name="block_swipe_until_start">開始を押すまでスワイプをブロック</string>
+    <string name="disable_skip_button">\'不適切なプロンプト\' ボタンを無効にする</string>
+    <string name="disable_switch_prompts_button">\'プロンプトの切り替え\' ボタンを無効にする</string>
 </resources>

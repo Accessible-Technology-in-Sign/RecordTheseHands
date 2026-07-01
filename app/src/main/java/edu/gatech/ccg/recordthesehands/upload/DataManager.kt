@@ -457,6 +457,7 @@ class DataManager private constructor(val context: Context) {
     }
     for (trustable_host in context.resources.getString(trustable).split(',')) {
       if (host == trustable_host) {
+        Log.d(TAG, "Connecting to trusted host $host")
         return true
       }
     }
@@ -512,6 +513,32 @@ class DataManager private constructor(val context: Context) {
     if (shouldTrustUrl(urlConnection.url)) {
       setTrustAllCertificates(urlConnection)
     }
+  }
+
+
+  /**
+   * Opens a connection to the given URL and verifies that it is secure.
+   * Unless the URL points to localhost, this requires the connection to be an
+   * [HttpsURLConnection] and configures the appropriate trust level via
+   * [setAppropriateTrust].
+   *
+   * This function does not acquire the data lock and will not block.
+   *
+   * @param url The URL to open a connection to.
+   * @return The opened [HttpURLConnection].
+   * @throws IllegalStateException If a non-HTTPS connection is used for a non-local URL.
+   */
+  fun verifyAndOpenConnection(url: URL): HttpURLConnection {
+    val urlConnection = url.openConnection() as HttpURLConnection
+    if (urlConnection is HttpsURLConnection) {
+      setAppropriateTrust(urlConnection as HttpsURLConnection)
+    } else if (url.host != "localhost" && url.host != "127.0.0.1") {
+      error(
+        "You must use an HTTPS connection to connect to the server, unless " +
+        "debugging locally!"
+      )
+    }
+    return urlConnection
   }
 
 
@@ -605,8 +632,7 @@ class DataManager private constructor(val context: Context) {
     val formData = data.map { (k, v) ->
       URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
     }.joinToString("&").toByteArray(Charsets.UTF_8)
-    val urlConnection = url.openConnection() as HttpsURLConnection
-    setAppropriateTrust(urlConnection)
+    val urlConnection = verifyAndOpenConnection(url)
 
     var code: Int = -1
     var interrupted = false
@@ -685,8 +711,7 @@ class DataManager private constructor(val context: Context) {
     }
 
     var outputFromHeader: String? = null
-    val urlConnection = url.openConnection() as HttpsURLConnection
-    setAppropriateTrust(urlConnection)
+    val urlConnection = verifyAndOpenConnection(url)
 
     var code: Int = -1
     var output: String? = null
@@ -929,6 +954,38 @@ class DataManager private constructor(val context: Context) {
     dataManagerData.lock.withLock {
       val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
       val newSettings = currentSettings.copy(enableDismissCountdownCircle = enabled)
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
+  suspend fun setEnableSplitView(enabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(enableSplitView = enabled)
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
+  suspend fun setBlockSwipeUntilStart(enabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(blockSwipeUntilStart = enabled)
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
+  suspend fun setDisableSkipButton(disabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(disableSkipButton = disabled)
+      setUserSettingsUnderLock(newSettings)
+    }
+  }
+
+  suspend fun setDisableSwitchPromptsButton(disabled: Boolean) {
+    dataManagerData.lock.withLock {
+      val currentSettings = dataManagerData.userSettings.value ?: UserSettings()
+      val newSettings = currentSettings.copy(disableSwitchPromptsButton = disabled)
       setUserSettingsUnderLock(newSettings)
     }
   }

@@ -146,4 +146,8 @@
     <string name="ok">OK</string>
     <string name="words_signed">Words signed</string>
     <string name="no_more_prompts">Tasks completed</string>
+    <string name="enable_split_view">Enable Split View</string>
+    <string name="block_swipe_until_start">Block swipe until pressing Start</string>
+    <string name="disable_skip_button">Disable \'Bad prompt\' button</string>
+    <string name="disable_switch_prompts_button">Disable \'Switch Prompts\' button</string>
 </resources>

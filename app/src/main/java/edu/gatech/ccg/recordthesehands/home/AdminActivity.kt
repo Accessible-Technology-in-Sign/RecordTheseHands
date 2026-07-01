@@ -1,7 +1,7 @@
 /**
  * This file is part of Record These Hands, licensed under the MIT license.
  *
- * Copyright (c) 2021-2025
+ * Copyright (c) 2021-2026
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +47,8 @@ import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
+import androidx.compose.material.Switch
+import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -66,6 +69,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -140,6 +144,26 @@ class AdminActivity : ComponentActivity() {
           lifecycleScope.launch(Dispatchers.IO) {
             dataManager.setOverviewInstructionsShown(false)
           }
+        },
+        onSetSplitView = { enabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setEnableSplitView(enabled)
+          }
+        },
+        onSetBlockSwipeUntilStart = { enabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setBlockSwipeUntilStart(enabled)
+          }
+        },
+        onSetDisableSkipButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSkipButton(disabled)
+          }
+        },
+        onSetDisableSwitchPromptsButton = { disabled ->
+          lifecycleScope.launch(Dispatchers.IO) {
+            dataManager.setDisableSwitchPromptsButton(disabled)
+          }
         }
       )
     }
@@ -167,7 +191,11 @@ fun AdminScreenContent(
   onAttachToAccount: (Boolean) -> Unit,
   onDownloadApk: () -> Unit,
   onSetDismissCountdownCircle: (Boolean) -> Unit,
-  onResetOverviewInstructions: () -> Unit
+  onResetOverviewInstructions: () -> Unit,
+  onSetSplitView: (Boolean) -> Unit,
+  onSetBlockSwipeUntilStart: (Boolean) -> Unit,
+  onSetDisableSkipButton: (Boolean) -> Unit,
+  onSetDisableSwitchPromptsButton: (Boolean) -> Unit
 ) {
   val promptState by dataManager.promptState.observeAsState()
   val userSettings by dataManager.userSettings.observeAsState()
@@ -473,6 +501,31 @@ fun AdminScreenContent(
           removeDeviceCheckbox()
         }
       }
+
+      SettingSwitch(
+        label = R.string.enable_split_view,
+        checked = userSettings?.enableSplitView ?: false,
+        onCheckedChange = { onSetSplitView(it) },
+        topPadding = 24.dp
+      )
+
+      SettingSwitch(
+        label = R.string.block_swipe_until_start,
+        checked = userSettings?.blockSwipeUntilStart ?: false,
+        onCheckedChange = { onSetBlockSwipeUntilStart(it) }
+      )
+
+      SettingSwitch(
+        label = R.string.disable_skip_button,
+        checked = userSettings?.disableSkipButton ?: false,
+        onCheckedChange = { onSetDisableSkipButton(it) }
+      )
+
+      SettingSwitch(
+        label = R.string.disable_switch_prompts_button,
+        checked = userSettings?.disableSwitchPromptsButton ?: false,
+        onCheckedChange = { onSetDisableSwitchPromptsButton(it) }
+      )
     }
 
     SecondaryButton(
@@ -545,5 +598,41 @@ fun AdminScreenContent(
         }
       )
     }
+  }
+}
+
+/**
+ * A labeled toggle row pairing a [Text] label with a [Switch], styled to match the
+ * other settings switches on the admin screen.
+ *
+ * @param label The string resource for the label shown next to the switch.
+ * @param checked The current value of the setting.
+ * @param onCheckedChange Invoked with the new value when the switch is toggled.
+ * @param topPadding Padding applied above the row.
+ */
+@Composable
+fun SettingSwitch(
+  @StringRes label: Int,
+  checked: Boolean,
+  onCheckedChange: (Boolean) -> Unit,
+  topPadding: Dp = 16.dp
+) {
+  Row(
+    modifier = Modifier.padding(top = topPadding),
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Text(
+      text = stringResource(label),
+      fontSize = 24.sp
+    )
+    Switch(
+      checked = checked,
+      onCheckedChange = onCheckedChange,
+      colors = SwitchDefaults.colors(
+        checkedThumbColor = LightBlue,
+        checkedTrackColor = LightBlue.copy(alpha = 0.5f)
+      )
+    )
   }
 }
